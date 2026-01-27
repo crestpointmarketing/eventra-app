@@ -58,15 +58,24 @@ export function formatEventDateRange(startDate: string | null, endDate: string |
     const start = new Date(startDate)
     const end = endDate ? new Date(endDate) : null
 
-    const formatOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
-    const startStr = start.toLocaleDateString('en-US', formatOptions)
-
+    // Single day or no end date
     if (!end || start.toDateString() === end.toDateString()) {
-        return startStr
+        const formatOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+        return start.toLocaleDateString('en-US', formatOptions)
     }
 
-    const endStr = end.toLocaleDateString('en-US', formatOptions)
-    const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    // Multi-day event
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
+    const startDay = start.getDate()
+    const endDay = end.getDate()
+    const year = start.getFullYear()
 
-    return `${startStr} - ${endStr} (${duration} days)`
+    // Same month: "Jan 25-27 2026"
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+        return `${startMonth} ${startDay}-${endDay} ${year}`
+    }
+
+    // Different months: "Jan 25 - Feb 3 2026"
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay} ${year}`
 }

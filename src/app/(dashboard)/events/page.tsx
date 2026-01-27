@@ -442,14 +442,14 @@ export default function EventsPage() {
                                             </div>
                                         </div>
                                         <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                                            <p className="flex items-center gap-1.5">
-                                                📅 {formatEventDateRange(event.start_date, event.end_date)}
+                                            <div>
+                                                <p>📅 {formatEventDateRange(event.start_date, event.end_date)}</p>
                                                 {getEventStatus(event.start_date, event.end_date).daysInfo && (
-                                                    <span className="text-xs text-zinc-500 dark:text-zinc-500">
+                                                    <p className="text-xs text-zinc-500 dark:text-zinc-500 ml-5">
                                                         ({getEventStatus(event.start_date, event.end_date).daysInfo})
-                                                    </span>
+                                                    </p>
                                                 )}
-                                            </p>
+                                            </div>
                                             <p>📍 {event.location || 'No location'}</p>
                                             <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
                                             {event.event_type && (
