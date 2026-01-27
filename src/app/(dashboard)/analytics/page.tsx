@@ -185,7 +185,7 @@ export default function AnalyticsPage() {
                                     <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
                                     <div className="flex-grow">
                                         <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
-                                        <p className="text-sm text-zinc-600 dark:text-zinc-300">{event.location}</p>
+                                        <p className="text-sm text-zinc-600 dark:text-white">{event.location}</p>
                                     </div>
                                     <Badge variant="lime">{event.leads} leads</Badge>
                                 </div>
