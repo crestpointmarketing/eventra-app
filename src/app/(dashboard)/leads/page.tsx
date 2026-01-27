@@ -38,6 +38,9 @@ import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw } from 'luc
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
+import { useBulkSelection } from '@/hooks/useBulkSelection'
+import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
+import { bulkUpdateLeadStatus, type LeadStatus } from '@/lib/api/bulk-operations'
 
 type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
 type SortDirection = 'asc' | 'desc'
@@ -91,6 +94,140 @@ export default function LeadsPage() {
         })
     }
 
+    // Filter and sort leads first
+    const filteredAndSortedLeads = useMemo(() => {
+        if (!leads) return []
+
+        // Apply basic filter (priority)
+        let result = filter === 'all'
+            ? leads
+            : leads.filter((lead: any) => {
+                const score = lead.lead_score || 0
+                if (filter === 'hot') return score >= 80
+                if (filter === 'warm') return score >= 50 && score < 80
+                if (filter === 'cold') return score < 50
+                return true
+            })
+
+        // Apply search
+        if (debouncedSearch) {
+            const query = debouncedSearch.toLowerCase()
+            result = result.filter((lead: any) =>
+                lead.name?.toLowerCase().includes(query) ||
+                lead.email?.toLowerCase().includes(query) ||
+                lead.company?.toLowerCase().includes(query)
+            )
+        }
+
+        // Apply advanced filters
+        result = result.filter((lead: any) => {
+            const score = lead.lead_score || 0
+            if (score < advancedFilters.scoreRange[0] || score > advancedFilters.scoreRange[1]) {
+                return false
+            }
+
+            if (advancedFilters.statuses.length > 0) {
+                if (!advancedFilters.statuses.includes(lead.lead_status)) {
+                    return false
+                }
+            }
+
+            if (advancedFilters.eventId !== 'all') {
+                if (lead.event_id !== advancedFilters.eventId) {
+                    return false
+                }
+            }
+
+            if (advancedFilters.dateFrom || advancedFilters.dateTo) {
+                const leadDate = new Date(lead.created_at)
+                if (advancedFilters.dateFrom && leadDate < new Date(advancedFilters.dateFrom)) {
+                    return false
+                }
+                if (advancedFilters.dateTo) {
+                    const endDate = new Date(advancedFilters.dateTo)
+                    endDate.setHours(23, 59, 59, 999)
+                    if (leadDate > endDate) {
+                        return false
+                    }
+                }
+            }
+
+            return true
+        })
+
+        // Apply sorting
+        if (sortField) {
+            result.sort((a: any, b: any) => {
+                let aVal = a[sortField]
+                let bVal = b[sortField]
+
+                if (sortField === 'score') {
+                    aVal = a.lead_score || 0
+                    bVal = b.lead_score || 0
+                } else if (sortField === 'status') {
+                    aVal = a.lead_status || ''
+                    bVal = b.lead_status || ''
+                }
+
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase()
+                    bVal = bVal?.toLowerCase() || ''
+                }
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+                return 0
+            })
+        }
+
+        return result
+    }, [leads, filter, debouncedSearch, sortField, sortDirection, advancedFilters])
+
+    // Bulk selection hook (must be after filteredAndSortedLeads)
+    const {
+        selectedIds,
+        selectedItems,
+        selectedCount,
+        isAllSelected,
+        isIndeterminate,
+        toggleItem,
+        toggleAll,
+        clearSelection
+    } = useBulkSelection(filteredAndSortedLeads)
+
+    // Handle bulk status update
+    const handleBulkStatusUpdate = async (newStatus: string) => {
+        if (selectedCount === 0) return
+
+        try {
+            await bulkUpdateLeadStatus(
+                Array.from(selectedIds),
+                newStatus as LeadStatus
+            )
+            toast.success(`Updated ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to ${newStatus}`)
+            clearSelection()
+            // Refresh leads data
+            window.location.reload()
+        } catch (error) {
+            toast.error('Failed to update lead status', {
+                description: 'Please try again or contact support'
+            })
+        }
+    }
+
+    // Handle bulk export
+    const handleBulkExport = () => {
+        try {
+            exportLeadsToCSV(selectedItems)
+            toast.success(`Exported ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to CSV`)
+            clearSelection()
+        } catch (error) {
+            toast.error('Failed to export leads', {
+                description: 'Please try again or contact support'
+            })
+        }
+    }
+
     // Handle column header click
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -116,110 +253,7 @@ export default function LeadsPage() {
         )
     }
 
-    // Filter, search, and sort leads
-    const filteredAndSortedLeads = useMemo(() => {
-        if (!leads) return []
 
-        let result = leads
-
-        // Apply priority filter (Hot/Warm/Cold tabs)
-        result = result.filter((lead: any) => {
-            if (filter === 'all') return true
-            if (filter === 'hot') return lead.lead_score >= 80
-            if (filter === 'warm') return lead.lead_score >= 50 && lead.lead_score < 80
-            if (filter === 'cold') return lead.lead_score < 50
-            return true
-        })
-
-        // Apply advanced filters
-
-        // Score range
-        if (advancedFilters.scoreRange[0] > 0 || advancedFilters.scoreRange[1] < 100) {
-            result = result.filter((lead: any) => {
-                const score = lead.lead_score || 0
-                return score >= advancedFilters.scoreRange[0] && score <= advancedFilters.scoreRange[1]
-            })
-        }
-
-        // Status filter
-        if (advancedFilters.statuses.length > 0) {
-            result = result.filter((lead: any) =>
-                advancedFilters.statuses.includes(lead.lead_status?.toLowerCase())
-            )
-        }
-
-        // Event filter
-        if (advancedFilters.eventId !== 'all') {
-            result = result.filter((lead: any) =>
-                lead.event_id === advancedFilters.eventId
-            )
-        }
-
-        // Date range filter
-        if (advancedFilters.dateFrom) {
-            result = result.filter((lead: any) =>
-                lead.created_at && new Date(lead.created_at) >= new Date(advancedFilters.dateFrom)
-            )
-        }
-        if (advancedFilters.dateTo) {
-            result = result.filter((lead: any) =>
-                lead.created_at && new Date(lead.created_at) <= new Date(advancedFilters.dateTo)
-            )
-        }
-
-        // Apply search
-        if (debouncedSearch) {
-            const query = debouncedSearch.toLowerCase()
-            result = result.filter((lead: any) =>
-                lead.first_name?.toLowerCase().includes(query) ||
-                lead.last_name?.toLowerCase().includes(query) ||
-                lead.email?.toLowerCase().includes(query) ||
-                lead.company?.toLowerCase().includes(query)
-            )
-        }
-
-        // Apply sort
-        if (sortField) {
-            result = [...result].sort((a: any, b: any) => {
-                let aValue, bValue
-
-                switch (sortField) {
-                    case 'name':
-                        aValue = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase()
-                        bValue = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase()
-                        break
-                    case 'email':
-                        aValue = (a.email || '').toLowerCase()
-                        bValue = (b.email || '').toLowerCase()
-                        break
-                    case 'company':
-                        aValue = (a.company || '').toLowerCase()
-                        bValue = (b.company || '').toLowerCase()
-                        break
-                    case 'score':
-                        aValue = a.lead_score || 0
-                        bValue = b.lead_score || 0
-                        break
-                    case 'status':
-                        aValue = (a.status || '').toLowerCase()
-                        bValue = (b.status || '').toLowerCase()
-                        break
-                    default:
-                        return 0
-                }
-
-                // Handle number vs string comparison
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
-                }
-
-                const comparison = String(aValue).localeCompare(String(bValue))
-                return sortDirection === 'asc' ? comparison : -comparison
-            })
-        }
-
-        return result
-    }, [leads, filter, debouncedSearch, sortField, sortDirection, advancedFilters])
 
     // Count leads by priority
     const leadCounts: { all: number; hot: number; warm: number; cold: number } = useMemo(() => {
@@ -514,6 +548,13 @@ export default function LeadsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-12">
+                                        <Checkbox
+                                            checked={isAllSelected}
+                                            onCheckedChange={toggleAll}
+                                            aria-label="Select all leads"
+                                        />
+                                    </TableHead>
                                     <TableHead
                                         className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
                                         onClick={() => handleSort('name')}
@@ -557,6 +598,13 @@ export default function LeadsPage() {
                                         whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
                                         className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                                     >
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={selectedIds.has(lead.id)}
+                                                onCheckedChange={() => toggleItem(lead.id)}
+                                                aria-label={`Select ${lead.first_name} ${lead.last_name}`}
+                                            />
+                                        </TableCell>
                                         <TableCell className="font-medium text-zinc-900 dark:text-white">
                                             {lead.first_name} {lead.last_name}
                                         </TableCell>
@@ -611,6 +659,21 @@ export default function LeadsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Bulk Actions Toolbar */}
+            <BulkActionsToolbar
+                count={selectedCount}
+                itemType="lead"
+                onExport={handleBulkExport}
+                onUpdateStatus={handleBulkStatusUpdate}
+                onClear={clearSelection}
+                statusOptions={[
+                    { value: 'new', label: 'New' },
+                    { value: 'contacted', label: 'Contacted' },
+                    { value: 'qualified', label: 'Qualified' },
+                    { value: 'converted', label: 'Converted' },
+                ]}
+            />
         </PageTransition>
     )
 }
