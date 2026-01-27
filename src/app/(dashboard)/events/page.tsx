@@ -211,7 +211,7 @@ export default function EventsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-5xl font-medium text-zinc-900">My Events</h1>
+                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">My Events</h1>
                 <Button
                     variant="outline"
                     onClick={handleExport}
@@ -225,20 +225,20 @@ export default function EventsPage() {
             <div className="flex gap-4 mb-8">
                 {/* Search */}
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                     <Input
                         type="text"
                         placeholder="Search events by name or location..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9"
+                        className="pl-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white"
                     />
                 </div>
 
                 {/* Advanced Filters */}
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800">
+                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900">
                             <Filter className="h-4 w-4 mr-2" />
                             Advanced Filters
                             {activeFilterCount > 0 && (
@@ -248,16 +248,16 @@ export default function EventsPage() {
                             )}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-96 bg-white border-2 border-zinc-200 shadow-lg">
+                    <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
                         <div className="space-y-6">
                             <div>
-                                <h4 className="font-medium text-sm mb-4">Advanced Filters</h4>
+                                <h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4>
                             </div>
 
                             {/* Budget Range */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Budget Range</Label>
-                                <div className="text-sm text-zinc-600 mb-2">
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Budget Range</Label>
+                                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
                                     ${filters.budgetRange[0].toLocaleString()} - ${filters.budgetRange[1].toLocaleString()}
                                 </div>
                                 <Slider
@@ -379,7 +379,7 @@ export default function EventsPage() {
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Sort by..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-white border-2 border-zinc-200 shadow-lg">
+                        <SelectContent className="bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
                             <SelectItem value="date-desc">Date (Newest First)</SelectItem>
                             <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
                             <SelectItem value="budget-desc">Budget (High to Low)</SelectItem>
@@ -393,7 +393,7 @@ export default function EventsPage() {
 
             {/* Results Count */}
             {hasActiveFilters && (
-                <div className="mb-4 text-sm text-zinc-600">
+                <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
                     Found {filteredAndSortedEvents.length} event{filteredAndSortedEvents.length !== 1 ? 's' : ''}
                     {activeFilterCount > 0 && (
                         <Button
@@ -413,12 +413,12 @@ export default function EventsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredAndSortedEvents.map((event: any) => (
                         <Link key={event.id} href={`/events/${event.id}`}>
-                            <Card className="p-6 border border-zinc-200 hover:border-zinc-900 transition-colors h-full">
+                            <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900">
                                 <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-xl font-medium text-zinc-900">{event.name}</h3>
+                                    <h3 className="text-xl font-medium text-zinc-900 dark:text-white">{event.name}</h3>
                                     <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
                                 </div>
-                                <div className="space-y-2 text-zinc-600 text-sm">
+                                <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
                                     <p>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</p>
                                     <p>📍 {event.location || 'No location'}</p>
                                     <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
@@ -431,8 +431,8 @@ export default function EventsPage() {
                     ))}
                 </div>
             ) : (
-                <Card className="p-12 border border-zinc-200 text-center">
-                    <p className="text-zinc-600 mb-4">
+                <Card className="p-12 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-4">
                         {hasActiveFilters ? 'No events match your filters' : 'No events yet'}
                     </p>
                     {hasActiveFilters && (
