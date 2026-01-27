@@ -28,6 +28,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { Search, ArrowUpDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import { getEventStatus, formatEventDateRange } from '@/lib/utils/event-status'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
 
@@ -430,11 +431,25 @@ export default function EventsPage() {
                                 >
                                     <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900 hover:shadow-lg">
                                         <div className="flex justify-between items-start mb-4">
-                                            <h3 className="text-xl font-medium text-zinc-900 dark:text-white">{event.name}</h3>
-                                            <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                            <h3 className="text-xl font-medium text-zinc-900 dark:text-white flex-1 pr-2">
+                                                {event.name}
+                                            </h3>
+                                            <div className="flex gap-2 flex-shrink-0">
+                                                <Badge variant={getEventStatus(event.start_date, event.end_date).variant}>
+                                                    {getEventStatus(event.start_date, event.end_date).label}
+                                                </Badge>
+                                                <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                            </div>
                                         </div>
                                         <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                                            <p>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</p>
+                                            <p className="flex items-center gap-1.5">
+                                                📅 {formatEventDateRange(event.start_date, event.end_date)}
+                                                {getEventStatus(event.start_date, event.end_date).daysInfo && (
+                                                    <span className="text-xs text-zinc-500 dark:text-zinc-500">
+                                                        ({getEventStatus(event.start_date, event.end_date).daysInfo})
+                                                    </span>
+                                                )}
+                                            </p>
                                             <p>📍 {event.location || 'No location'}</p>
                                             <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
                                             {event.event_type && (

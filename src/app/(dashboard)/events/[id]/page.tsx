@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { getEventStatus } from '@/lib/utils/event-status'
 
 const COLORS = {
     hot: '#a3e635',    // lime-400
@@ -109,10 +110,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                     </div>
                     <div className="flex gap-3">
+                        <Badge variant={getEventStatus(event.start_date, event.end_date).variant}>
+                            {getEventStatus(event.start_date, event.end_date).label}
+                        </Badge>
                         <Link href={`/events/${id}/edit`}>
                             <Button variant="outline">Edit Event</Button>
                         </Link>
-                        <Badge variant="lime">Active</Badge>
                     </div>
                 </div>
             </div>
