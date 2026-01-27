@@ -404,7 +404,7 @@ export default function LeadsPage() {
                                     <SelectTrigger>
                                         <SelectValue placeholder="All Events" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="bg-white border-2 border-zinc-200 shadow-lg">
                                         <SelectItem value="all">All Events</SelectItem>
                                         {events?.map((event: any) => (
                                             <SelectItem key={event.id} value={event.id}>
