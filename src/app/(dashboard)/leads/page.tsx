@@ -17,16 +17,36 @@ import Link from 'next/link'
 import { exportLeadsToCSV } from '@/lib/export'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search } from 'lucide-react'
+import { Search, ArrowUp, ArrowDown } from 'lucide-react'
+
+type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
+type SortDirection = 'asc' | 'desc'
 
 export default function LeadsPage() {
     const { data: leads, isLoading, error } = useLeads()
     const [filter, setFilter] = useState<string>('all')
     const [searchQuery, setSearchQuery] = useState('')
+    const [sortField, setSortField] = useState<SortField>('score')
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
     const debouncedSearch = useDebounce(searchQuery, 300)
 
-    // Filter and search leads
-    const filteredLeads = useMemo(() => {
+    // Handle column header click
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            // Toggle direction or clear sort
+            if (sortDirection === 'asc') {
+                setSortDirection('desc')
+            } else if (sortDirection === 'desc') {
+                setSortField(null) // Clear sort
+            }
+        } else {
+            setSortField(field)
+            setSortDirection('asc')
+        }
+    }
+
+    // Filter, search, and sort leads
+    const filteredAndSortedLeads = useMemo(() => {
         if (!leads) return []
 
         let result = leads
@@ -51,8 +71,57 @@ export default function LeadsPage() {
             )
         }
 
+        // Apply sort
+        if (sortField) {
+            result = [...result].sort((a: any, b: any) => {
+                let aValue, bValue
+
+                switch (sortField) {
+                    case 'name':
+                        aValue = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase()
+                        bValue = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase()
+                        break
+                    case 'email':
+                        aValue = (a.email || '').toLowerCase()
+                        bValue = (b.email || '').toLowerCase()
+                        break
+                    case 'company':
+                        aValue = (a.company || '').toLowerCase()
+                        bValue = (b.company || '').toLowerCase()
+                        break
+                    case 'score':
+                        aValue = a.lead_score || 0
+                        bValue = b.lead_score || 0
+                        break
+                    case 'status':
+                        aValue = (a.lead_status || '').toLowerCase()
+                        bValue = (b.lead_status || '').toLowerCase()
+                        break
+                    default:
+                        return 0
+                }
+
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
+                }
+
+                const comparison = String(aValue).localeCompare(String(bValue))
+                return sortDirection === 'asc' ? comparison : -comparison
+            })
+        }
+
         return result
-    }, [leads, filter, debouncedSearch])
+    }, [leads, filter, debouncedSearch, sortField, sortDirection])
+
+    // Sort indicator component
+    const SortIcon = ({ field }: { field: SortField }) => {
+        if (sortField !== field) return null
+        return sortDirection === 'asc' ? (
+            <ArrowUp className="inline h-4 w-4 ml-1" />
+        ) : (
+            <ArrowDown className="inline h-4 w-4 ml-1" />
+        )
+    }
 
     if (isLoading) {
         return (
@@ -100,8 +169,8 @@ export default function LeadsPage() {
                 <h1 className="text-5xl font-medium text-zinc-900">Leads</h1>
                 <Button
                     variant="outline"
-                    onClick={() => exportLeadsToCSV(filteredLeads || [])}
-                    disabled={!filteredLeads || filteredLeads.length === 0}
+                    onClick={() => exportLeadsToCSV(filteredAndSortedLeads || [])}
+                    disabled={!filteredAndSortedLeads || filteredAndSortedLeads.length === 0}
                 >
                     Export to CSV
                 </Button>
@@ -121,7 +190,7 @@ export default function LeadsPage() {
                 </div>
                 {debouncedSearch && (
                     <p className="text-sm text-zinc-600 mt-2">
-                        Found {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''}
+                        Found {filteredAndSortedLeads.length} lead{filteredAndSortedLeads.length !== 1 ? 's' : ''}
                     </p>
                 )}
             </div>
@@ -157,17 +226,42 @@ export default function LeadsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="font-medium">Name</TableHead>
-                            <TableHead className="font-medium">Email</TableHead>
-                            <TableHead className="font-medium">Company</TableHead>
+                            <TableHead
+                                className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                onClick={() => handleSort('name')}
+                            >
+                                Name <SortIcon field="name" />
+                            </TableHead>
+                            <TableHead
+                                className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                onClick={() => handleSort('email')}
+                            >
+                                Email <SortIcon field="email" />
+                            </TableHead>
+                            <TableHead
+                                className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                onClick={() => handleSort('company')}
+                            >
+                                Company <SortIcon field="company" />
+                            </TableHead>
                             <TableHead className="font-medium">Event</TableHead>
-                            <TableHead className="font-medium">Score</TableHead>
-                            <TableHead className="font-medium">Status</TableHead>
+                            <TableHead
+                                className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                onClick={() => handleSort('score')}
+                            >
+                                Score <SortIcon field="score" />
+                            </TableHead>
+                            <TableHead
+                                className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                onClick={() => handleSort('status')}
+                            >
+                                Status <SortIcon field="status" />
+                            </TableHead>
                             <TableHead className="font-medium">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredLeads?.map((lead: any) => (
+                        {filteredAndSortedLeads?.map((lead: any) => (
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium">
                                     {lead.first_name} {lead.last_name}
@@ -198,7 +292,7 @@ export default function LeadsPage() {
                 </Table>
             </div>
 
-            {filteredLeads && filteredLeads.length === 0 && (
+            {filteredAndSortedLeads && filteredAndSortedLeads.length === 0 && (
                 <div className="text-center py-12">
                     {debouncedSearch || filter !== 'all' ? (
                         <>
