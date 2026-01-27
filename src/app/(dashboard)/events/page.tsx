@@ -462,7 +462,7 @@ export default function EventsPage() {
                             >
                                 {/* Checkbox Overlay */}
                                 <div
-                                    className="absolute top-4 left-4 z-10"
+                                    className="absolute bottom-4 right-4 z-10"
                                     onClick={(e) => {
                                         e.preventDefault()
                                         e.stopPropagation()
