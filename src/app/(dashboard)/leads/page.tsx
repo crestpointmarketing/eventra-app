@@ -36,6 +36,7 @@ import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 
 type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
 type SortDirection = 'asc' | 'desc'
@@ -545,8 +546,15 @@ export default function LeadsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredAndSortedLeads.map((lead: any) => (
-                                <TableRow key={lead.id}>
+                            {filteredAndSortedLeads.map((lead: any, index: number) => (
+                                <motion.tr
+                                    key={lead.id}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.03 }}
+                                    whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
+                                    className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                                >
                                     <TableCell className="font-medium text-zinc-900 dark:text-white">
                                         {lead.first_name} {lead.last_name}
                                     </TableCell>
@@ -573,7 +581,7 @@ export default function LeadsPage() {
                                             </Button>
                                         </Link>
                                     </TableCell>
-                                </TableRow>
+                                </motion.tr>
                             ))}
                         </TableBody>
                     </Table>

@@ -14,6 +14,7 @@ import {
 } from '@/lib/analytics'
 import { StatsLoadingGrid } from '@/components/ui/loading-skeletons'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { motion } from 'framer-motion'
 
 const COLORS = {
     lime: '#a3e635',
@@ -70,25 +71,53 @@ export default function AnalyticsPage() {
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
-                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
-                </Card>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0 }}
+                    whileHover={{ scale: 1.05, y: -4 }}
+                >
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
+                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
+                    </Card>
+                </motion.div>
 
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
-                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
-                </Card>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    whileHover={{ scale: 1.05, y: -4 }}
+                >
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
+                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
+                    </Card>
+                </motion.div>
 
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
-                    <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
-                </Card>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                    whileHover={{ scale: 1.05, y: -4 }}
+                >
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
+                        <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
+                    </Card>
+                </motion.div>
 
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
-                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
-                </Card>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                    whileHover={{ scale: 1.05, y: -4 }}
+                >
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
+                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
+                    </Card>
+                </motion.div>
             </div>
 
             {/* Charts Section */}

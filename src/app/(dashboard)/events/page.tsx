@@ -27,6 +27,7 @@ import { EventsLoadingGrid } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Search, ArrowUpDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
 
@@ -413,23 +414,35 @@ export default function EventsPage() {
             {/* Events Grid */}
             {filteredAndSortedEvents.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAndSortedEvents.map((event: any) => (
-                        <Link key={event.id} href={`/events/${event.id}`}>
-                            <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="text-xl font-medium text-zinc-900 dark:text-white">{event.name}</h3>
-                                    <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
-                                </div>
-                                <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                                    <p>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</p>
-                                    <p>📍 {event.location || 'No location'}</p>
-                                    <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
-                                    {event.event_type && (
-                                        <p className="capitalize">🎪 {event.event_type.replace('_', ' ')}</p>
-                                    )}
-                                </div>
-                            </Card>
-                        </Link>
+                    {filteredAndSortedEvents.map((event: any, index: number) => (
+                        <motion.div
+                            key={event.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                            <Link href={`/events/${event.id}`}>
+                                <motion.div
+                                    whileHover={{ scale: 1.02, y: -4 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900 hover:shadow-lg">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="text-xl font-medium text-zinc-900 dark:text-white">{event.name}</h3>
+                                            <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                        </div>
+                                        <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
+                                            <p>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</p>
+                                            <p>📍 {event.location || 'No location'}</p>
+                                            <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
+                                            {event.event_type && (
+                                                <p className="capitalize">🎪 {event.event_type.replace('_', ' ')}</p>
+                                            )}
+                                        </div>
+                                    </Card>
+                                </motion.div>
+                            </Link>
+                        </motion.div>
                     ))}
                 </div>
             ) : (
