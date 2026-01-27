@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { exportEventsToCSV } from '@/lib/export'
+import { EventsLoadingGrid } from '@/components/ui/loading-skeletons'
 
 export default function EventsPage() {
     const { data: events, isLoading, error } = useEvents()
@@ -13,7 +14,29 @@ export default function EventsPage() {
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-zinc-600">Loading events...</p>
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-5xl font-medium text-zinc-900">My Events</h1>
+                    <Button variant="outline" disabled>
+                        Export to CSV
+                    </Button>
+                </div>
+
+                <div className="flex gap-4 mb-8">
+                    <button className="text-base font-medium text-zinc-900 border-b-2 border-zinc-900 pb-2">
+                        All
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        Planning
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        In Progress
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        Completed
+                    </button>
+                </div>
+
+                <EventsLoadingGrid />
             </div>
         )
     }

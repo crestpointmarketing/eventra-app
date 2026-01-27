@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { exportLeadsToCSV } from '@/lib/export'
+import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 
 export default function LeadsPage() {
     const { data: leads, isLoading, error } = useLeads()
@@ -22,7 +23,31 @@ export default function LeadsPage() {
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-zinc-600">Loading leads...</p>
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-5xl font-medium text-zinc-900">Leads</h1>
+                    <Button variant="outline" disabled>
+                        Export to CSV
+                    </Button>
+                </div>
+
+                <div className="flex gap-4 mb-8">
+                    <button className="text-base font-medium text-zinc-900 border-b-2 border-zinc-900 pb-2">
+                        All Leads
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        Hot
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        Warm
+                    </button>
+                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
+                        Cold
+                    </button>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                    <TableLoadingSkeleton rows={8} />
+                </div>
             </div>
         )
     }

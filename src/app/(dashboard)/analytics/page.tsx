@@ -12,10 +12,22 @@ import {
     getTopEventsByLeads,
     getTopEventsByBudget
 } from '@/lib/analytics'
+import { StatsLoadingGrid } from '@/components/ui/loading-skeletons'
 
 export default function AnalyticsPage() {
-    const { data: events } = useEvents()
-    const { data: leads } = useLeads()
+    const { data: events, isLoading: eventsLoading } = useEvents()
+    const { data: leads, isLoading: leadsLoading } = useLeads()
+
+    const isLoading = eventsLoading || leadsLoading
+
+    if (isLoading) {
+        return (
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+                <h1 className="text-5xl font-medium text-zinc-900 mb-8">Analytics</h1>
+                <StatsLoadingGrid />
+            </div>
+        )
+    }
 
     const analytics = calculateBasicAnalytics(events || [], leads || [])
     const eventsByType = analyzeEventsByType(events || [])
