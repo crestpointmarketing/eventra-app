@@ -29,6 +29,7 @@ import { Search, ArrowUpDown, Filter, AlertCircle, RefreshCcw } from 'lucide-rea
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { getEventStatus, formatEventDateRange } from '@/lib/utils/event-status'
+import { PageTransition } from '@/components/animations/page-transition'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
 
@@ -210,275 +211,277 @@ export default function EventsPage() {
     const hasActiveFilters = activeFilterCount > 0 || debouncedSearch
 
     return (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">My Events</h1>
-                <Button
-                    variant="outline"
-                    onClick={handleExport}
-                    disabled={!events || events.length === 0}
-                >
-                    Export to CSV
-                </Button>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex gap-4 mb-8">
-                {/* Search */}
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                    <Input
-                        type="text"
-                        placeholder="Search events by name or location..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white"
-                    />
+        <PageTransition>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">My Events</h1>
+                    <Button
+                        variant="outline"
+                        onClick={handleExport}
+                        disabled={!events || events.length === 0}
+                    >
+                        Export to CSV
+                    </Button>
                 </div>
 
-                {/* Advanced Filters */}
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900">
-                            <Filter className="h-4 w-4 mr-2" />
-                            Advanced Filters
-                            {activeFilterCount > 0 && (
-                                <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
-                                    {activeFilterCount}
-                                </Badge>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
-                        <div className="space-y-6">
-                            <div>
-                                <h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4>
-                            </div>
+                {/* Search and Filters */}
+                <div className="flex gap-4 mb-8">
+                    {/* Search */}
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                        <Input
+                            type="text"
+                            placeholder="Search events by name or location..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white"
+                        />
+                    </div>
 
-                            {/* Budget Range */}
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Budget Range</Label>
-                                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                                    ${filters.budgetRange[0].toLocaleString()} - ${filters.budgetRange[1].toLocaleString()}
+                    {/* Advanced Filters */}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900">
+                                <Filter className="h-4 w-4 mr-2" />
+                                Advanced Filters
+                                {activeFilterCount > 0 && (
+                                    <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
+                                        {activeFilterCount}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4>
                                 </div>
-                                <Slider
-                                    min={0}
-                                    max={maxBudget}
-                                    step={10000}
-                                    value={filters.budgetRange}
-                                    onValueChange={(value) =>
-                                        setFilters({ ...filters, budgetRange: value as [number, number] })
-                                    }
-                                />
-                            </div>
 
-                            {/* Date Range */}
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Date Range</Label>
-                                <div className="flex gap-2 items-center">
-                                    <Input
-                                        type="date"
-                                        value={filters.dateFrom}
-                                        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
-                                    />
-                                    <span className="text-zinc-600 dark:text-zinc-400">to</span>
-                                    <Input
-                                        type="date"
-                                        value={filters.dateTo}
-                                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
+                                {/* Budget Range */}
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Budget Range</Label>
+                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                                        ${filters.budgetRange[0].toLocaleString()} - ${filters.budgetRange[1].toLocaleString()}
+                                    </div>
+                                    <Slider
+                                        min={0}
+                                        max={maxBudget}
+                                        step={10000}
+                                        value={filters.budgetRange}
+                                        onValueChange={(value) =>
+                                            setFilters({ ...filters, budgetRange: value as [number, number] })
+                                        }
                                     />
                                 </div>
-                            </div>
 
-                            {/* Status Filter */}
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
-                                <div className="space-y-2">
-                                    {STATUS_OPTIONS.map((status) => (
-                                        <div key={status} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`status-${status}`}
-                                                checked={filters.statuses.includes(status)}
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                        setFilters({
-                                                            ...filters,
-                                                            statuses: [...filters.statuses, status]
-                                                        })
-                                                    } else {
-                                                        setFilters({
-                                                            ...filters,
-                                                            statuses: filters.statuses.filter(s => s !== status)
-                                                        })
-                                                    }
-                                                }}
-                                            />
-                                            <label
-                                                htmlFor={`status-${status}`}
-                                                className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
-                                            >
-                                                {status.replace('_', ' ')}
-                                            </label>
-                                        </div>
-                                    ))}
+                                {/* Date Range */}
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Date Range</Label>
+                                    <div className="flex gap-2 items-center">
+                                        <Input
+                                            type="date"
+                                            value={filters.dateFrom}
+                                            onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                                            className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
+                                        />
+                                        <span className="text-zinc-600 dark:text-zinc-400">to</span>
+                                        <Input
+                                            type="date"
+                                            value={filters.dateTo}
+                                            onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                                            className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Event Type Filter */}
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Type</Label>
-                                <div className="space-y-2">
-                                    {EVENT_TYPE_OPTIONS.map((type) => (
-                                        <div key={type} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`type-${type}`}
-                                                checked={filters.eventTypes.includes(type)}
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                        setFilters({
-                                                            ...filters,
-                                                            eventTypes: [...filters.eventTypes, type]
-                                                        })
-                                                    } else {
-                                                        setFilters({
-                                                            ...filters,
-                                                            eventTypes: filters.eventTypes.filter(t => t !== type)
-                                                        })
-                                                    }
-                                                }}
-                                            />
-                                            <label
-                                                htmlFor={`type-${type}`}
-                                                className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
-                                            >
-                                                {type.replace('_', ' ')}
-                                            </label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-2 pt-4 border-t">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="flex-1"
-                                >
-                                    Clear
-                                </Button>
-                            </div>
-                        </div>
-                    </PopoverContent>
-                </Popover>
-
-                {/* Sort Selector */}
-                <div className="flex items-center gap-2">
-                    <ArrowUpDown className="h-4 w-4 text-zinc-600" />
-                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                        <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Sort by..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="date-desc">Date (Newest First)</SelectItem>
-                            <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
-                            <SelectItem value="budget-desc">Budget (High to Low)</SelectItem>
-                            <SelectItem value="budget-asc">Budget (Low to High)</SelectItem>
-                            <SelectItem value="name-asc">Name (A to Z)</SelectItem>
-                            <SelectItem value="name-desc">Name (Z to A)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
-            {/* Results Count */}
-            {hasActiveFilters && (
-                <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                    Found {filteredAndSortedEvents.length} event{filteredAndSortedEvents.length !== 1 ? 's' : ''}
-                    {activeFilterCount > 0 && (
-                        <Button
-                            variant="link"
-                            size="sm"
-                            onClick={clearFilters}
-                            className="ml-2 h-auto p-0 text-zinc-600 hover:text-zinc-900"
-                        >
-                            Clear filters
-                        </Button>
-                    )}
-                </div>
-            )}
-
-            {/* Events Grid */}
-            {filteredAndSortedEvents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAndSortedEvents.map((event: any, index: number) => (
-                        <motion.div
-                            key={event.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="h-full"
-                        >
-                            <Link href={`/events/${event.id}`} className="h-full block">
-                                <motion.div
-                                    whileHover={{ scale: 1.02, y: -4 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="h-full"
-                                >
-                                    <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900 hover:shadow-lg">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <h3 className="text-xl font-medium text-zinc-900 dark:text-white flex-1 pr-2">
-                                                {event.name}
-                                            </h3>
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <Badge variant={getEventStatus(event.start_date, event.end_date).variant}>
-                                                    {getEventStatus(event.start_date, event.end_date).label}
-                                                </Badge>
-                                                <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                {/* Status Filter */}
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
+                                    <div className="space-y-2">
+                                        {STATUS_OPTIONS.map((status) => (
+                                            <div key={status} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`status-${status}`}
+                                                    checked={filters.statuses.includes(status)}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setFilters({
+                                                                ...filters,
+                                                                statuses: [...filters.statuses, status]
+                                                            })
+                                                        } else {
+                                                            setFilters({
+                                                                ...filters,
+                                                                statuses: filters.statuses.filter(s => s !== status)
+                                                            })
+                                                        }
+                                                    }}
+                                                />
+                                                <label
+                                                    htmlFor={`status-${status}`}
+                                                    className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
+                                                >
+                                                    {status.replace('_', ' ')}
+                                                </label>
                                             </div>
-                                        </div>
-                                        <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                                            <div>
-                                                <p>📅 {formatEventDateRange(event.start_date, event.end_date)}</p>
-                                                {getEventStatus(event.start_date, event.end_date).daysInfo && (
-                                                    <p className="text-xs text-zinc-500 dark:text-zinc-500 ml-5">
-                                                        ({getEventStatus(event.start_date, event.end_date).daysInfo})
-                                                    </p>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Event Type Filter */}
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Type</Label>
+                                    <div className="space-y-2">
+                                        {EVENT_TYPE_OPTIONS.map((type) => (
+                                            <div key={type} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`type-${type}`}
+                                                    checked={filters.eventTypes.includes(type)}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setFilters({
+                                                                ...filters,
+                                                                eventTypes: [...filters.eventTypes, type]
+                                                            })
+                                                        } else {
+                                                            setFilters({
+                                                                ...filters,
+                                                                eventTypes: filters.eventTypes.filter(t => t !== type)
+                                                            })
+                                                        }
+                                                    }}
+                                                />
+                                                <label
+                                                    htmlFor={`type-${type}`}
+                                                    className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
+                                                >
+                                                    {type.replace('_', ' ')}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-2 pt-4 border-t">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={clearFilters}
+                                        className="flex-1"
+                                    >
+                                        Clear
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    {/* Sort Selector */}
+                    <div className="flex items-center gap-2">
+                        <ArrowUpDown className="h-4 w-4 text-zinc-600" />
+                        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Sort by..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                                <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                                <SelectItem value="budget-desc">Budget (High to Low)</SelectItem>
+                                <SelectItem value="budget-asc">Budget (Low to High)</SelectItem>
+                                <SelectItem value="name-asc">Name (A to Z)</SelectItem>
+                                <SelectItem value="name-desc">Name (Z to A)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                {/* Results Count */}
+                {hasActiveFilters && (
+                    <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+                        Found {filteredAndSortedEvents.length} event{filteredAndSortedEvents.length !== 1 ? 's' : ''}
+                        {activeFilterCount > 0 && (
+                            <Button
+                                variant="link"
+                                size="sm"
+                                onClick={clearFilters}
+                                className="ml-2 h-auto p-0 text-zinc-600 hover:text-zinc-900"
+                            >
+                                Clear filters
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* Events Grid */}
+                {filteredAndSortedEvents.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredAndSortedEvents.map((event: any, index: number) => (
+                            <motion.div
+                                key={event.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: index * 0.05 }}
+                                className="h-full"
+                            >
+                                <Link href={`/events/${event.id}`} className="h-full block">
+                                    <motion.div
+                                        whileHover={{ scale: 1.02, y: -4 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="h-full"
+                                    >
+                                        <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900 hover:shadow-lg">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <h3 className="text-xl font-medium text-zinc-900 dark:text-white flex-1 pr-2">
+                                                    {event.name}
+                                                </h3>
+                                                <div className="flex gap-2 flex-shrink-0">
+                                                    <Badge variant={getEventStatus(event.start_date, event.end_date).variant}>
+                                                        {getEventStatus(event.start_date, event.end_date).label}
+                                                    </Badge>
+                                                    <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 text-zinc-600 dark:text-zinc-400 text-sm">
+                                                <div>
+                                                    <p>📅 {formatEventDateRange(event.start_date, event.end_date)}</p>
+                                                    {getEventStatus(event.start_date, event.end_date).daysInfo && (
+                                                        <p className="text-xs text-zinc-500 dark:text-zinc-500 ml-5">
+                                                            ({getEventStatus(event.start_date, event.end_date).daysInfo})
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <p>📍 {event.location || 'No location'}</p>
+                                                <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
+                                                {event.event_type && (
+                                                    <p className="capitalize">🎪 {event.event_type.replace('_', ' ')}</p>
                                                 )}
                                             </div>
-                                            <p>📍 {event.location || 'No location'}</p>
-                                            <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
-                                            {event.event_type && (
-                                                <p className="capitalize">🎪 {event.event_type.replace('_', ' ')}</p>
-                                            )}
-                                        </div>
-                                    </Card>
-                                </motion.div>
+                                        </Card>
+                                    </motion.div>
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </div>
+                ) : (
+                    <Card className="p-12 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                        <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+                            {hasActiveFilters ? 'No events match your filters' : 'No events yet'}
+                        </p>
+                        {hasActiveFilters && (
+                            <Button variant="outline" onClick={clearFilters}>
+                                Clear Filters
+                            </Button>
+                        )}
+                        {!hasActiveFilters && (
+                            <Link href="/events/new">
+                                <Button>Create Your First Event</Button>
                             </Link>
-                        </motion.div>
-                    ))}
-                </div>
-            ) : (
-                <Card className="p-12 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
-                    <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-                        {hasActiveFilters ? 'No events match your filters' : 'No events yet'}
-                    </p>
-                    {hasActiveFilters && (
-                        <Button variant="outline" onClick={clearFilters}>
-                            Clear Filters
-                        </Button>
-                    )}
-                    {!hasActiveFilters && (
-                        <Link href="/events/new">
-                            <Button>Create Your First Event</Button>
-                        </Link>
-                    )}
-                </Card>
-            )}
-        </div>
+                        )}
+                    </Card>
+                )}
+            </div>
+        </PageTransition>
     )
 }

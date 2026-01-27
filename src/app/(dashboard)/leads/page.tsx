@@ -37,6 +37,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import { PageTransition } from '@/components/animations/page-transition'
 
 type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
 type SortDirection = 'asc' | 'desc'
