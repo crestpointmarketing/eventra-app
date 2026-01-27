@@ -30,6 +30,8 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { getEventStatus, formatEventDateRange } from '@/lib/utils/event-status'
 import { PageTransition } from '@/components/animations/page-transition'
+import { useBulkSelection } from '@/hooks/useBulkSelection'
+import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
 
@@ -169,6 +171,28 @@ export default function EventsPage() {
         }
     }
 
+    // Bulk selection
+    const {
+        selectedIds,
+        selectedItems,
+        selectedCount,
+        isAllSelected,
+        toggleItem,
+        toggleAll,
+        clearSelection
+    } = useBulkSelection(filteredAndSortedEvents)
+
+    // Handle bulk export
+    const handleBulkExport = () => {
+        try {
+            exportEventsToCSV(selectedItems)
+            toast.success(`Exported ${selectedCount} event${selectedCount > 1 ? 's' : ''} to CSV`)
+            clearSelection()
+        } catch (error) {
+            toast.error('Failed to export events')
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -216,13 +240,24 @@ export default function EventsPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">My Events</h1>
-                    <Button
-                        variant="outline"
-                        onClick={handleExport}
-                        disabled={!events || events.length === 0}
-                    >
-                        Export to CSV
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        {filteredAndSortedEvents.length > 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleAll}
+                            >
+                                {isAllSelected ? 'Deselect All' : 'Select All'}
+                            </Button>
+                        )}
+                        <Button
+                            variant="outline"
+                            onClick={handleExport}
+                            disabled={!events || events.length === 0}
+                        >
+                            Export to CSV
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Search and Filters */}
@@ -423,8 +458,24 @@ export default function EventsPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                                className="h-full"
+                                className="h-full relative"
                             >
+                                {/* Checkbox Overlay */}
+                                <div
+                                    className="absolute top-4 left-4 z-10"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                    }}
+                                >
+                                    <Checkbox
+                                        checked={selectedIds.has(event.id)}
+                                        onCheckedChange={() => toggleItem(event.id)}
+                                        aria-label={`Select ${event.name}`}
+                                        className="bg-white dark:bg-zinc-800 shadow-md"
+                                    />
+                                </div>
+
                                 <Link href={`/events/${event.id}`} className="h-full block">
                                     <motion.div
                                         whileHover={{ scale: 1.02, y: -4 }}
@@ -482,6 +533,14 @@ export default function EventsPage() {
                     </Card>
                 )}
             </div>
+
+            {/* Bulk Actions Toolbar */}
+            <BulkActionsToolbar
+                count={selectedCount}
+                itemType="event"
+                onExport={handleBulkExport}
+                onClear={clearSelection}
+            />
         </PageTransition>
     )
 }
