@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
 
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-            <h1 className="text-5xl font-medium text-zinc-900 mb-8">Analytics</h1>
+            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
