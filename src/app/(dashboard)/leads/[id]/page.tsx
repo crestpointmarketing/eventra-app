@@ -62,19 +62,19 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                             <p className="text-zinc-900 dark:text-white/85">{lead.phone || 'Not provided'}</p>
                         </div>
                         <div>
-                            <p className="text-zinc-600 text-sm mb-1">Company</p>
-                            <p className="text-zinc-900">{lead.company || 'Not provided'}</p>
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Company</p>
+                            <p className="text-zinc-900 dark:text-white/85">{lead.company || 'Not provided'}</p>
                         </div>
                         <div>
-                            <p className="text-zinc-600 text-sm mb-1">Job Title</p>
-                            <p className="text-zinc-900">{lead.job_title || 'Not provided'}</p>
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Job Title</p>
+                            <p className="text-zinc-900 dark:text-white/85">{lead.job_title || 'Not provided'}</p>
                         </div>
                         <div>
-                            <p className="text-zinc-600 text-sm mb-1">Event</p>
-                            <p className="text-zinc-900">{lead.events?.name || 'N/A'}</p>
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Event</p>
+                            <p className="text-zinc-900 dark:text-white/85">{lead.events?.name || 'N/A'}</p>
                         </div>
                         <div>
-                            <p className="text-zinc-600 text-sm mb-1">Status</p>
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Status</p>
                             <Badge variant="outline">{lead.lead_status || 'new'}</Badge>
                         </div>
                     </div>

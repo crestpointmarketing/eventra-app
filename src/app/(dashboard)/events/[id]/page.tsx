@@ -211,16 +211,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                 <p className="text-zinc-900 dark:text-white/85">{event.end_date ? new Date(event.end_date).toLocaleDateString() : 'Not set'}</p>
                             </div>
                             <div>
-                                <p className="text-zinc-600 text-sm mb-1">Location</p>
-                                <p className="text-zinc-900">{event.location || 'Not set'}</p>
+                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Location</p>
+                                <p className="text-zinc-900 dark:text-white/85">{event.location || 'Not set'}</p>
                             </div>
                             <div>
-                                <p className="text-zinc-600 text-sm mb-1">Event Type</p>
-                                <p className="text-zinc-900 capitalize">{event.event_type || 'Not set'}</p>
+                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Event Type</p>
+                                <p className="text-zinc-900 dark:text-white/85 capitalize">{event.event_type || 'Not set'}</p>
                             </div>
                             <div>
-                                <p className="text-zinc-600 text-sm mb-1">Target Leads</p>
-                                <p className="text-zinc-900">{event.target_leads || 0}</p>
+                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Target Leads</p>
+                                <p className="text-zinc-900 dark:text-white/85">{event.target_leads || 0}</p>
                             </div>
                             <div>
                                 <p className="text-zinc-600 text-sm mb-1">Lead Progress</p>
