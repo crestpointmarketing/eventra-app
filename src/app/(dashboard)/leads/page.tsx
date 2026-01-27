@@ -143,7 +143,7 @@ export default function LeadsPage() {
         // Status filter
         if (advancedFilters.statuses.length > 0) {
             result = result.filter((lead: any) =>
-                advancedFilters.statuses.includes(lead.status?.toLowerCase())
+                advancedFilters.statuses.includes(lead.lead_status?.toLowerCase())
             )
         }
 
