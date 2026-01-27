@@ -75,7 +75,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-zinc-600">Loading event...</p>
+                <p className="text-zinc-600 dark:text-white/70">Loading event...</p>
             </div>
         )
     }
@@ -84,7 +84,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
                 <p className="text-red-500">Event not found</p>
-                <p className="text-zinc-600 mt-2">Error: {error?.message || 'Unknown error'}</p>
+                <p className="text-zinc-600 dark:text-white/70 mt-2">Error: {error?.message || 'Unknown error'}</p>
                 <Link href="/events">
                     <Button className="mt-4">Back to Events</Button>
                 </Link>
@@ -96,13 +96,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
             {/* Header */}
             <div className="mb-8">
-                <Link href="/events" className="text-zinc-600 hover:text-zinc-900 text-sm mb-4 inline-block">
+                <Link href="/events" className="text-zinc-600 hover:text-zinc-900 dark:text-white/60 dark:hover:text-[#cbfb45] text-sm mb-4 inline-block">
                     ← Back to Events
                 </Link>
                 <div className="flex items-start justify-between">
                     <div>
-                        <h1 className="text-5xl font-medium text-zinc-900 mb-4">{event.name}</h1>
-                        <div className="flex gap-4 text-zinc-600">
+                        <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-4">{event.name}</h1>
+                        <div className="flex gap-4 text-zinc-600 dark:text-white/70">
                             <span>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</span>
                             <span>📍 {event.location || 'No location'}</span>
                             <span>💰 ${event.total_budget?.toLocaleString() || '0'}</span>
@@ -129,24 +129,24 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <TabsContent value="overview">
                     {/* Key Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <Card className="p-8 border border-zinc-200 text-center">
-                            <p className="text-zinc-600 text-sm mb-2">Total Budget</p>
-                            <p className="text-4xl font-medium text-zinc-900">${event.total_budget?.toLocaleString() || '0'}</p>
+                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Total Budget</p>
+                            <p className="text-4xl font-medium text-zinc-900 dark:text-white">${event.total_budget?.toLocaleString() || '0'}</p>
                         </Card>
 
-                        <Card className="p-8 border border-zinc-200 text-center">
-                            <p className="text-zinc-600 text-sm mb-2">Total Leads</p>
+                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Total Leads</p>
                             <p className="text-4xl font-medium text-lime-400">{leadAnalytics.total}</p>
                         </Card>
 
-                        <Card className="p-8 border border-zinc-200 text-center">
-                            <p className="text-zinc-600 text-sm mb-2">Hot Leads</p>
+                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Hot Leads</p>
                             <p className="text-4xl font-medium text-lime-400">{leadAnalytics.hot}</p>
                         </Card>
 
-                        <Card className="p-8 border border-zinc-200 text-center">
-                            <p className="text-zinc-600 text-sm mb-2">Avg Score</p>
-                            <p className="text-4xl font-medium text-zinc-900">{leadAnalytics.avgScore}</p>
+                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
+                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Avg Score</p>
+                            <p className="text-4xl font-medium text-zinc-900 dark:text-white">{leadAnalytics.avgScore}</p>
                         </Card>
                     </div>
 
@@ -154,8 +154,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     {leadAnalytics.total > 0 && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             {/* Lead Priority Distribution */}
-                            <Card className="p-8 border border-zinc-200">
-                                <h3 className="text-2xl font-medium text-zinc-900 mb-6">Lead Priority Distribution</h3>
+                            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
+                                <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Priority Distribution</h3>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <PieChart>
                                         <Pie
@@ -177,8 +177,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                             </Card>
 
                             {/* Score Distribution */}
-                            <Card className="p-8 border border-zinc-200">
-                                <h3 className="text-2xl font-medium text-zinc-900 mb-6">Lead Score Distribution</h3>
+                            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
+                                <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Score Distribution</h3>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <BarChart data={leadAnalytics.scoreDistribution}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -199,16 +199,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     )}
 
                     {/* Event Details */}
-                    <Card className="p-8 border border-zinc-200">
-                        <h3 className="text-2xl font-medium text-zinc-900 mb-4">Event Details</h3>
+                    <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
+                        <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-4">Event Details</h3>
                         <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <p className="text-zinc-600 text-sm mb-1">Start Date</p>
-                                <p className="text-zinc-900">{event.start_date ? new Date(event.start_date).toLocaleDateString() : 'Not set'}</p>
+                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Start Date</p>
+                                <p className="text-zinc-900 dark:text-white/85">{event.start_date ? new Date(event.start_date).toLocaleDateString() : 'Not set'}</p>
                             </div>
                             <div>
-                                <p className="text-zinc-600 text-sm mb-1">End Date</p>
-                                <p className="text-zinc-900">{event.end_date ? new Date(event.end_date).toLocaleDateString() : 'Not set'}</p>
+                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">End Date</p>
+                                <p className="text-zinc-900 dark:text-white/85">{event.end_date ? new Date(event.end_date).toLocaleDateString() : 'Not set'}</p>
                             </div>
                             <div>
                                 <p className="text-zinc-600 text-sm mb-1">Location</p>
@@ -224,10 +224,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
                             <div>
                                 <p className="text-zinc-600 text-sm mb-1">Lead Progress</p>
-                                <p className="text-zinc-900">
+                                <p className="text-zinc-900 dark:text-white/85">
                                     {leadAnalytics.total} / {event.target_leads || 0}
                                     {event.target_leads > 0 && (
-                                        <span className="text-zinc-600 text-sm ml-2">
+                                        <span className="text-zinc-600 dark:text-white/60 text-sm ml-2">
                                             ({Math.round((leadAnalytics.total / event.target_leads) * 100)}%)
                                         </span>
                                     )}
@@ -241,32 +241,32 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <TabsContent value="leads">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {event.leads?.map((lead: any) => (
-                            <Card key={lead.id} className="p-6 border border-zinc-200">
+                            <Card key={lead.id} className="p-6 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
-                                        <p className="font-medium text-zinc-900">{lead.first_name} {lead.last_name}</p>
-                                        <p className="text-sm text-zinc-600">{lead.company || 'No company'}</p>
+                                        <p className="font-medium text-zinc-900 dark:text-white">{lead.first_name} {lead.last_name}</p>
+                                        <p className="text-sm text-zinc-600 dark:text-white/70">{lead.company || 'No company'}</p>
                                     </div>
                                     <Badge variant={lead.lead_score >= 80 ? 'lime' : 'secondary'}>
                                         {lead.lead_score || 0}
                                     </Badge>
                                 </div>
-                                <p className="text-sm text-zinc-600 mb-4">{lead.email}</p>
+                                <p className="text-sm text-zinc-600 dark:text-white/70 mb-4">{lead.email}</p>
                                 <Link href={`/leads/${lead.id}`}>
                                     <Button variant="outline" size="sm" className="w-full">View Lead</Button>
                                 </Link>
                             </Card>
                         ))}
                         {(!event.leads || event.leads.length === 0) && (
-                            <p className="text-zinc-600 col-span-3">No leads yet</p>
+                            <p className="text-zinc-600 dark:text-white/70 col-span-3">No leads yet</p>
                         )}
                     </div>
                 </TabsContent>
 
                 {/* Tasks Tab */}
                 <TabsContent value="tasks">
-                    <Card className="p-8 border border-zinc-200">
-                        <p className="text-zinc-600">Tasks feature coming soon...</p>
+                    <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
+                        <p className="text-zinc-600 dark:text-white/70">Tasks feature coming soon...</p>
                     </Card>
                 </TabsContent>
             </Tabs>
