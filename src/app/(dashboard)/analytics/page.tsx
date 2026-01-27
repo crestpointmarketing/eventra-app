@@ -13,6 +13,18 @@ import {
     getTopEventsByBudget
 } from '@/lib/analytics'
 import { StatsLoadingGrid } from '@/components/ui/loading-skeletons'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+const COLORS = {
+    lime: '#a3e635',
+    yellow: '#facc15',
+    zinc: '#d4d4d8',
+    blue: '#60a5fa',
+    green: '#34d399',
+    purple: '#c084fc',
+    pink: '#f472b6',
+    orange: '#fb923c'
+}
 
 export default function AnalyticsPage() {
     const { data: events, isLoading: eventsLoading } = useEvents()
@@ -34,6 +46,23 @@ export default function AnalyticsPage() {
     const leadsByPriority = analyzeLeadsByPriority(leads || [])
     const topByLeads = getTopEventsByLeads(events || [], 5)
     const topByBudget = getTopEventsByBudget(events || [], 5)
+
+    // Prepare data for charts
+    const eventsByTypeData = Object.entries(eventsByType).map(([name, value]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value
+    }))
+
+    const leadsByPriorityData = [
+        { name: 'Hot', value: leadsByPriority.hot, fill: COLORS.lime },
+        { name: 'Warm', value: leadsByPriority.warm, fill: COLORS.yellow },
+        { name: 'Cold', value: leadsByPriority.cold, fill: COLORS.zinc }
+    ]
+
+    const topEventsData = topByLeads.map(event => ({
+        name: event.name.length > 15 ? event.name.substring(0, 15) + '...' : event.name,
+        leads: event.leads
+    }))
 
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -62,69 +91,89 @@ export default function AnalyticsPage() {
                 </Card>
             </div>
 
-            {/* Distribution Analysis */}
+            {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-                {/* Events by Type */}
+                {/* Events by Type - Pie Chart */}
                 <Card className="p-8 border border-zinc-200">
                     <h2 className="text-2xl font-medium text-zinc-900 mb-6">Events by Type</h2>
-                    <div className="space-y-4">
-                        {Object.entries(eventsByType).map(([type, count]) => {
-                            const percentage = analytics.totalEvents > 0
-                                ? Math.round((count / analytics.totalEvents) * 100)
-                                : 0
-                            return (
-                                <div key={type}>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-zinc-900 capitalize">{type}</span>
-                                        <span className="text-zinc-600">{count} ({percentage}%)</span>
-                                    </div>
-                                    <div className="w-full bg-zinc-100 rounded-full h-2">
-                                        <div
-                                            className="bg-lime-400 h-2 rounded-full"
-                                            style={{ width: `${percentage}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )
-                        })}
-                        {Object.keys(eventsByType).length === 0 && (
-                            <p className="text-zinc-600">No event types to display</p>
-                        )}
-                    </div>
+                    {eventsByTypeData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={eventsByTypeData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                    outerRadius={100}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {eventsByTypeData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={Object.values(COLORS)[index % Object.values(COLORS).length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <p className="text-zinc-600 text-center py-12">No event types to display</p>
+                    )}
                 </Card>
 
-                {/* Leads by Priority */}
+                {/* Leads by Priority - Pie Chart */}
                 <Card className="p-8 border border-zinc-200">
                     <h2 className="text-2xl font-medium text-zinc-900 mb-6">Leads by Priority</h2>
-                    <div className="space-y-4">
-                        {[
-                            { label: 'Hot', value: leadsByPriority.hot, color: 'bg-lime-400' },
-                            { label: 'Warm', value: leadsByPriority.warm, color: 'bg-yellow-400' },
-                            { label: 'Cold', value: leadsByPriority.cold, color: 'bg-zinc-300' }
-                        ].map(({ label, value, color }) => {
-                            const percentage = analytics.totalLeads > 0
-                                ? Math.round((value / analytics.totalLeads) * 100)
-                                : 0
-                            return (
-                                <div key={label}>
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-zinc-900">{label}</span>
-                                        <span className="text-zinc-600">{value} ({percentage}%)</span>
-                                    </div>
-                                    <div className="w-full bg-zinc-100 rounded-full h-2">
-                                        <div
-                                            className={`${color} h-2 rounded-full`}
-                                            style={{ width: `${percentage}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
+                    {analytics.totalLeads > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={leadsByPriorityData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                    outerRadius={100}
+                                    dataKey="value"
+                                >
+                                    {leadsByPriorityData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <p className="text-zinc-600 text-center py-12">No leads to display</p>
+                    )}
                 </Card>
             </div>
 
-            {/* Top Performers */}
+            {/* Top Events Chart */}
+            {topEventsData.length > 0 && (
+                <div className="mb-12">
+                    <Card className="p-8 border border-zinc-200">
+                        <h2 className="text-2xl font-medium text-zinc-900 mb-6">Top Events by Leads</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={topEventsData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                <XAxis dataKey="name" stroke="#71717a" />
+                                <YAxis stroke="#71717a" />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#fff',
+                                        border: '1px solid #e4e4e7',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                                <Bar dataKey="leads" fill={COLORS.lime} radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Card>
+                </div>
+            )}
+
+            {/* Top Performers Lists */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Events by Leads */}
                 <Card className="p-8 border border-zinc-200">
