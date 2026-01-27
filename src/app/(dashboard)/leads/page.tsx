@@ -512,13 +512,13 @@ export default function LeadsPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-200"
                                     onClick={() => handleSort('name')}
                                 >
                                     Name <SortIcon field="name" />
                                 </TableHead>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-200"
                                     onClick={() => handleSort('email')}
                                 >
                                     Email <SortIcon field="email" />
@@ -541,7 +541,7 @@ export default function LeadsPage() {
                                 >
                                     Status <SortIcon field="status" />
                                 </TableHead>
-                                <TableHead className="font-medium text-zinc-700 dark:text-zinc-300">Actions</TableHead>
+                                <TableHead className="font-medium text-zinc-700 dark:text-zinc-200">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -550,8 +550,8 @@ export default function LeadsPage() {
                                     <TableCell className="font-medium text-zinc-900 dark:text-white">
                                         {lead.first_name} {lead.last_name}
                                     </TableCell>
-                                    <TableCell className="text-zinc-700 dark:text-zinc-300">{lead.email}</TableCell>
-                                    <TableCell className="text-zinc-700 dark:text-zinc-300">{lead.company || '-'}</TableCell>
+                                    <TableCell className="text-zinc-700 dark:text-zinc-200">{lead.email}</TableCell>
+                                    <TableCell className="text-zinc-700 dark:text-zinc-200">{lead.company || '-'}</TableCell>
                                     <TableCell>
                                         <Badge
                                             variant={
@@ -565,7 +565,7 @@ export default function LeadsPage() {
                                             {lead.lead_score || 0}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="capitalize text-zinc-700 dark:text-zinc-300">{lead.status || 'new'}</TableCell>
+                                    <TableCell className="capitalize text-zinc-700 dark:text-zinc-200">{lead.status || 'new'}</TableCell>
                                     <TableCell>
                                         <Link href={`/leads/${lead.id}`}>
                                             <Button variant="outline" size="sm">
