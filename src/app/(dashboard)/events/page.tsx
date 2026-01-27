@@ -6,6 +6,14 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Slider } from '@/components/ui/slider'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
 import {
     Select,
     SelectContent,
@@ -17,9 +25,20 @@ import Link from 'next/link'
 import { exportEventsToCSV } from '@/lib/export'
 import { EventsLoadingGrid } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, ArrowUpDown } from 'lucide-react'
+import { Search, ArrowUpDown, Filter } from 'lucide-react'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
+
+interface AdvancedFilters {
+    budgetRange: [number, number]
+    statuses: string[]
+    eventTypes: string[]
+    dateFrom: string
+    dateTo: string
+}
+
+const STATUS_OPTIONS = ['planning', 'in_progress', 'completed', 'cancelled']
+const EVENT_TYPE_OPTIONS = ['conference', 'workshop', 'webinar', 'trade_show', 'networking']
 
 export default function EventsPage() {
     const { data: events, isLoading, error } = useEvents()
@@ -27,17 +46,87 @@ export default function EventsPage() {
     const [sortBy, setSortBy] = useState<SortOption>('date-desc')
     const debouncedSearch = useDebounce(searchQuery, 300)
 
+    // Advanced filters state
+    const [filters, setFilters] = useState<AdvancedFilters>({
+        budgetRange: [0, 1000000],
+        statuses: [],
+        eventTypes: [],
+        dateFrom: '',
+        dateTo: ''
+    })
+
+    // Calculate max budget for slider
+    const maxBudget = useMemo(() => {
+        if (!events || events.length === 0) return 1000000
+        return Math.max(...events.map((e: any) => e.total_budget || 0), 100000)
+    }, [events])
+
+    // Count active filters
+    const activeFilterCount = useMemo(() => {
+        let count = 0
+        if (filters.budgetRange[0] > 0 || filters.budgetRange[1] < maxBudget) count++
+        if (filters.statuses.length > 0) count++
+        if (filters.eventTypes.length > 0) count++
+        if (filters.dateFrom || filters.dateTo) count++
+        return count
+    }, [filters, maxBudget])
+
+    // Clear all filters
+    const clearFilters = () => {
+        setFilters({
+            budgetRange: [0, maxBudget],
+            statuses: [],
+            eventTypes: [],
+            dateFrom: '',
+            dateTo: ''
+        })
+    }
+
     // Filter and sort events
     const filteredAndSortedEvents = useMemo(() => {
         if (!events) return []
 
-        // Filter by search
+        // Apply search
         let result = events
         if (debouncedSearch) {
             const query = debouncedSearch.toLowerCase()
             result = result.filter((event: any) =>
                 event.name?.toLowerCase().includes(query) ||
                 event.location?.toLowerCase().includes(query)
+            )
+        }
+
+        // Apply budget filter
+        if (filters.budgetRange[0] > 0 || filters.budgetRange[1] < maxBudget) {
+            result = result.filter((event: any) => {
+                const budget = event.total_budget || 0
+                return budget >= filters.budgetRange[0] && budget <= filters.budgetRange[1]
+            })
+        }
+
+        // Apply status filter
+        if (filters.statuses.length > 0) {
+            result = result.filter((event: any) =>
+                filters.statuses.includes(event.status?.toLowerCase())
+            )
+        }
+
+        // Apply event type filter
+        if (filters.eventTypes.length > 0) {
+            result = result.filter((event: any) =>
+                filters.eventTypes.includes(event.event_type?.toLowerCase())
+            )
+        }
+
+        // Apply date range filter
+        if (filters.dateFrom) {
+            result = result.filter((event: any) =>
+                event.start_date && new Date(event.start_date) >= new Date(filters.dateFrom)
+            )
+        }
+        if (filters.dateTo) {
+            result = result.filter((event: any) =>
+                event.start_date && new Date(event.start_date) <= new Date(filters.dateTo)
             )
         }
 
@@ -62,7 +151,7 @@ export default function EventsPage() {
         })
 
         return sorted
-    }, [events, debouncedSearch, sortBy])
+    }, [events, debouncedSearch, sortBy, filters, maxBudget])
 
     if (isLoading) {
         return (
@@ -73,22 +162,6 @@ export default function EventsPage() {
                         Export to CSV
                     </Button>
                 </div>
-
-                <div className="flex gap-4 mb-8">
-                    <button className="text-base font-medium text-zinc-900 border-b-2 border-zinc-900 pb-2">
-                        All
-                    </button>
-                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                        Planning
-                    </button>
-                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                        In Progress
-                    </button>
-                    <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                        Completed
-                    </button>
-                </div>
-
                 <EventsLoadingGrid />
             </div>
         )
@@ -102,38 +175,172 @@ export default function EventsPage() {
         )
     }
 
+    const hasActiveFilters = activeFilterCount > 0 || debouncedSearch
+
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-5xl font-medium text-zinc-900">My Events</h1>
                 <Button
                     variant="outline"
-                    onClick={() => exportEventsToCSV(filteredAndSortedEvents || [])}
-                    disabled={!filteredAndSortedEvents || filteredAndSortedEvents.length === 0}
+                    onClick={() => exportEventsToCSV(filteredAndSortedEvents)}
+                    disabled={!events || events.length === 0}
                 >
                     Export to CSV
                 </Button>
             </div>
 
-            {/* Search and Sort Bar */}
-            <div className="mb-6 flex gap-4 items-start">
-                <div className="flex-grow">
-                    <div className="relative max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 h-4 w-4" />
-                        <Input
-                            type="text"
-                            placeholder="Search events by name or location..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    {debouncedSearch && (
-                        <p className="text-sm text-zinc-600 mt-2">
-                            Found {filteredAndSortedEvents.length} event{filteredAndSortedEvents.length !== 1 ? 's' : ''}
-                        </p>
-                    )}
+            {/* Search and Filters */}
+            <div className="flex gap-4 mb-8">
+                {/* Search */}
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Input
+                        type="text"
+                        placeholder="Search events by name or location..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
+                    />
                 </div>
+
+                {/* Advanced Filters */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline">
+                            <Filter className="h-4 w-4 mr-2" />
+                            Filters
+                            {activeFilterCount > 0 && (
+                                <Badge variant="secondary" className="ml-2">
+                                    {activeFilterCount}
+                                </Badge>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-96">
+                        <div className="space-y-6">
+                            <div>
+                                <h4 className="font-medium text-sm mb-4">Advanced Filters</h4>
+                            </div>
+
+                            {/* Budget Range */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Budget Range</Label>
+                                <div className="text-sm text-zinc-600 mb-2">
+                                    ${filters.budgetRange[0].toLocaleString()} - ${filters.budgetRange[1].toLocaleString()}
+                                </div>
+                                <Slider
+                                    min={0}
+                                    max={maxBudget}
+                                    step={10000}
+                                    value={filters.budgetRange}
+                                    onValueChange={(value) =>
+                                        setFilters({ ...filters, budgetRange: value as [number, number] })
+                                    }
+                                />
+                            </div>
+
+                            {/* Date Range */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Event Date Range</Label>
+                                <div className="flex gap-2 items-center">
+                                    <Input
+                                        type="date"
+                                        value={filters.dateFrom}
+                                        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                                    />
+                                    <span className="text-zinc-600">to</span>
+                                    <Input
+                                        type="date"
+                                        value={filters.dateTo}
+                                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Status Filter */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Status</Label>
+                                <div className="space-y-2">
+                                    {STATUS_OPTIONS.map((status) => (
+                                        <div key={status} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`status-${status}`}
+                                                checked={filters.statuses.includes(status)}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        setFilters({
+                                                            ...filters,
+                                                            statuses: [...filters.statuses, status]
+                                                        })
+                                                    } else {
+                                                        setFilters({
+                                                            ...filters,
+                                                            statuses: filters.statuses.filter(s => s !== status)
+                                                        })
+                                                    }
+                                                }}
+                                            />
+                                            <label
+                                                htmlFor={`status-${status}`}
+                                                className="text-sm capitalize cursor-pointer"
+                                            >
+                                                {status.replace('_', ' ')}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Event Type Filter */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Event Type</Label>
+                                <div className="space-y-2">
+                                    {EVENT_TYPE_OPTIONS.map((type) => (
+                                        <div key={type} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`type-${type}`}
+                                                checked={filters.eventTypes.includes(type)}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        setFilters({
+                                                            ...filters,
+                                                            eventTypes: [...filters.eventTypes, type]
+                                                        })
+                                                    } else {
+                                                        setFilters({
+                                                            ...filters,
+                                                            eventTypes: filters.eventTypes.filter(t => t !== type)
+                                                        })
+                                                    }
+                                                }}
+                                            />
+                                            <label
+                                                htmlFor={`type-${type}`}
+                                                className="text-sm capitalize cursor-pointer"
+                                            >
+                                                {type.replace('_', ' ')}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-4 border-t">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={clearFilters}
+                                    className="flex-1"
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
 
                 {/* Sort Selector */}
                 <div className="flex items-center gap-2">
@@ -154,68 +361,61 @@ export default function EventsPage() {
                 </div>
             </div>
 
-            <div className="flex gap-4 mb-8">
-                <button className="text-base font-medium text-zinc-900 border-b-2 border-zinc-900 pb-2">
-                    All
-                </button>
-                <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                    Planning
-                </button>
-                <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                    In Progress
-                </button>
-                <button className="text-base text-zinc-600 hover:text-zinc-900 pb-2">
-                    Completed
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAndSortedEvents?.map((event: any) => (
-                    <Card key={event.id} className="h-full p-8 border border-zinc-200 hover:border-zinc-900 transition-colors text-center flex flex-col">
-                        <div className="flex-grow">
-                            <Badge variant="lime" className="mb-4">
-                                Hot
-                            </Badge>
-
-                            <h3 className="text-2xl font-medium text-zinc-900 mb-2">
-                                {event.name}
-                            </h3>
-
-                            <p className="text-zinc-600 mb-4">
-                                {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'} - {event.end_date ? new Date(event.end_date).toLocaleDateString() : 'No date'}
-                                <br />
-                                {event.location || 'No location'}
-                            </p>
-
-                            <div className="flex gap-4 text-sm text-zinc-600 mb-6 justify-center">
-                                <span>${event.total_budget?.toLocaleString() || '0'}</span>
-                                <span>{event.actual_leads || 0} Leads</span>
-                            </div>
-                        </div>
-
-                        <Link href={`/events/${event.id}`}>
-                            <Button className="w-full mt-auto">View Details</Button>
-                        </Link>
-                    </Card>
-                ))}
-            </div>
-
-            {filteredAndSortedEvents && filteredAndSortedEvents.length === 0 && (
-                <div className="text-center py-12">
-                    {debouncedSearch ? (
-                        <>
-                            <p className="text-zinc-600 mb-4">No events found matching "{debouncedSearch}"</p>
-                            <Button onClick={() => setSearchQuery('')} variant="outline">Clear Search</Button>
-                        </>
-                    ) : (
-                        <>
-                            <p className="text-zinc-600 mb-4">No events yet</p>
-                            <Link href="/events/new">
-                                <Button>Create Your First Event</Button>
-                            </Link>
-                        </>
+            {/* Results Count */}
+            {hasActiveFilters && (
+                <div className="mb-4 text-sm text-zinc-600">
+                    Found {filteredAndSortedEvents.length} event{filteredAndSortedEvents.length !== 1 ? 's' : ''}
+                    {activeFilterCount > 0 && (
+                        <Button
+                            variant="link"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="ml-2 h-auto p-0 text-zinc-600 hover:text-zinc-900"
+                        >
+                            Clear filters
+                        </Button>
                     )}
                 </div>
+            )}
+
+            {/* Events Grid */}
+            {filteredAndSortedEvents.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredAndSortedEvents.map((event: any) => (
+                        <Link key={event.id} href={`/events/${event.id}`}>
+                            <Card className="p-6 border border-zinc-200 hover:border-zinc-900 transition-colors h-full">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-xl font-medium text-zinc-900">{event.name}</h3>
+                                    <Badge variant="lime">{event.actual_leads || 0} leads</Badge>
+                                </div>
+                                <div className="space-y-2 text-zinc-600 text-sm">
+                                    <p>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</p>
+                                    <p>📍 {event.location || 'No location'}</p>
+                                    <p>💰 ${event.total_budget?.toLocaleString() || '0'}</p>
+                                    {event.event_type && (
+                                        <p className="capitalize">🎪 {event.event_type.replace('_', ' ')}</p>
+                                    )}
+                                </div>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+            ) : (
+                <Card className="p-12 border border-zinc-200 text-center">
+                    <p className="text-zinc-600 mb-4">
+                        {hasActiveFilters ? 'No events match your filters' : 'No events yet'}
+                    </p>
+                    {hasActiveFilters && (
+                        <Button variant="outline" onClick={clearFilters}>
+                            Clear Filters
+                        </Button>
+                    )}
+                    {!hasActiveFilters && (
+                        <Link href="/events/new">
+                            <Button>Create Your First Event</Button>
+                        </Link>
+                    )}
+                </Card>
             )}
         </div>
     )
