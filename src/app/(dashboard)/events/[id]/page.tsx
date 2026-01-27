@@ -1,16 +1,76 @@
 'use client'
 
-import { use } from 'react'
+import { use, useMemo } from 'react'
 import { useEvent } from '@/hooks/useEvent'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+
+const COLORS = {
+    hot: '#a3e635',    // lime-400
+    warm: '#facc15',   // yellow-400
+    cold: '#d4d4d8'    // zinc-300
+}
 
 export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const { data: event, isLoading, error } = useEvent(id)
+
+    // Calculate lead analytics
+    const leadAnalytics = useMemo(() => {
+        if (!event?.leads || event.leads.length === 0) {
+            return {
+                total: 0,
+                hot: 0,
+                warm: 0,
+                cold: 0,
+                avgScore: 0,
+                scoreDistribution: []
+            }
+        }
+
+        const hot = event.leads.filter((l: any) => l.lead_score >= 80).length
+        const warm = event.leads.filter((l: any) => l.lead_score >= 50 && l.lead_score < 80).length
+        const cold = event.leads.filter((l: any) => l.lead_score < 50).length
+
+        const avgScore = event.leads.reduce((sum: number, l: any) => sum + (l.lead_score || 0), 0) / event.leads.length
+
+        // Score distribution for histogram
+        const scoreRanges = [
+            { range: '0-20', count: 0 },
+            { range: '20-40', count: 0 },
+            { range: '40-60', count: 0 },
+            { range: '60-80', count: 0 },
+            { range: '80-100', count: 0 }
+        ]
+
+        event.leads.forEach((lead: any) => {
+            const score = lead.lead_score || 0
+            if (score < 20) scoreRanges[0].count++
+            else if (score < 40) scoreRanges[1].count++
+            else if (score < 60) scoreRanges[2].count++
+            else if (score < 80) scoreRanges[3].count++
+            else scoreRanges[4].count++
+        })
+
+        return {
+            total: event.leads.length,
+            hot,
+            warm,
+            cold,
+            avgScore: Math.round(avgScore),
+            scoreDistribution: scoreRanges
+        }
+    }, [event])
+
+    const priorityData = [
+        { name: 'Hot', value: leadAnalytics.hot, fill: COLORS.hot },
+        { name: 'Warm', value: leadAnalytics.warm, fill: COLORS.warm },
+        { name: 'Cold', value: leadAnalytics.cold, fill: COLORS.cold }
+    ].filter(d => d.value > 0) // Only show categories with data
 
     if (isLoading) {
         return (
@@ -67,24 +127,79 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
                 {/* Overview Tab */}
                 <TabsContent value="overview">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="p-8 border border-zinc-200">
+                    {/* Key Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <Card className="p-8 border border-zinc-200 text-center">
                             <p className="text-zinc-600 text-sm mb-2">Total Budget</p>
                             <p className="text-4xl font-medium text-zinc-900">${event.total_budget?.toLocaleString() || '0'}</p>
                         </Card>
 
-                        <Card className="p-8 border border-zinc-200">
-                            <p className="text-zinc-600 text-sm mb-2">Actual Leads</p>
-                            <p className="text-4xl font-medium text-lime-400">{event.actual_leads || 0}</p>
+                        <Card className="p-8 border border-zinc-200 text-center">
+                            <p className="text-zinc-600 text-sm mb-2">Total Leads</p>
+                            <p className="text-4xl font-medium text-lime-400">{leadAnalytics.total}</p>
                         </Card>
 
-                        <Card className="p-8 border border-zinc-200">
-                            <p className="text-zinc-600 text-sm mb-2">Target Leads</p>
-                            <p className="text-4xl font-medium text-zinc-900">{event.target_leads || 0}</p>
+                        <Card className="p-8 border border-zinc-200 text-center">
+                            <p className="text-zinc-600 text-sm mb-2">Hot Leads</p>
+                            <p className="text-4xl font-medium text-lime-400">{leadAnalytics.hot}</p>
+                        </Card>
+
+                        <Card className="p-8 border border-zinc-200 text-center">
+                            <p className="text-zinc-600 text-sm mb-2">Avg Score</p>
+                            <p className="text-4xl font-medium text-zinc-900">{leadAnalytics.avgScore}</p>
                         </Card>
                     </div>
 
-                    <Card className="p-8 border border-zinc-200 mt-6">
+                    {/* Charts Section */}
+                    {leadAnalytics.total > 0 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            {/* Lead Priority Distribution */}
+                            <Card className="p-8 border border-zinc-200">
+                                <h3 className="text-2xl font-medium text-zinc-900 mb-6">Lead Priority Distribution</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={priorityData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                            outerRadius={100}
+                                            dataKey="value"
+                                        >
+                                            {priorityData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </Card>
+
+                            {/* Score Distribution */}
+                            <Card className="p-8 border border-zinc-200">
+                                <h3 className="text-2xl font-medium text-zinc-900 mb-6">Lead Score Distribution</h3>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={leadAnalytics.scoreDistribution}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                        <XAxis dataKey="range" stroke="#71717a" />
+                                        <YAxis stroke="#71717a" />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                border: '1px solid #e4e4e7',
+                                                borderRadius: '8px'
+                                            }}
+                                        />
+                                        <Bar dataKey="count" fill="#a3e635" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Event Details */}
+                    <Card className="p-8 border border-zinc-200">
                         <h3 className="text-2xl font-medium text-zinc-900 mb-4">Event Details</h3>
                         <div className="grid grid-cols-2 gap-6">
                             <div>
@@ -101,7 +216,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
                             <div>
                                 <p className="text-zinc-600 text-sm mb-1">Event Type</p>
-                                <p className="text-zinc-900">{event.event_type || 'Not set'}</p>
+                                <p className="text-zinc-900 capitalize">{event.event_type || 'Not set'}</p>
+                            </div>
+                            <div>
+                                <p className="text-zinc-600 text-sm mb-1">Target Leads</p>
+                                <p className="text-zinc-900">{event.target_leads || 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-zinc-600 text-sm mb-1">Lead Progress</p>
+                                <p className="text-zinc-900">
+                                    {leadAnalytics.total} / {event.target_leads || 0}
+                                    {event.target_leads > 0 && (
+                                        <span className="text-zinc-600 text-sm ml-2">
+                                            ({Math.round((leadAnalytics.total / event.target_leads) * 100)}%)
+                                        </span>
+                                    )}
+                                </p>
                             </div>
                         </div>
                     </Card>
