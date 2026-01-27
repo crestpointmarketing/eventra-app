@@ -25,7 +25,8 @@ import Link from 'next/link'
 import { exportEventsToCSV } from '@/lib/export'
 import { EventsLoadingGrid } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, ArrowUpDown, Filter } from 'lucide-react'
+import { Search, ArrowUpDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
+import { toast } from 'sonner'
 
 type SortOption = 'date-asc' | 'date-desc' | 'budget-asc' | 'budget-desc' | 'name-asc' | 'name-desc'
 
@@ -153,6 +154,18 @@ export default function EventsPage() {
         return sorted
     }, [events, debouncedSearch, sortBy, filters, maxBudget])
 
+    // Handle export with toast feedback
+    const handleExport = () => {
+        try {
+            exportEventsToCSV(filteredAndSortedEvents)
+            toast.success(`Exported ${filteredAndSortedEvents.length} event${filteredAndSortedEvents.length !== 1 ? 's' : ''} to CSV`)
+        } catch (error) {
+            toast.error('Failed to export events', {
+                description: 'Please try again or contact support'
+            })
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -170,7 +183,24 @@ export default function EventsPage() {
     if (error) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-red-500">Error loading events: {error.message}</p>
+                <Card className="p-12 text-center border-red-200 bg-red-50">
+                    <div className="mb-4">
+                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-zinc-900 mb-2">
+                        Failed to Load Events
+                    </h3>
+                    <p className="text-zinc-600 mb-6">
+                        {error.message || 'An unexpected error occurred'}
+                    </p>
+                    <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                    >
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Retry
+                    </Button>
+                </Card>
             </div>
         )
     }
@@ -184,7 +214,7 @@ export default function EventsPage() {
                 <h1 className="text-5xl font-medium text-zinc-900">My Events</h1>
                 <Button
                     variant="outline"
-                    onClick={() => exportEventsToCSV(filteredAndSortedEvents)}
+                    onClick={handleExport}
                     disabled={!events || events.length === 0}
                 >
                     Export to CSV

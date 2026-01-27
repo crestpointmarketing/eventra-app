@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useLeads } from '@/hooks/useLeads'
 import { useEvents } from '@/hooks/useEvents'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +34,8 @@ import Link from 'next/link'
 import { exportLeadsToCSV } from '@/lib/export'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, ArrowUp, ArrowDown, Filter } from 'lucide-react'
+import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
+import { toast } from 'sonner'
 
 type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
 type SortDirection = 'asc' | 'desc'
@@ -218,7 +220,7 @@ export default function LeadsPage() {
     }, [leads, filter, debouncedSearch, sortField, sortDirection, advancedFilters])
 
     // Count leads by priority
-    const leadCounts = useMemo(() => {
+    const leadCounts: { all: number; hot: number; warm: number; cold: number } = useMemo(() => {
         if (!leads) return { all: 0, hot: 0, warm: 0, cold: 0 }
         return {
             all: leads.length,
@@ -227,6 +229,18 @@ export default function LeadsPage() {
             cold: leads.filter((l: any) => l.lead_score < 50).length
         }
     }, [leads])
+
+    // Handle export with toast feedback
+    const handleExport = () => {
+        try {
+            exportLeadsToCSV(filteredAndSortedLeads)
+            toast.success(`Exported ${filteredAndSortedLeads.length} lead${filteredAndSortedLeads.length !== 1 ? 's' : ''} to CSV`)
+        } catch (error) {
+            toast.error('Failed to export leads', {
+                description: 'Please try again or contact support'
+            })
+        }
+    }
 
     if (isLoading) {
         return (
@@ -250,7 +264,24 @@ export default function LeadsPage() {
     if (error) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-red-500">Error loading leads: {error.message}</p>
+                <Card className="p-12 text-center border-red-200 bg-red-50">
+                    <div className="mb-4">
+                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-zinc-900 mb-2">
+                        Failed to Load Leads
+                    </h3>
+                    <p className="text-zinc-600 mb-6">
+                        {error.message || 'An unexpected error occurred'}
+                    </p>
+                    <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                    >
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Retry
+                    </Button>
+                </Card>
             </div>
         )
     }
@@ -264,7 +295,7 @@ export default function LeadsPage() {
                 <h1 className="text-5xl font-medium text-zinc-900">Leads</h1>
                 <Button
                     variant="outline"
-                    onClick={() => exportLeadsToCSV(filteredAndSortedLeads)}
+                    onClick={handleExport}
                     disabled={!leads || leads.length === 0}
                 >
                     Export to CSV
