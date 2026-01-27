@@ -292,7 +292,7 @@ export default function LeadsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-5xl font-medium text-zinc-900">Leads</h1>
+                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">Leads</h1>
                 <Button
                     variant="outline"
                     onClick={handleExport}
@@ -307,8 +307,8 @@ export default function LeadsPage() {
                 <button
                     onClick={() => setFilter('all')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'all'
-                        ? 'text-zinc-900 border-zinc-900'
-                        : 'text-zinc-600 border-transparent hover:text-zinc-900'
+                        ? 'text-zinc-900 dark:text-white border-zinc-900 dark:border-white'
+                        : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-white'
                         }`}
                 >
                     All ({leadCounts.all})
@@ -317,7 +317,7 @@ export default function LeadsPage() {
                     onClick={() => setFilter('hot')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'hot'
                         ? 'text-lime-400 border-lime-400'
-                        : 'text-zinc-600 border-transparent hover:text-lime-400'
+                        : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-lime-400'
                         }`}
                 >
                     🔥 Hot ({leadCounts.hot})
@@ -326,7 +326,7 @@ export default function LeadsPage() {
                     onClick={() => setFilter('warm')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'warm'
                         ? 'text-yellow-400 border-yellow-400'
-                        : 'text-zinc-600 border-transparent hover:text-yellow-400'
+                        : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-yellow-400'
                         }`}
                 >
                     ☀️ Warm ({leadCounts.warm})
@@ -335,7 +335,7 @@ export default function LeadsPage() {
                     onClick={() => setFilter('cold')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'cold'
                         ? 'text-zinc-400 border-zinc-400'
-                        : 'text-zinc-600 border-transparent hover:text-zinc-400'
+                        : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-400'
                         }`}
                 >
                     ❄️ Cold ({leadCounts.cold})
@@ -346,20 +346,20 @@ export default function LeadsPage() {
             <div className="flex gap-4 mb-6">
                 {/* Search */}
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                     <Input
                         type="text"
                         placeholder="Search by name, email, or company..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9"
+                        className="pl-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white"
                     />
                 </div>
 
                 {/* Advanced Filters */}
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800">
+                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900">
                             <Filter className="h-4 w-4 mr-2" />
                             Advanced Filters
                             {activeFilterCount > 0 && (
@@ -369,16 +369,16 @@ export default function LeadsPage() {
                             )}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-96 bg-white border-2 border-zinc-200 shadow-lg">
+                    <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
                         <div className="space-y-6">
                             <div>
-                                <h4 className="font-medium text-sm mb-4">Advanced Filters</h4>
+                                <h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4>
                             </div>
 
                             {/* Score Range */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Lead Score Range</Label>
-                                <div className="text-sm text-zinc-600 mb-2">
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Lead Score Range</Label>
+                                <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
                                     {advancedFilters.scoreRange[0]} - {advancedFilters.scoreRange[1]}
                                 </div>
                                 <Slider
@@ -404,7 +404,7 @@ export default function LeadsPage() {
                                     <SelectTrigger>
                                         <SelectValue placeholder="All Events" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white border-2 border-zinc-200 shadow-lg">
+                                    <SelectContent className="bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
                                         <SelectItem value="all">All Events</SelectItem>
                                         {events?.map((event: any) => (
                                             <SelectItem key={event.id} value={event.id}>
@@ -485,7 +485,7 @@ export default function LeadsPage() {
 
             {/* Results Count */}
             {hasActiveFilters && (
-                <div className="mb-4 text-sm text-zinc-600">
+                <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
                     Found {filteredAndSortedLeads.length} lead{filteredAndSortedLeads.length !== 1 ? 's' : ''}
                     {(activeFilterCount > 0 || filter !== 'all') && (
                         <Button
@@ -505,12 +505,12 @@ export default function LeadsPage() {
 
             {/* Leads Table */}
             {filteredAndSortedLeads.length > 0 ? (
-                <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
                                     onClick={() => handleSort('name')}
                                 >
                                     Name <SortIcon field="name" />
@@ -545,11 +545,11 @@ export default function LeadsPage() {
                         <TableBody>
                             {filteredAndSortedLeads.map((lead: any) => (
                                 <TableRow key={lead.id}>
-                                    <TableCell className="font-medium">
+                                    <TableCell className="font-medium text-zinc-900 dark:text-white">
                                         {lead.first_name} {lead.last_name}
                                     </TableCell>
-                                    <TableCell>{lead.email}</TableCell>
-                                    <TableCell>{lead.company || '-'}</TableCell>
+                                    <TableCell className="text-zinc-700 dark:text-zinc-300">{lead.email}</TableCell>
+                                    <TableCell className="text-zinc-700 dark:text-zinc-300">{lead.company || '-'}</TableCell>
                                     <TableCell>
                                         <Badge
                                             variant={
@@ -563,7 +563,7 @@ export default function LeadsPage() {
                                             {lead.lead_score || 0}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="capitalize">{lead.status || 'new'}</TableCell>
+                                    <TableCell className="capitalize text-zinc-700 dark:text-zinc-300">{lead.status || 'new'}</TableCell>
                                     <TableCell>
                                         <Link href={`/leads/${lead.id}`}>
                                             <Button variant="outline" size="sm">
@@ -577,8 +577,8 @@ export default function LeadsPage() {
                     </Table>
                 </div>
             ) : (
-                <div className="border border-zinc-200 rounded-lg p-12 text-center">
-                    <p className="text-zinc-600 mb-4">
+                <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-12 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-4">
                         {hasActiveFilters ? 'No leads match your filters' : 'No leads yet'}
                     </p>
                     {hasActiveFilters && (
