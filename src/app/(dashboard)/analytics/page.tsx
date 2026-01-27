@@ -35,7 +35,7 @@ export default function AnalyticsPage() {
     if (isLoading) {
         return (
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <h1 className="text-5xl font-medium text-zinc-900 mb-8">Analytics</h1>
+                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
                 <StatsLoadingGrid />
             </div>
         )
@@ -70,32 +70,32 @@ export default function AnalyticsPage() {
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                <Card className="p-8 border border-zinc-200 text-center">
-                    <p className="text-zinc-600 text-sm mb-2">Total Events</p>
-                    <p className="text-5xl font-medium text-zinc-900">{analytics.totalEvents}</p>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
+                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
                 </Card>
 
-                <Card className="p-8 border border-zinc-200 text-center">
-                    <p className="text-zinc-600 text-sm mb-2">Total Leads</p>
-                    <p className="text-5xl font-medium text-zinc-900">{analytics.totalLeads}</p>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
+                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
                 </Card>
 
-                <Card className="p-8 border border-zinc-200 text-center">
-                    <p className="text-zinc-600 text-sm mb-2">Hot Leads</p>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
                     <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
                 </Card>
 
-                <Card className="p-8 border border-zinc-200 text-center">
-                    <p className="text-zinc-600 text-sm mb-2">Conversion Rate</p>
-                    <p className="text-5xl font-medium text-zinc-900">{analytics.conversionRate}%</p>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
+                    <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
                 </Card>
             </div>
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                 {/* Events by Type - Pie Chart */}
-                <Card className="p-8 border border-zinc-200">
-                    <h2 className="text-2xl font-medium text-zinc-900 mb-6">Events by Type</h2>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Events by Type</h2>
                     {eventsByTypeData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
@@ -122,8 +122,8 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Leads by Priority - Pie Chart */}
-                <Card className="p-8 border border-zinc-200">
-                    <h2 className="text-2xl font-medium text-zinc-900 mb-6">Leads by Priority</h2>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Leads by Priority</h2>
                     {analytics.totalLeads > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
@@ -152,8 +152,8 @@ export default function AnalyticsPage() {
             {/* Top Events Chart */}
             {topEventsData.length > 0 && (
                 <div className="mb-12">
-                    <Card className="p-8 border border-zinc-200">
-                        <h2 className="text-2xl font-medium text-zinc-900 mb-6">Top Events by Leads</h2>
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
                         <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={topEventsData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
@@ -176,16 +176,16 @@ export default function AnalyticsPage() {
             {/* Top Performers Lists */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Events by Leads */}
-                <Card className="p-8 border border-zinc-200">
-                    <h2 className="text-2xl font-medium text-zinc-900 mb-6">Top Events by Leads</h2>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
                     <div className="space-y-4">
                         {topByLeads.map((event, index) => (
                             <Link key={event.id} href={`/events/${event.id}`}>
-                                <div className="flex items-center gap-4 p-4 border border-zinc-200 rounded-lg hover:border-zinc-900 transition-colors">
-                                    <div className="text-2xl font-medium text-zinc-400 w-8">#{index + 1}</div>
+                                <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
+                                    <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
                                     <div className="flex-grow">
-                                        <p className="font-medium text-zinc-900">{event.name}</p>
-                                        <p className="text-sm text-zinc-600">{event.location}</p>
+                                        <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
+                                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{event.location}</p>
                                     </div>
                                     <Badge variant="lime">{event.leads} leads</Badge>
                                 </div>
@@ -198,16 +198,16 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Top Events by Budget */}
-                <Card className="p-8 border border-zinc-200">
-                    <h2 className="text-2xl font-medium text-zinc-900 mb-6">Top Events by Budget</h2>
+                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Budget</h2>
                     <div className="space-y-4">
                         {topByBudget.map((event, index) => (
                             <Link key={event.id} href={`/events/${event.id}`}>
-                                <div className="flex items-center gap-4 p-4 border border-zinc-200 rounded-lg hover:border-zinc-900 transition-colors">
-                                    <div className="text-2xl font-medium text-zinc-400 w-8">#{index + 1}</div>
+                                <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
+                                    <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
                                     <div className="flex-grow">
-                                        <p className="font-medium text-zinc-900">{event.name}</p>
-                                        <p className="text-sm text-zinc-600">{event.location}</p>
+                                        <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
+                                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{event.location}</p>
                                     </div>
                                     <Badge variant="secondary">${(event.budget / 1000).toFixed(0)}k</Badge>
                                 </div>

@@ -518,30 +518,30 @@ export default function LeadsPage() {
                                     Name <SortIcon field="name" />
                                 </TableHead>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
                                     onClick={() => handleSort('email')}
                                 >
                                     Email <SortIcon field="email" />
                                 </TableHead>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
                                     onClick={() => handleSort('company')}
                                 >
                                     Company <SortIcon field="company" />
                                 </TableHead>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
                                     onClick={() => handleSort('score')}
                                 >
                                     Score <SortIcon field="score" />
                                 </TableHead>
                                 <TableHead
-                                    className="font-medium cursor-pointer hover:bg-zinc-50 select-none"
+                                    className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-zinc-300"
                                     onClick={() => handleSort('status')}
                                 >
                                     Status <SortIcon field="status" />
                                 </TableHead>
-                                <TableHead className="font-medium">Actions</TableHead>
+                                <TableHead className="font-medium text-zinc-700 dark:text-zinc-300">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
