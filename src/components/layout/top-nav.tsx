@@ -25,13 +25,13 @@ export function TopNav() {
                         <img
                             src="/eventra-logo-light.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-[72px] w-auto dark:hidden"
+                            className="h-14 w-auto dark:hidden"
                         />
                         {/* Dark mode logo (white text) */}
                         <img
                             src="/eventra-logo-dark.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-[72px] w-auto hidden dark:block"
+                            className="h-14 w-auto hidden dark:block"
                         />
                     </Link>
 
