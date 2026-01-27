@@ -75,13 +75,13 @@ export default function NewEventPage() {
 
     return (
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
-            <Link href="/events" className="text-zinc-600 hover:text-zinc-900 text-sm mb-4 inline-block">
+            <Link href="/events" className="text-zinc-600 hover:text-zinc-900 dark:text-white/60 dark:hover:text-[#cbfb45] text-sm mb-4 inline-block">
                 ← Back to Events
             </Link>
 
-            <h1 className="text-5xl font-medium text-zinc-900 mb-8">Create New Event</h1>
+            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Create New Event</h1>
 
-            <Card className="p-8 border border-zinc-200">
+            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <Label htmlFor="name">Event Name *</Label>

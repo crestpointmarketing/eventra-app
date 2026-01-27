@@ -59,7 +59,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     if (isLoading) {
         return (
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-zinc-600">Loading event...</p>
+                <p className="text-zinc-600 dark:text-white/70">Loading event...</p>
             </div>
         )
     }
@@ -77,13 +77,13 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
     return (
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
-            <Link href={`/events/${id}`} className="text-zinc-600 hover:text-zinc-900 text-sm mb-4 inline-block">
+            <Link href={`/events/${id}`} className="text-zinc-600 hover:text-zinc-900 dark:text-white/60 dark:hover:text-[#cbfb45] text-sm mb-4 inline-block">
                 ← Back to Event
             </Link>
 
-            <h1 className="text-5xl font-medium text-zinc-900 mb-8">Edit Event</h1>
+            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Edit Event</h1>
 
-            <Card className="p-8 border border-zinc-200">
+            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <Label htmlFor="name">Event Name *</Label>
