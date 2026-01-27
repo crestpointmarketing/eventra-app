@@ -420,11 +420,13 @@ export default function EventsPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
+                            className="h-full"
                         >
-                            <Link href={`/events/${event.id}`}>
+                            <Link href={`/events/${event.id}`} className="h-full block">
                                 <motion.div
                                     whileHover={{ scale: 1.02, y: -4 }}
                                     transition={{ duration: 0.2 }}
+                                    className="h-full"
                                 >
                                     <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-600 transition-colors h-full bg-white dark:bg-zinc-900 hover:shadow-lg">
                                         <div className="flex justify-between items-start mb-4">
