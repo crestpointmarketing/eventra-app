@@ -394,7 +394,7 @@ export default function LeadsPage() {
 
                             {/* Event Filter */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Associated Event</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Associated Event</Label>
                                 <Select
                                     value={advancedFilters.eventId}
                                     onValueChange={(value) =>
@@ -417,25 +417,27 @@ export default function LeadsPage() {
 
                             {/* Created Date Range */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Created Date Range</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Created Date Range</Label>
                                 <div className="flex gap-2 items-center">
                                     <Input
                                         type="date"
                                         value={advancedFilters.dateFrom}
                                         onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateFrom: e.target.value })}
+                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
                                     />
-                                    <span className="text-zinc-600">to</span>
+                                    <span className="text-zinc-600 dark:text-zinc-400">to</span>
                                     <Input
                                         type="date"
                                         value={advancedFilters.dateTo}
                                         onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateTo: e.target.value })}
+                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
                                     />
                                 </div>
                             </div>
 
                             {/* Status Filter */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Status</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
                                 <div className="space-y-2">
                                     {STATUS_OPTIONS.map((status) => (
                                         <div key={status} className="flex items-center space-x-2">
@@ -458,7 +460,7 @@ export default function LeadsPage() {
                                             />
                                             <label
                                                 htmlFor={`status-${status}`}
-                                                className="text-sm capitalize cursor-pointer"
+                                                className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
                                             >
                                                 {status}
                                             </label>

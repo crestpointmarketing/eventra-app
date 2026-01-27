@@ -273,25 +273,27 @@ export default function EventsPage() {
 
                             {/* Date Range */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Event Date Range</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Date Range</Label>
                                 <div className="flex gap-2 items-center">
                                     <Input
                                         type="date"
                                         value={filters.dateFrom}
                                         onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
                                     />
-                                    <span className="text-zinc-600">to</span>
+                                    <span className="text-zinc-600 dark:text-zinc-400">to</span>
                                     <Input
                                         type="date"
                                         value={filters.dateTo}
                                         onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                                        className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
                                     />
                                 </div>
                             </div>
 
                             {/* Status Filter */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Status</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
                                 <div className="space-y-2">
                                     {STATUS_OPTIONS.map((status) => (
                                         <div key={status} className="flex items-center space-x-2">
@@ -314,7 +316,7 @@ export default function EventsPage() {
                                             />
                                             <label
                                                 htmlFor={`status-${status}`}
-                                                className="text-sm capitalize cursor-pointer"
+                                                className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
                                             >
                                                 {status.replace('_', ' ')}
                                             </label>
@@ -325,7 +327,7 @@ export default function EventsPage() {
 
                             {/* Event Type Filter */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Event Type</Label>
+                                <Label className="text-sm font-medium text-zinc-900 dark:text-white">Event Type</Label>
                                 <div className="space-y-2">
                                     {EVENT_TYPE_OPTIONS.map((type) => (
                                         <div key={type} className="flex items-center space-x-2">
@@ -348,7 +350,7 @@ export default function EventsPage() {
                                             />
                                             <label
                                                 htmlFor={`type-${type}`}
-                                                className="text-sm capitalize cursor-pointer"
+                                                className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
                                             >
                                                 {type.replace('_', ' ')}
                                             </label>
