@@ -15,6 +15,7 @@ import {
 import { StatsLoadingGrid } from '@/components/ui/loading-skeletons'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
+import { PageTransition } from '@/components/animations/page-transition'
 
 const COLORS = {
     lime: '#a3e635',
@@ -66,188 +67,190 @@ export default function AnalyticsPage() {
     }))
 
     return (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
+        <PageTransition>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
 
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0 }}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                >
-                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
-                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
-                    </Card>
-                </motion.div>
+                {/* Key Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
+                    >
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
+                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
+                        </Card>
+                    </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                >
-                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
-                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
-                    </Card>
-                </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
+                    >
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
+                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
+                        </Card>
+                    </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                >
-                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
-                        <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
-                    </Card>
-                </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
+                    >
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
+                            <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
+                        </Card>
+                    </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                >
-                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
-                        <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
-                    </Card>
-                </motion.div>
-            </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.3 }}
+                        whileHover={{ scale: 1.05, y: -4 }}
+                    >
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
+                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
+                        </Card>
+                    </motion.div>
+                </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-                {/* Events by Type - Pie Chart */}
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Events by Type</h2>
-                    {eventsByTypeData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={eventsByTypeData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-                                    outerRadius={100}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {eventsByTypeData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={Object.values(COLORS)[index % Object.values(COLORS).length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <p className="text-zinc-600 text-center py-12">No event types to display</p>
-                    )}
-                </Card>
-
-                {/* Leads by Priority - Pie Chart */}
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Leads by Priority</h2>
-                    {analytics.totalLeads > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={leadsByPriorityData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-                                    outerRadius={100}
-                                    dataKey="value"
-                                >
-                                    {leadsByPriorityData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <p className="text-zinc-600 text-center py-12">No leads to display</p>
-                    )}
-                </Card>
-            </div>
-
-            {/* Top Events Chart */}
-            {topEventsData.length > 0 && (
-                <div className="mb-12">
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+                    {/* Events by Type - Pie Chart */}
                     <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={topEventsData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                                <XAxis dataKey="name" stroke="#71717a" />
-                                <YAxis stroke="#71717a" />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: '#fff',
-                                        border: '1px solid #e4e4e7',
-                                        borderRadius: '8px'
-                                    }}
-                                />
-                                <Bar dataKey="leads" fill={COLORS.lime} radius={[8, 8, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Events by Type</h2>
+                        {eventsByTypeData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Pie
+                                        data={eventsByTypeData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {eventsByTypeData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={Object.values(COLORS)[index % Object.values(COLORS).length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <p className="text-zinc-600 text-center py-12">No event types to display</p>
+                        )}
+                    </Card>
+
+                    {/* Leads by Priority - Pie Chart */}
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Leads by Priority</h2>
+                        {analytics.totalLeads > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Pie
+                                        data={leadsByPriorityData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                        outerRadius={100}
+                                        dataKey="value"
+                                    >
+                                        {leadsByPriorityData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <p className="text-zinc-600 text-center py-12">No leads to display</p>
+                        )}
                     </Card>
                 </div>
-            )}
 
-            {/* Top Performers Lists */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top Events by Leads */}
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
-                    <div className="space-y-4">
-                        {topByLeads.map((event, index) => (
-                            <Link key={event.id} href={`/events/${event.id}`}>
-                                <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
-                                    <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
-                                    <div className="flex-grow">
-                                        <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
-                                        <p className="text-sm text-zinc-600 dark:text-white">{event.location}</p>
-                                    </div>
-                                    <Badge variant="lime">{event.leads} leads</Badge>
-                                </div>
-                            </Link>
-                        ))}
-                        {topByLeads.length === 0 && (
-                            <p className="text-zinc-600">No events with leads yet</p>
-                        )}
+                {/* Top Events Chart */}
+                {topEventsData.length > 0 && (
+                    <div className="mb-12">
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                            <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={topEventsData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                    <XAxis dataKey="name" stroke="#71717a" />
+                                    <YAxis stroke="#71717a" />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            border: '1px solid #e4e4e7',
+                                            borderRadius: '8px'
+                                        }}
+                                    />
+                                    <Bar dataKey="leads" fill={COLORS.lime} radius={[8, 8, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Card>
                     </div>
-                </Card>
+                )}
 
-                {/* Top Events by Budget */}
-                <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Budget</h2>
-                    <div className="space-y-4">
-                        {topByBudget.map((event, index) => (
-                            <Link key={event.id} href={`/events/${event.id}`}>
-                                <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
-                                    <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
-                                    <div className="flex-grow">
-                                        <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
-                                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{event.location}</p>
+                {/* Top Performers Lists */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Top Events by Leads */}
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Leads</h2>
+                        <div className="space-y-4">
+                            {topByLeads.map((event, index) => (
+                                <Link key={event.id} href={`/events/${event.id}`}>
+                                    <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
+                                        <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
+                                        <div className="flex-grow">
+                                            <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
+                                            <p className="text-sm text-zinc-600 dark:text-white">{event.location}</p>
+                                        </div>
+                                        <Badge variant="lime">{event.leads} leads</Badge>
                                     </div>
-                                    <Badge variant="secondary">${(event.budget / 1000).toFixed(0)}k</Badge>
-                                </div>
-                            </Link>
-                        ))}
-                        {topByBudget.length === 0 && (
-                            <p className="text-zinc-600">No events with budget yet</p>
-                        )}
-                    </div>
-                </Card>
+                                </Link>
+                            ))}
+                            {topByLeads.length === 0 && (
+                                <p className="text-zinc-600">No events with leads yet</p>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Top Events by Budget */}
+                    <Card className="p-8 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Top Events by Budget</h2>
+                        <div className="space-y-4">
+                            {topByBudget.map((event, index) => (
+                                <Link key={event.id} href={`/events/${event.id}`}>
+                                    <div className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-900 dark:hover:border-white transition-colors">
+                                        <div className="text-2xl font-medium text-zinc-400 dark:text-zinc-500 w-8">#{index + 1}</div>
+                                        <div className="flex-grow">
+                                            <p className="font-medium text-zinc-900 dark:text-white">{event.name}</p>
+                                            <p className="text-sm text-zinc-600 dark:text-zinc-400">{event.location}</p>
+                                        </div>
+                                        <Badge variant="secondary">${(event.budget / 1000).toFixed(0)}k</Badge>
+                                    </div>
+                                </Link>
+                            ))}
+                            {topByBudget.length === 0 && (
+                                <p className="text-zinc-600">No events with budget yet</p>
+                            )}
+                        </div>
+                    </Card>
+                </div>
             </div>
-        </div>
+        </PageTransition>
     )
 }
