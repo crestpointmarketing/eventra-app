@@ -338,7 +338,7 @@ export default function LeadsPage() {
                             )}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-96">
+                    <PopoverContent className="w-96 bg-white border-2 border-zinc-200 shadow-lg">
                         <div className="space-y-6">
                             <div>
                                 <h4 className="font-medium text-sm mb-4">Advanced Filters</h4>
