@@ -52,7 +52,7 @@ export function BulkActionsToolbar({
                                         variant="outline"
                                         size="sm"
                                         onClick={onExport}
-                                        className="border-white/20 hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10"
+                                        className="border-white/20 hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10 text-white dark:text-zinc-900"
                                     >
                                         <Download className="h-4 w-4 mr-2" />
                                         Export Selected
@@ -79,7 +79,7 @@ export function BulkActionsToolbar({
                                 variant="ghost"
                                 size="sm"
                                 onClick={onClear}
-                                className="hover:bg-white/10 dark:hover:bg-zinc-900/10"
+                                className="hover:bg-white/10 dark:hover:bg-zinc-900/10 text-white dark:text-zinc-900"
                             >
                                 <X className="h-4 w-4 mr-2" />
                                 Clear Selection
