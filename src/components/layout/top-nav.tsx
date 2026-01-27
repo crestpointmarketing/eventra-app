@@ -21,10 +21,17 @@ export function TopNav() {
                 <div className="flex h-20 items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center">
+                        {/* Light mode logo (black text) */}
                         <img
-                            src="/eventra-logo.png"
+                            src="/eventra-logo-light.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-12 w-auto"
+                            className="h-[72px] w-auto dark:hidden"
+                        />
+                        {/* Dark mode logo (white text) */}
+                        <img
+                            src="/eventra-logo-dark.png"
+                            alt="Eventra - Leads to Revenue"
+                            className="h-[72px] w-auto hidden dark:block"
                         />
                     </Link>
 
