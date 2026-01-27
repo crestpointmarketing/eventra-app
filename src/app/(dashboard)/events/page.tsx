@@ -208,11 +208,11 @@ export default function EventsPage() {
                 {/* Advanced Filters */}
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="outline">
+                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800">
                             <Filter className="h-4 w-4 mr-2" />
-                            Filters
+                            Advanced Filters
                             {activeFilterCount > 0 && (
-                                <Badge variant="secondary" className="ml-2">
+                                <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
                                     {activeFilterCount}
                                 </Badge>
                             )}

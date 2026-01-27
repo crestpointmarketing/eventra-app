@@ -276,8 +276,8 @@ export default function LeadsPage() {
                 <button
                     onClick={() => setFilter('all')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'all'
-                            ? 'text-zinc-900 border-zinc-900'
-                            : 'text-zinc-600 border-transparent hover:text-zinc-900'
+                        ? 'text-zinc-900 border-zinc-900'
+                        : 'text-zinc-600 border-transparent hover:text-zinc-900'
                         }`}
                 >
                     All ({leadCounts.all})
@@ -285,8 +285,8 @@ export default function LeadsPage() {
                 <button
                     onClick={() => setFilter('hot')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'hot'
-                            ? 'text-lime-400 border-lime-400'
-                            : 'text-zinc-600 border-transparent hover:text-lime-400'
+                        ? 'text-lime-400 border-lime-400'
+                        : 'text-zinc-600 border-transparent hover:text-lime-400'
                         }`}
                 >
                     🔥 Hot ({leadCounts.hot})
@@ -294,8 +294,8 @@ export default function LeadsPage() {
                 <button
                     onClick={() => setFilter('warm')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'warm'
-                            ? 'text-yellow-400 border-yellow-400'
-                            : 'text-zinc-600 border-transparent hover:text-yellow-400'
+                        ? 'text-yellow-400 border-yellow-400'
+                        : 'text-zinc-600 border-transparent hover:text-yellow-400'
                         }`}
                 >
                     ☀️ Warm ({leadCounts.warm})
@@ -303,8 +303,8 @@ export default function LeadsPage() {
                 <button
                     onClick={() => setFilter('cold')}
                     className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'cold'
-                            ? 'text-zinc-400 border-zinc-400'
-                            : 'text-zinc-600 border-transparent hover:text-zinc-400'
+                        ? 'text-zinc-400 border-zinc-400'
+                        : 'text-zinc-600 border-transparent hover:text-zinc-400'
                         }`}
                 >
                     ❄️ Cold ({leadCounts.cold})
@@ -328,11 +328,11 @@ export default function LeadsPage() {
                 {/* Advanced Filters */}
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="outline">
+                        <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800">
                             <Filter className="h-4 w-4 mr-2" />
-                            Advanced
+                            Advanced Filters
                             {activeFilterCount > 0 && (
-                                <Badge variant="secondary" className="ml-2">
+                                <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
                                     {activeFilterCount}
                                 </Badge>
                             )}
