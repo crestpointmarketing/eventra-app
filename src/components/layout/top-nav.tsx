@@ -20,8 +20,12 @@ export function TopNav() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-20 items-center justify-between">
                     {/* Logo */}
-                    <Link href="/" className="text-2xl font-medium text-zinc-900 dark:text-white">
-                        Eventra
+                    <Link href="/" className="flex items-center">
+                        <img
+                            src="/eventra-logo.png"
+                            alt="Eventra - Leads to Revenue"
+                            className="h-12 w-auto"
+                        />
                     </Link>
 
                     {/* Navigation Links */}
