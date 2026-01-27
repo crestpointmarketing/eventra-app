@@ -382,7 +382,7 @@ export default function EventsPage() {
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Sort by..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
+                        <SelectContent>
                             <SelectItem value="date-desc">Date (Newest First)</SelectItem>
                             <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
                             <SelectItem value="budget-desc">Budget (High to Low)</SelectItem>
