@@ -26,7 +26,7 @@ export function ThemeToggle() {
             className="rounded-full"
         >
             {theme === 'dark' ? (
-                <Sun className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
+                <Sun className="h-5 w-5 text-lime-400" />
             ) : (
                 <Moon className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
             )}
