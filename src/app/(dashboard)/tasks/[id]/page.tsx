@@ -187,7 +187,7 @@ export default function TaskDetailPage() {
     if (isLoading) {
         return (
             <div className="container mx-auto p-6">
-                <TableLoadingSkeleton rows={10} columns={2} />
+                <TableLoadingSkeleton rows={10} />
             </div>
         )
     }
