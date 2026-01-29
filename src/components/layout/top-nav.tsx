@@ -61,6 +61,7 @@ export function TopNav() {
     }
 
     const navItems = [
+        { href: '/dashboard', label: 'Dashboard' },
         { href: '/events', label: 'Events' },
         { href: '/tasks', label: 'Tasks' },
         { href: '/assets', label: 'Assets' },
