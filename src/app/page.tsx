@@ -96,8 +96,16 @@ export default function LandingPage() {
             {/* Left: Branding */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-6 w-6 rounded bg-indigo-600"></div>
-                <span className="text-lg font-semibold text-zinc-900 dark:text-white">Eventra™</span>
+                <img
+                  src="/eventra-logo-light.png"
+                  alt="Eventra"
+                  className="h-8 w-auto dark:hidden"
+                />
+                <img
+                  src="/eventra-logo-dark.png"
+                  alt="Eventra"
+                  className="h-8 w-auto hidden dark:block"
+                />
               </div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">Turn Events Into Revenue</p>
             </div>
