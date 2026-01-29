@@ -152,6 +152,9 @@ export function TopNav() {
                                     <Map className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
                                 </button>
 
+                                {/* Theme Toggle */}
+                                <ThemeToggle />
+
                                 {/* User Avatar & Dropdown */}
                                 <div className="relative" ref={menuRef}>
                                     <button
@@ -203,6 +206,9 @@ export function TopNav() {
                         ) : (
                             // Unauthenticated user controls
                             <>
+                                {/* Theme Toggle */}
+                                <ThemeToggle />
+
                                 <Link href="/login">
                                     <Button variant="ghost" size="sm">
                                         Log In
