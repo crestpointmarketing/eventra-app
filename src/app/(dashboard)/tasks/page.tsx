@@ -253,7 +253,7 @@ export default function TasksPage() {
                 {/* Tasks Table */}
                 <Card>
                     {isLoading ? (
-                        <TableLoadingSkeleton rows={6} columns={5} />
+                        <TableLoadingSkeleton rows={6} />
                     ) : filteredTasks.length === 0 ? (
                         <div className="text-center py-12">
                             <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
