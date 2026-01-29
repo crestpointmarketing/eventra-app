@@ -6,9 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Input } from '@/components/ui/input'
 import {
-    Search, MessageSquare, Bell, Map, User, LogOut,
+    Bell, Map, User, LogOut,
     Settings, LayoutDashboard
 } from 'lucide-react'
 
@@ -18,7 +17,6 @@ export function TopNav() {
     const supabase = createClient()
     const [user, setUser] = useState<any>(null)
     const [showUserMenu, setShowUserMenu] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
     const menuRef = useRef<HTMLDivElement>(null)
 
     // Check authentication status
@@ -53,13 +51,6 @@ export function TopNav() {
         router.push('/login')
     }
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (searchQuery.trim()) {
-            router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
-        }
-    }
-
     const navItems = [
         { href: '/dashboard', label: 'Dashboard' },
         { href: '/events', label: 'Events' },
@@ -74,7 +65,7 @@ export function TopNav() {
         <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-20 items-center justify-between">
-                    {/* Logo */}
+                    {/* LEFT: Logo */}
                     <Link href="/" className="flex items-center">
                         <img
                             src="/eventra-logo-light.png"
@@ -88,44 +79,38 @@ export function TopNav() {
                         />
                     </Link>
 
-                    {/* Navigation Links - Only show when logged in */}
+                    {/* CENTER: Primary Navigation - Only show when logged in */}
                     {user && (
-                        <div className="flex gap-8">
-                            {navItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={`text-base transition-colors ${pathname?.startsWith(item.href)
-                                        ? 'text-zinc-900 dark:text-white font-medium'
-                                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                                        }`}
-                                >
-                                    {item.label}
-                                </Link>
-                            ))}
+                        <div className="flex-1 flex justify-center">
+                            <nav className="flex gap-6">
+                                {navItems.map((item) => {
+                                    const isActive = pathname?.startsWith(item.href)
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            className={`relative py-2 px-1 text-base transition-colors ${isActive
+                                                    ? 'font-semibold text-zinc-900 dark:text-white'
+                                                    : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                                                }`}
+                                        >
+                                            {item.label}
+                                            {/* Active indicator - Neon Green underline */}
+                                            {isActive && (
+                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CBFB45] rounded-sm" />
+                                            )}
+                                        </Link>
+                                    )
+                                })}
+                            </nav>
                         </div>
                     )}
 
-                    {/* Right Side Actions */}
+                    {/* RIGHT: Actions */}
                     <div className="flex items-center gap-3">
                         {user ? (
                             // Authenticated user controls
                             <>
-                                {/* Search */}
-                                <form onSubmit={handleSearch} className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Find..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 pr-10 w-48 h-10 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
-                                    />
-                                    <kbd className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs text-zinc-500 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded">
-                                        F
-                                    </kbd>
-                                </form>
-
                                 {/* Feedback Button */}
                                 <Button
                                     variant="ghost"
