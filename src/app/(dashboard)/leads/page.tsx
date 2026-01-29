@@ -34,13 +34,16 @@ import Link from 'next/link'
 import { exportLeadsToCSV } from '@/lib/export'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw } from 'lucide-react'
+import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw, Brain, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
 import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import { bulkUpdateLeadStatus, type LeadStatus } from '@/lib/api/bulk-operations'
+import { useScoreLead, useCachedLeadScore } from '@/hooks/useAI'
+import { AIScoreBadge } from '@/components/ai/ai-score-display'
+import { LeadQualificationBadge } from '@/components/ai/lead-qualification-badge'
 
 type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
 type SortDirection = 'asc' | 'desc'
@@ -63,6 +66,10 @@ export default function LeadsPage() {
     const [sortField, setSortField] = useState<SortField>('score')
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
     const debouncedSearch = useDebounce(searchQuery, 300)
+
+    // AI state
+    const scoreLead = useScoreLead()
+    const [scoringLeadId, setScoringLeadId] = useState<string | null>(null)
 
     // Advanced filters state
     const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
@@ -579,6 +586,18 @@ export default function LeadsPage() {
                                     >
                                         Score <SortIcon field="score" />
                                     </TableHead>
+                                    <TableHead className="font-medium text-zinc-700 dark:text-white">
+                                        <div className="flex items-center gap-1">
+                                            <Brain className="w-4 h-4 text-purple-600" />
+                                            AI Score
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="font-medium text-zinc-700 dark:text-white">
+                                        <div className="flex items-center gap-1">
+                                            <Sparkles className="w-4 h-4 text-indigo-600" />
+                                            AI Fit
+                                        </div>
+                                    </TableHead>
                                     <TableHead
                                         className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
                                         onClick={() => handleSort('status')}
@@ -622,6 +641,12 @@ export default function LeadsPage() {
                                             >
                                                 {lead.lead_score || 0}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <LeadQualificationBadge
+                                                leadId={lead.id}
+                                                leadName={`${lead.first_name} ${lead.last_name}`}
+                                            />
                                         </TableCell>
                                         <TableCell className="capitalize text-zinc-700 dark:text-white">{lead.status || 'new'}</TableCell>
                                         <TableCell>

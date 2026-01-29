@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { LeadAISummary } from '@/components/ai/lead-ai-summary'
 
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -91,12 +92,18 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* AI Summary */}
-            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 mt-6">
-                <h2 className="text-2xl font-medium text-zinc-900 dark:text-white mb-4">🤖 AI Summary</h2>
-                <p className="text-zinc-600 dark:text-white/70">
-                    AI-powered lead insights and recommendations will appear here in future updates.
-                </p>
-            </Card>
+            <div className="mt-6">
+                <LeadAISummary
+                    leadId={id}
+                    leadName={`${lead.first_name} ${lead.last_name}`}
+                    leadData={{
+                        company: lead.company,
+                        title: lead.job_title,
+                        industry: lead.industry,
+                        company_size: lead.company_size
+                    }}
+                />
+            </div>
 
             {/* Follow-up History */}
             <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 mt-6">
@@ -106,3 +113,4 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
     )
 }
+

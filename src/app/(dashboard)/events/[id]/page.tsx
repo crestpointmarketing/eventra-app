@@ -2,13 +2,21 @@
 
 import { use, useMemo } from 'react'
 import { useEvent } from '@/hooks/useEvent'
+import { useEventTasks } from '@/hooks/useTasks'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CheckCircle2, Clock, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getEventStatus } from '@/lib/utils/event-status'
+import { AITaskGenerator } from '@/components/ai/ai-task-generator'
+import { TaskDependencyViewer } from '@/components/ai/task-dependency-viewer'
+import { RiskAnalysisDashboard } from '@/components/ai/risk-analysis-dashboard'
+import { TaskProgressPredictor } from '@/components/ai/task-progress-predictor'
+import { EventIntelligenceCard } from '@/components/ai/event-intelligence-card'
 
 const COLORS = {
     hot: '#a3e635',    // lime-400
@@ -18,7 +26,9 @@ const COLORS = {
 
 export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
+    const queryClient = useQueryClient()
     const { data: event, isLoading, error } = useEvent(id)
+    const { data: eventTasks } = useEventTasks(id)
 
     // Calculate lead analytics
     const leadAnalytics = useMemo(() => {
@@ -125,11 +135,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <TabsList className="mb-8">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="leads">Leads ({event.leads?.length || 0})</TabsTrigger>
-                    <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                    <TabsTrigger value="tasks">Tasks ({eventTasks?.length || 0})</TabsTrigger>
                 </TabsList>
 
                 {/* Overview Tab */}
                 <TabsContent value="overview">
+                    {/* AI Event Intelligence */}
+                    <div className="mb-8">
+                        <EventIntelligenceCard eventId={id} eventName={event.name} />
+                    </div>
+
                     {/* Key Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
@@ -267,10 +282,139 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </TabsContent>
 
                 {/* Tasks Tab */}
-                <TabsContent value="tasks">
-                    <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
-                        <p className="text-zinc-600 dark:text-white/70">Tasks feature coming soon...</p>
-                    </Card>
+                <TabsContent value="tasks" className="space-y-6">
+                    {/* Header with Create Button */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Event Tasks</h2>
+                            <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+                                Manage tasks for {event.name}
+                            </p>
+                        </div>
+                        <Link href={`/tasks/new?eventId=${id}`}>
+                            <Button>
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Task
+                            </Button>
+                        </Link>
+                    </div>
+
+                    {/* AI Task Generator */}
+                    <AITaskGenerator
+                        eventId={id}
+                        eventDate={event.start_date || undefined}
+                        onTasksCreated={() => {
+                            // Refetch tasks when new ones are created (without full page reload)
+                            queryClient.invalidateQueries({ queryKey: ['tasks', 'event', id] })
+                        }}
+                    />
+
+                    {/* Risk Analysis Dashboard (Phase AI-6) */}
+                    {eventTasks && eventTasks.length > 0 && (
+                        <RiskAnalysisDashboard eventId={id} />
+                    )}
+
+                    {/* Task Dependency Viewer */}
+                    {eventTasks && eventTasks.length >= 2 && (
+                        <TaskDependencyViewer
+                            eventId={id}
+                            tasks={eventTasks}
+                        />
+                    )}
+
+                    {/* Tasks Grid */}
+                    {eventTasks && eventTasks.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {eventTasks.map((task) => (
+                                <Card key={task.id} className="p-6 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 hover:shadow-lg transition-shadow">
+                                    <div className="space-y-4">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <Link href={`/tasks/${task.id}`}>
+                                                    <h3 className="font-semibold text-zinc-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                                        {task.title}
+                                                    </h3>
+                                                </Link>
+                                                {task.description && (
+                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">
+                                                        {task.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {task.status === 'done' && (
+                                                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 ml-2" />
+                                            )}
+                                        </div>
+
+                                        {/* Metadata */}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {/* Priority Badge */}
+                                            <Badge className={
+                                                task.priority === 'urgent'
+                                                    ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+                                                    : task.priority === 'high'
+                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                                                        : task.priority === 'medium'
+                                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                            : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                                            }>
+                                                {task.priority}
+                                            </Badge>
+
+                                            {/* Status Badge */}
+                                            <Badge variant="outline">
+                                                {task.status.replace('_', ' ')}
+                                            </Badge>
+                                        </div>
+
+                                        {/* Due Date */}
+                                        {task.due_date && (
+                                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                <Clock className="w-4 h-4" />
+                                                <span>
+                                                    {new Date(task.due_date) < new Date() && task.status !== 'done'
+                                                        ? <span className="text-red-600 dark:text-red-400 font-medium">Overdue: {new Date(task.due_date).toLocaleDateString()}</span>
+                                                        : `Due ${new Date(task.due_date).toLocaleDateString()}`
+                                                    }
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* AI Progress Prediction (Phase AI-6) */}
+                                        {task.status !== 'done' && (
+                                            <TaskProgressPredictor taskId={task.id} eventId={id} />
+                                        )}
+
+                                        {/* Action Button */}
+                                        <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                                            <Link href={`/tasks/${task.id}`} className="block">
+                                                <Button variant="outline" size="sm" className="w-full">
+                                                    View Details
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <Card className="p-12 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
+                            <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-zinc-400" />
+                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
+                                No tasks yet
+                            </h3>
+                            <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+                                Create your first task to get started with event planning
+                            </p>
+                            <Link href={`/tasks/new?eventId=${id}`}>
+                                <Button>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Create First Task
+                                </Button>
+                            </Link>
+                        </Card>
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
