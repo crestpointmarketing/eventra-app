@@ -10,7 +10,8 @@ interface GTMStrategySummaryProps {
 }
 
 export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
-    const icp = data.icp_data || {}
+    const icp = data.icp_data as import('@/types/company-intelligence').ICPData | undefined
+
 
     return (
         <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
@@ -31,7 +32,7 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                 )}
 
                 {/* ICP Overview */}
-                {(icp.companySizes?.length || icp.jobTitles?.length) && (
+                {(icp?.companySizes?.length || icp?.jobTitles?.length) && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
                             <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -41,13 +42,13 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                         </div>
 
                         {/* Company Sizes */}
-                        {icp.companySizes && icp.companySizes.length > 0 && (
+                        {icp?.companySizes && icp.companySizes.length > 0 && (
                             <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
                                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 block mb-2">
                                     Target Company Sizes
                                 </span>
                                 <div className="flex flex-wrap gap-2">
-                                    {icp.companySizes.map((size) => (
+                                    {icp?.companySizes?.map((size) => (
                                         <Badge key={size} variant="secondary" className="px-3 py-1.5">
                                             {size} employees
                                         </Badge>
@@ -57,13 +58,13 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                         )}
 
                         {/* Job Titles */}
-                        {icp.jobTitles && icp.jobTitles.length > 0 && (
+                        {icp?.jobTitles && icp.jobTitles.length > 0 && (
                             <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
                                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 block mb-2">
                                     Target Job Titles
                                 </span>
                                 <div className="flex flex-wrap gap-2">
-                                    {icp.jobTitles.map((title) => (
+                                    {icp?.jobTitles?.map((title) => (
                                         <Badge key={title} variant="outline" className="px-3 py-1.5">
                                             {title}
                                         </Badge>
@@ -73,7 +74,7 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                         )}
 
                         {/* Budget Range */}
-                        {(icp.budgetMin || icp.budgetMax) && (
+                        {(icp?.budgetMin || icp?.budgetMax) && (
                             <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
                                 <div className="flex items-center gap-2 mb-2">
                                     <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -82,7 +83,7 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                                     </span>
                                 </div>
                                 <p className="text-lg font-semibold text-zinc-900 dark:text-white">
-                                    ${(icp.budgetMin || 0).toLocaleString()} - ${(icp.budgetMax || 0).toLocaleString()}
+                                    ${(icp?.budgetMin || 0).toLocaleString()} - ${(icp?.budgetMax || 0).toLocaleString()}
                                 </p>
                             </div>
                         )}
@@ -154,7 +155,7 @@ export function GTMStrategySummary({ data }: GTMStrategySummaryProps) {
                 )}
 
                 {/* Empty State */}
-                {!data.primary_business_goal && !icp.companySizes?.length && !icp.jobTitles?.length && (
+                {!data.primary_business_goal && !icp?.companySizes?.length && !icp?.jobTitles?.length && (
                     <div className="text-center py-12">
                         <Target className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
                         <p className="text-zinc-500 dark:text-zinc-400">

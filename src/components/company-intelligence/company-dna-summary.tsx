@@ -29,7 +29,7 @@ export function CompanyDNASummary({ data }: CompanyDNASummaryProps) {
                 )}
 
                 {/* Products/Services */}
-                {data.products_services && data.products_services.length > 0 && (
+                {data.core_products && data.core_products.length > 0 && (
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -38,7 +38,7 @@ export function CompanyDNASummary({ data }: CompanyDNASummaryProps) {
                             </h3>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {data.products_services.map((product) => (
+                            {data.core_products.map((product) => (
                                 <Badge key={product} variant="secondary" className="px-3 py-1.5">
                                     {product}
                                 </Badge>
@@ -126,7 +126,7 @@ export function CompanyDNASummary({ data }: CompanyDNASummaryProps) {
                 )}
 
                 {/* Empty State */}
-                {!data.company_description && !data.products_services?.length && !data.target_industries?.length && (
+                {!data.company_description && !data.core_products?.length && !data.target_industries?.length && (
                     <div className="text-center py-12">
                         <Building2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
                         <p className="text-zinc-500 dark:text-zinc-400">

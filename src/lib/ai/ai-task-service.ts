@@ -319,11 +319,11 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
                 return !existingTaskTitles.some(existingTitle => {
                     if (titleLower === existingTitle) return true
                     // Simple similarity check: check if one contains most words of the other
-                    const taskWords = titleLower.split(/\s+/).filter(w => w.length > 3)
-                    const existingWords = existingTitle.split(/\s+/).filter(w => w.length > 3)
+                    const taskWords = titleLower.split(/\s+/).filter((w: string) => w.length > 3)
+                    const existingWords = existingTitle.split(/\s+/).filter((w: string) => w.length > 3)
                     if (taskWords.length === 0 || existingWords.length === 0) return false
 
-                    const matchingWords = taskWords.filter(w => existingWords.includes(w)).length
+                    const matchingWords = taskWords.filter((w: string) => existingWords.includes(w)).length
                     const similarity = matchingWords / Math.min(taskWords.length, existingWords.length)
                     return similarity > 0.7 // 70% word overlap = duplicate
                 })
