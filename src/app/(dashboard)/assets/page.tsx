@@ -7,13 +7,6 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
-import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -29,9 +22,22 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, Upload, File, Image as ImageIcon, Video, Trash2, ExternalLink } from 'lucide-react'
+import { Search, Upload, File, Image as ImageIcon, Video, Trash2, ExternalLink, MoreHorizontal, LayoutGrid, List as ListIcon, ArrowUpDown, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
@@ -40,7 +46,10 @@ import { format } from 'date-fns'
 
 export default function AssetsPage() {
     const [searchQuery, setSearchQuery] = useState('')
-    const [typeFilter, setTypeFilter] = useState<string>('all')
+    const [activeFilter, setActiveFilter] = useState<string>('all')
+    const [selectedEventId, setSelectedEventId] = useState<string>('all')
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
     const [isUploadOpen, setIsUploadOpen] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
     const debouncedSearch = useDebounce(searchQuery, 300)
@@ -53,51 +62,73 @@ export default function AssetsPage() {
     const { mutate: uploadAsset, isPending: isUploading } = useUploadAsset()
     const { mutate: deleteAsset } = useDeleteAsset()
 
+    // Filter categories
+    const filters = [
+        { id: 'all', label: 'All Types' },
+        { id: 'image', label: 'Images' },
+        { id: 'video', label: 'Videos' },
+        { id: 'document', label: 'Documents' },
+        { id: 'other', label: 'Other' },
+    ]
+
+    // Extract unique events for filter
+    const uniqueEvents = useMemo(() => {
+        if (!assets) return []
+        const eventsMap = new Map()
+        assets.forEach(asset => {
+            if (asset.events) {
+                eventsMap.set(asset.events.id, asset.events.name)
+            }
+        })
+        return Array.from(eventsMap.entries()).map(([id, name]) => ({ id, name }))
+    }, [assets])
+
     // Filter assets
     const filteredAssets = useMemo(() => {
         if (!assets) return []
 
-        return assets.filter(asset => {
+        const filtered = assets.filter(asset => {
             // Search filter
-            const matchesSearch = asset.filename.toLowerCase().includes(debouncedSearch.toLowerCase())
+            const matchesSearch = asset.filename.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                asset.title?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                asset.events?.name.toLowerCase().includes(debouncedSearch.toLowerCase())
 
             // Type filter
-            const matchesType = typeFilter === 'all' || asset.file_type === typeFilter
+            let matchesType = true
+            if (activeFilter === 'image') {
+                matchesType = asset.file_type === 'image'
+            } else if (activeFilter === 'video') {
+                matchesType = asset.file_type === 'video'
+            } else if (activeFilter === 'document') {
+                matchesType = asset.file_type === 'document'
+            } else if (activeFilter === 'other') {
+                matchesType = !['image', 'video', 'document'].includes(asset.file_type)
+            }
 
-            return matchesSearch && matchesType
+            // Event filter
+            const matchesEvent = selectedEventId === 'all' || asset.events?.id === selectedEventId
+
+            return matchesSearch && matchesType && matchesEvent
         })
-    }, [assets, debouncedSearch, typeFilter])
+
+        // Sort by date
+        return filtered.sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime()
+            const dateB = new Date(b.created_at || 0).getTime()
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB
+        })
+    }, [assets, debouncedSearch, activeFilter, selectedEventId, sortOrder])
 
     // File upload handlers
     const handleFileSelect = useCallback((files: FileList | null) => {
-        console.log('🟡 handleFileSelect called', { files, filesCount: files?.length, user })
-
-        if (!files) {
-            console.log('🔴 No files provided')
-            return
-        }
+        if (!files) return
 
         const effectiveUserId = user?.id || '00000000-0000-0000-0000-000000000000'
 
-        if (!user) {
-            console.log('⚠️ No authenticated user - using temporary test user ID for upload')
-        }
-
-        console.log('🟢 Starting upload for', files.length, 'files with userId:', effectiveUserId)
-
         Array.from(files).forEach(file => {
-            const fileType = file.type.startsWith('image/') ? 'image' :
-                file.type.startsWith('video/') ? 'video' : 'document'
-
-            console.log('🟡 Uploading file:', { name: file.name, type: fileType, size: file.size })
-
             uploadAsset({
                 file,
-                userId: effectiveUserId,
-                metadata: {
-                    file_type: fileType,
-                    uploaded_by: user?.id || undefined
-                }
+                userId: effectiveUserId
             })
         })
 
@@ -123,50 +154,30 @@ export default function AssetsPage() {
     // Get file type details for better styling
     const getFileTypeDetails = (asset: Asset) => {
         const mimeType = asset.file_type?.toLowerCase() || ''
+        const filename = asset.filename.toLowerCase()
 
-        if (mimeType.includes('pdf')) return { label: 'PDF', color: 'red' }
-        if (mimeType.includes('word') || mimeType.includes('msword')) return { label: 'DOC', color: 'blue' }
-        if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return { label: 'PPT', color: 'orange' }
-        if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return { label: 'XLS', color: 'green' }
-        if (mimeType.includes('image')) return { label: 'IMG', color: 'sky' }
-        if (mimeType.includes('video')) return { label: 'VID', color: 'purple' }
-        if (mimeType.includes('text')) return { label: 'TXT', color: 'gray' }
+        if (mimeType.includes('pdf') || filename.endsWith('.pdf')) return { label: 'PDF', color: 'red', icon: File }
+        if (mimeType.includes('word') || mimeType.includes('msword') || filename.endsWith('.doc') || filename.endsWith('.docx')) return { label: 'DOC', color: 'blue', icon: File }
+        if (mimeType.includes('image') || mimeType.includes('jpg') || mimeType.includes('png')) return { label: 'IMG', color: 'lime', icon: ImageIcon }
+        if (mimeType.includes('video') || mimeType.includes('mp4')) return { label: 'VID', color: 'purple', icon: Video }
+        if (filename.endsWith('.zip')) return { label: 'ZIP', color: 'amber', icon: File }
 
-        return { label: 'FILE', color: 'zinc' }
+        return { label: 'FILE', color: 'zinc', icon: File }
     }
 
     // Get color classes based on color name
     const getColorClasses = (color: string) => {
-        const colors: Record<string, { icon: string; badge: string }> = {
-            red: { icon: 'text-red-500', badge: 'bg-red-500' },
-            blue: { icon: 'text-blue-500', badge: 'bg-blue-500' },
-            orange: { icon: 'text-orange-500', badge: 'bg-orange-500' },
-            green: { icon: 'text-green-500', badge: 'bg-green-500' },
-            purple: { icon: 'text-purple-500', badge: 'bg-purple-500' },
-            sky: { icon: 'text-sky-500', badge: 'bg-sky-500' },
-            indigo: { icon: 'text-indigo-500', badge: 'bg-indigo-500' },
-            pink: { icon: 'text-pink-500', badge: 'bg-pink-500' },
-            yellow: { icon: 'text-yellow-500', badge: 'bg-yellow-500' },
-            gray: { icon: 'text-gray-500', badge: 'bg-gray-500' },
-            zinc: { icon: 'text-zinc-400', badge: 'bg-zinc-400' },
+        const colors: Record<string, string> = {
+            red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+            blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+            orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+            green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+            purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+            lime: 'bg-lime-100 text-lime-600 dark:bg-lime-900/30 dark:text-lime-400',
+            amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+            zinc: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
         }
         return colors[color] || colors.zinc
-    }
-
-    // Get file icon with better styling based on actual file type
-    const getFileIcon = (asset: Asset, size: 'sm' | 'lg' = 'sm') => {
-        const baseClass = size === 'lg' ? 'w-16 h-16' : 'w-5 h-5'
-        const { label, color } = getFileTypeDetails(asset)
-        const colorClasses = getColorClasses(color)
-
-        return (
-            <div className="relative">
-                <File className={`${baseClass} ${colorClasses.icon}`} />
-                <div className={`absolute -bottom-1 -right-1 ${colorClasses.badge} text-white text-[10px] px-1 rounded font-semibold`}>
-                    {label}
-                </div>
-            </div>
-        )
     }
 
     // Handle delete
@@ -178,33 +189,28 @@ export default function AssetsPage() {
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <div className="text-center">
-                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                        Error loading assets
-                    </h3>
-                    <p className="text-zinc-500 dark:text-zinc-400">{error.message}</p>
-                </div>
+            <div className="flex items-center justify-center p-12">
+                <p className="text-red-500">Error loading assets: {error.message}</p>
             </div>
         )
     }
 
     return (
         <PageTransition>
-            <div className="container mx-auto p-6 space-y-6">
+            <div className="container mx-auto p-8 space-y-8 bg-zinc-50/50 dark:bg-black/5 min-h-screen">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">Asset Library</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 mt-2">
+                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Asset Library</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 mt-1">
                             Centralized repository for all event materials and documentation.
                         </p>
                     </div>
                     <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
                         <DialogTrigger asChild>
-                            <Button size="lg" className="gap-2">
+                            <Button className="gap-2">
                                 <Upload className="w-4 h-4" />
-                                Upload Files
+                                Upload Asset
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900">
@@ -214,7 +220,6 @@ export default function AssetsPage() {
                                     Upload images, videos, or documents to your asset library
                                 </DialogDescription>
                             </DialogHeader>
-
                             <div
                                 onDrop={handleDrop}
                                 onDragOver={handleDragOver}
@@ -226,10 +231,7 @@ export default function AssetsPage() {
                             >
                                 <Upload className="w-16 h-16 mx-auto mb-4 text-zinc-400" />
                                 <p className="text-zinc-900 dark:text-white font-medium mb-1">
-                                    Drop files here or click to browse
-                                </p>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                                    Supports images, videos, and documents
+                                    Drop files here
                                 </p>
                                 <input
                                     type="file"
@@ -237,11 +239,10 @@ export default function AssetsPage() {
                                     className="hidden"
                                     id="file-upload"
                                     onChange={(e) => handleFileSelect(e.target.files)}
-                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                                 />
                                 <label htmlFor="file-upload">
                                     <Button type="button" variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
-                                        Choose Files
+                                        Browse Files
                                     </Button>
                                 </label>
                             </div>
@@ -249,185 +250,240 @@ export default function AssetsPage() {
                     </Dialog>
                 </div>
 
-                {/* Filters */}
-                <Card className="p-4">
-                    <div className="flex items-center gap-4">
-                        {/* Search */}
-                        <div className="flex-1 relative">
+                {/* Toolbar */}
+                <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+                        <div className="relative w-full md:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                             <Input
-                                placeholder="Search files by name, type, or tag..."
+                                placeholder="Search files..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
+                                className="pl-10 bg-white dark:bg-zinc-900 border-none shadow-sm h-10"
                             />
                         </div>
 
-                        {/* Type Filter */}
+                        <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                            <SelectTrigger className="w-full md:w-48 bg-white dark:bg-zinc-900 border-none shadow-sm h-10">
+                                <SelectValue placeholder="Filter by Event" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Events</SelectItem>
+                                {uniqueEvents.map(event => (
+                                    <SelectItem key={event.id} value={event.id}>
+                                        {event.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-4 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 justify-between xl:justify-end">
                         <div className="flex items-center gap-2">
-                            <Select value={typeFilter} onValueChange={setTypeFilter}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Filter by type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All</SelectItem>
-                                    <SelectItem value="image">Images</SelectItem>
-                                    <SelectItem value="document">Documents</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="flex bg-zinc-200 dark:bg-zinc-800 p-1 rounded-full mr-2">
+                                {filters.map(filter => (
+                                    <button
+                                        key={filter.id}
+                                        onClick={() => setActiveFilter(filter.id)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeFilter === filter.id
+                                            ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
+                                            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                                            }`}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                className="h-9 gap-2 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                            >
+                                <ArrowUpDown className="w-4 h-4" />
+                                <span className="hidden sm:inline">Date</span>
+                                {sortOrder === 'desc' ? '↓' : '↑'}
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 ml-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${viewMode === 'list' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900' : 'text-zinc-400'}`}
+                                onClick={() => setViewMode('list')}
+                            >
+                                <ListIcon className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${viewMode === 'grid' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900' : 'text-zinc-400'}`}
+                                onClick={() => setViewMode('grid')}
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                            </Button>
                         </div>
                     </div>
-                </Card>
+                </div>
 
-                {/* Assets Display */}
                 {isLoading ? (
                     <TableLoadingSkeleton rows={6} />
                 ) : filteredAssets.length === 0 ? (
-                    <Card className="p-12 text-center">
-                        <Upload className="w-16 h-16 mx-auto mb-4 text-zinc-400" />
-                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                            No assets found
-                        </h3>
-                        <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-                            {assets?.length === 0 ? 'Upload your first file to get started' : 'Try adjusting your filters'}
+                    <div className="flex flex-col items-center justify-center p-24 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-white/50 dark:bg-zinc-900/50">
+                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                            <File className="w-8 h-8 text-zinc-300" />
+                        </div>
+                        <h3 className="text-lg font-medium text-zinc-900 dark:text-white">No assets found</h3>
+                        <p className="text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm">
+                            No files match your search criteria. Try adjusting your filters or upload a new asset.
                         </p>
-                        {assets?.length === 0 && (
-                            <Button onClick={() => setIsUploadOpen(true)}>
-                                <Upload className="w-4 h-4 mr-2" />
-                                Upload Files
-                            </Button>
-                        )}
-                    </Card>
+                    </div>
                 ) : (
-                    <div className="space-y-8">
-                        {/* RECENTLY ADDED SECTION */}
-                        <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wide">Recently Added</h2>
-                            </div>
-                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                                {filteredAssets.slice(0, 6).map((asset) => {
-                                    const isNew = asset.created_at &&
-                                        (new Date().getTime() - new Date(asset.created_at).getTime()) < 7 * 24 * 60 * 60 * 1000
+                    <div className="space-y-12">
+                        {/* Recently Added Section */}
+                        <section>
+                            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-6">Recently Added</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {filteredAssets.slice(0, 4).map((asset) => {
+                                    const { label, color, icon: Icon } = getFileTypeDetails(asset)
+                                    const colorClass = getColorClasses(color)
+                                    const isNew = asset.created_at && (new Date().getTime() - new Date(asset.created_at).getTime()) < 3 * 24 * 60 * 60 * 1000 // 3 days new
 
                                     return (
-                                        <motion.div
-                                            key={asset.id}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            className="flex-shrink-0 w-56"
-                                        >
-                                            <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-                                                {/* Preview */}
-                                                <div className="relative aspect-video bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
-                                                    {asset.file_type === 'image' && asset.file_url ? (
-                                                        <img
-                                                            src={asset.file_url}
-                                                            alt={asset.filename}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        getFileIcon(asset, 'lg')
-                                                    )}
-                                                    {isNew && (
-                                                        <div className="absolute top-2 right-2 bg-lime-400 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded">
-                                                            NEW
-                                                        </div>
-                                                    )}
+                                        <Card key={asset.id} className="group overflow-hidden border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-zinc-900">
+                                            <div className="aspect-[4/3] bg-zinc-50 dark:bg-zinc-800/50 relative flex items-center justify-center group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-colors">
+                                                {asset.file_type === 'image' && asset.file_url ? (
+                                                    <img src={asset.file_url} alt={asset.filename} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${colorClass}`}>
+                                                        <Icon className="w-8 h-8" />
+                                                    </div>
+                                                )}
+                                                {isNew && (
+                                                    <span className="absolute top-3 right-3 bg-[#CBFB45] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                                        NEW
+                                                    </span>
+                                                )}
+
+                                                {/* Hover Overlay Action */}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="secondary" size="sm" className="bg-white/90 hover:bg-white text-zinc-900 border-none">
+                                                            <ExternalLink className="w-4 h-4 mr-2" />
+                                                            Open
+                                                        </Button>
+                                                    </a>
                                                 </div>
-                                                {/* Info */}
-                                                <div className="p-3">
-                                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white truncate mb-1">
-                                                        {asset.filename}
-                                                    </h3>
-                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                        {asset.created_at ? format(new Date(asset.created_at), 'MMM d, yyyy') : 'Unknown date'}
-                                                    </p>
-                                                </div>
-                                            </Card>
-                                        </motion.div>
+                                            </div>
+                                            <div className="p-4">
+                                                <h3 className="font-semibold text-zinc-900 dark:text-white truncate" title={asset.title || asset.filename}>
+                                                    {asset.title || asset.filename}
+                                                </h3>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 truncate">
+                                                    {asset.events?.name || 'Global Asset'}
+                                                </p>
+                                            </div>
+                                        </Card>
                                     )
                                 })}
                             </div>
-                        </div>
+                        </section>
 
-                        {/* ALL MATERIALS SECTION */}
-                        <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wide">All Materials</h2>
+                        {/* All Materials Section */}
+                        <section>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">All Materials</h2>
+                                <Button variant="link" className="text-[#8B5CF6] hover:text-[#7C3AED] p-0 h-auto font-medium text-xs uppercase" onClick={() => setViewMode('list')}>
+                                    View All
+                                </Button>
                             </div>
-                            <Card>
+
+                            <Card className="border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
                                 <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>File Name</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Related Event</TableHead>
-                                            <TableHead>Date Added</TableHead>
-                                            <TableHead className="text-right">Action</TableHead>
+                                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+                                        <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-transparent">
+                                            <TableHead className="w-[40%] pl-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">File Name</TableHead>
+                                            <TableHead className="w-[15%] text-xs font-bold uppercase tracking-wider text-zinc-500">Type</TableHead>
+                                            <TableHead className="w-[20%] text-xs font-bold uppercase tracking-wider text-zinc-500">Related Event</TableHead>
+                                            <TableHead className="w-[15%] text-xs font-bold uppercase tracking-wider text-zinc-500">Date Added</TableHead>
+                                            <TableHead className="w-[10%] text-right pr-6 text-xs font-bold uppercase tracking-wider text-zinc-500">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredAssets.map((asset) => (
-                                            <TableRow key={asset.id}>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        {getFileIcon(asset, 'sm')}
-                                                        <span className="font-medium text-zinc-900 dark:text-white text-sm">
-                                                            {asset.filename}
+                                        {filteredAssets.map((asset) => {
+                                            const { label, color, icon: Icon } = getFileTypeDetails(asset)
+                                            const colorClass = getColorClasses(color)
+
+                                            return (
+                                                <TableRow key={asset.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-b border-zinc-50 dark:border-zinc-800/50 transition-colors">
+                                                    <TableCell className="pl-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                                                                <Icon className="w-4 h-4" />
+                                                            </div>
+                                                            <span className="font-medium text-zinc-900 dark:text-white truncate max-w-[200px] md:max-w-md" title={asset.filename}>
+                                                                {asset.filename}
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-4">
+                                                        <span className="text-sm text-zinc-500 dark:text-zinc-400 capitalize">
+                                                            {asset.file_type === 'document' ? 'Document' :
+                                                                asset.file_type === 'image' ? 'Image' :
+                                                                    label}
                                                         </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-sm capitalize text-zinc-600 dark:text-zinc-400">
-                                                        {asset.file_type}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                                                        {asset.task_id ? 'Task Linked' : asset.event_id ? 'Event Linked' : '—'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                                                        {asset.created_at ? format(new Date(asset.created_at), 'MMM d, yyyy') : '—'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8"
-                                                            asChild
-                                                        >
-                                                            <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-                                                                <ExternalLink className="w-3.5 h-3.5" />
-                                                            </a>
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8"
-                                                            onClick={() => handleDelete(asset.id)}
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                                    </TableCell>
+                                                    <TableCell className="py-4">
+                                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                                            {asset.events?.name || 'Global'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="py-4">
+                                                        <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                                            {asset.created_at ? format(new Date(asset.created_at), 'MMM d, yyyy') : '-'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="pr-6 py-4 text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                                                                    <MoreHorizontal className="w-4 h-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem asChild>
+                                                                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
+                                                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                                                        View File
+                                                                    </a>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleDelete(asset.id)}
+                                                                    className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
                                     </TableBody>
                                 </Table>
-                            </Card>
-                        </div>
-                    </div>
-                )}
 
-                {/* Stats Footer */}
-                {filteredAssets.length > 0 && (
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
-                        Showing {filteredAssets.length} of {assets?.length || 0} assets
+                                {/* Pagination Footer Stub - purely visual for now based on design */}
+                                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+                                    <span className="text-xs text-zinc-500 font-medium">
+                                        Showing {filteredAssets.length} assets
+                                    </span>
+                                    {/* Pagination controls would go here */}
+                                </div>
+                            </Card>
+                        </section>
                     </div>
                 )}
             </div>

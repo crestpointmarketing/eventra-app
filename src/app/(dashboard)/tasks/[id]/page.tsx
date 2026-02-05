@@ -119,11 +119,7 @@ export default function TaskDetailPage() {
             uploadAsset({
                 file,
                 userId: user?.id || 'anonymous', // Use 'anonymous' if no user
-                metadata: {
-                    file_type: fileType,
-                    task_id: taskId,
-                    uploaded_by: user?.id || undefined
-                }
+                taskId: taskId
             })
         })
     }, [uploadAsset, taskId, user])
@@ -391,7 +387,7 @@ export default function TaskDetailPage() {
                             </TabsContent>
 
                             {/* PEOPLE TAB */}
-                            <TabsContent value="people" className="space-y-6">
+                            <TabsContent value="people" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Owner Card */}
                                 <Card className="p-6">
                                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
@@ -430,8 +426,35 @@ export default function TaskDetailPage() {
                                     </div>
                                 </Card>
 
+                                {/* External Contact Card */}
+                                <Card className="p-6 space-y-4">
+                                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                                        External Contact
+                                    </h3>
+                                    <div>
+                                        <Label>Vendor/Company</Label>
+                                        <Input
+                                            value={editedVendor}
+                                            onChange={(e) => setEditedVendor(e.target.value)}
+                                            onBlur={() => handleFieldUpdate('vendor_company', editedVendor)}
+                                            placeholder="e.g., Grand Conference Center"
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Point of Contact</Label>
+                                        <Input
+                                            value={editedContact}
+                                            onChange={(e) => setEditedContact(e.target.value)}
+                                            onBlur={() => handleFieldUpdate('contact_person', editedContact)}
+                                            placeholder="e.g., John Smith"
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </Card>
+
                                 {/* Collaborators Card */}
-                                <Card className="p-6">
+                                <Card className="p-6 md:col-span-2">
                                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
                                         Internal Team
                                     </h3>
@@ -521,33 +544,6 @@ export default function TaskDetailPage() {
                                         {collaborators?.length === 0 && (
                                             <p className="text-zinc-500 dark:text-zinc-400">No collaborators added yet</p>
                                         )}
-                                    </div>
-                                </Card>
-
-                                {/* External Contact Card */}
-                                <Card className="p-6 space-y-4">
-                                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                                        External Contact
-                                    </h3>
-                                    <div>
-                                        <Label>Vendor/Company</Label>
-                                        <Input
-                                            value={editedVendor}
-                                            onChange={(e) => setEditedVendor(e.target.value)}
-                                            onBlur={() => handleFieldUpdate('vendor_company', editedVendor)}
-                                            placeholder="e.g., Grand Conference Center"
-                                            className="mt-1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Point of Contact</Label>
-                                        <Input
-                                            value={editedContact}
-                                            onChange={(e) => setEditedContact(e.target.value)}
-                                            onBlur={() => handleFieldUpdate('contact_person', editedContact)}
-                                            placeholder="e.g., John Smith"
-                                            className="mt-1"
-                                        />
                                     </div>
                                 </Card>
                             </TabsContent>

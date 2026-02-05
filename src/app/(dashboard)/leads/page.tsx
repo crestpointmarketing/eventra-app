@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useLeads } from '@/hooks/useLeads'
 import { useEvents } from '@/hooks/useEvents'
+import { useSummarizeLead } from '@/hooks/useAI'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,190 +25,199 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
 import Link from 'next/link'
-import { exportLeadsToCSV } from '@/lib/export'
+import { exportLeadsToCSV, downloadCSVTemplate } from '@/lib/export'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, ArrowUp, ArrowDown, Filter, AlertCircle, RefreshCcw, Brain, Sparkles } from 'lucide-react'
+import { Search, Filter, AlertCircle, RefreshCcw, Plus, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react'
+import { format } from 'date-fns'
 import { toast } from 'sonner'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
 import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import { bulkUpdateLeadStatus, type LeadStatus } from '@/lib/api/bulk-operations'
-import { useScoreLead, useCachedLeadScore } from '@/hooks/useAI'
-import { AIScoreBadge } from '@/components/ai/ai-score-display'
-import { LeadQualificationBadge } from '@/components/ai/lead-qualification-badge'
+import { LeadDetailPanel } from '@/components/leads/lead-detail-panel'
+import { AddLeadDialog } from '@/components/leads/add-lead-dialog'
+import { ImportLeadsDialog } from '@/components/leads/import-leads-dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-type SortField = 'name' | 'email' | 'company' | 'score' | 'status' | null
-type SortDirection = 'asc' | 'desc'
+// Types
+type SortOption = 'date-asc' | 'date-desc' | 'score-asc' | 'score-desc' | 'name-asc' | 'name-desc'
 
 interface AdvancedFilters {
     scoreRange: [number, number]
     statuses: string[]
+    priorities: string[]
     eventId: string
     dateFrom: string
     dateTo: string
 }
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'converted']
+const PRIORITY_OPTIONS = ['high', 'medium', 'low']
 
 export default function LeadsPage() {
     const { data: leads, isLoading, error } = useLeads()
     const { data: events } = useEvents()
-    const [filter, setFilter] = useState<string>('all')
+
+    // Sort state mapped to single value for dropdown
+    const [sortBy, setSortBy] = useState<SortOption>('score-desc')
     const [searchQuery, setSearchQuery] = useState('')
-    const [sortField, setSortField] = useState<SortField>('score')
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
     const debouncedSearch = useDebounce(searchQuery, 300)
 
-    // AI state
-    const scoreLead = useScoreLead()
-    const [scoringLeadId, setScoringLeadId] = useState<string | null>(null)
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
+
+    // Detail Pane
+    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
 
     // Advanced filters state
-    const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    const [filters, setFilters] = useState<AdvancedFilters>({
         scoreRange: [0, 100],
         statuses: [],
+        priorities: [],
         eventId: 'all',
         dateFrom: '',
         dateTo: ''
     })
 
-    // Count active advanced filters
+    // Read eventId from URL parameters
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search)
+            const eventIdParam = urlParams.get('eventId')
+            if (eventIdParam) {
+                setFilters(prev => ({ ...prev, eventId: eventIdParam }))
+            }
+        }
+    }, [])
+
+    // Count active filters
     const activeFilterCount = useMemo(() => {
         let count = 0
-        if (advancedFilters.scoreRange[0] > 0 || advancedFilters.scoreRange[1] < 100) count++
-        if (advancedFilters.statuses.length > 0) count++
-        if (advancedFilters.eventId !== 'all') count++
-        if (advancedFilters.dateFrom || advancedFilters.dateTo) count++
+        if (filters.scoreRange[0] > 0 || filters.scoreRange[1] < 100) count++
+        if (filters.statuses.length > 0) count++
+        if (filters.priorities.length > 0) count++
+        if (filters.eventId !== 'all') count++
+        if (filters.dateFrom || filters.dateTo) count++
         return count
-    }, [advancedFilters])
+    }, [filters])
 
-    // Clear advanced filters
-    const clearAdvancedFilters = () => {
-        setAdvancedFilters({
+    // Clear all filters
+    const clearFilters = () => {
+        setFilters({
             scoreRange: [0, 100],
             statuses: [],
+            priorities: [],
             eventId: 'all',
             dateFrom: '',
             dateTo: ''
         })
+        setSearchQuery('')
     }
 
-    // Filter and sort leads first
+    // Filter and sort leads
     const filteredAndSortedLeads = useMemo(() => {
         if (!leads) return []
 
-        // Apply basic filter (priority)
-        let result = filter === 'all'
-            ? leads
-            : leads.filter((lead: any) => {
-                const score = lead.lead_score || 0
-                if (filter === 'hot') return score >= 80
-                if (filter === 'warm') return score >= 50 && score < 80
-                if (filter === 'cold') return score < 50
-                return true
-            })
+        let result = leads
 
         // Apply search
         if (debouncedSearch) {
             const query = debouncedSearch.toLowerCase()
             result = result.filter((lead: any) =>
-                lead.name?.toLowerCase().includes(query) ||
+                lead.first_name?.toLowerCase().includes(query) ||
+                lead.last_name?.toLowerCase().includes(query) ||
                 lead.email?.toLowerCase().includes(query) ||
                 lead.company?.toLowerCase().includes(query)
             )
         }
 
-        // Apply advanced filters
+        // Apply filters
         result = result.filter((lead: any) => {
             const score = lead.lead_score || 0
-            if (score < advancedFilters.scoreRange[0] || score > advancedFilters.scoreRange[1]) {
-                return false
+
+            // Score Range
+            if (score < filters.scoreRange[0] || score > filters.scoreRange[1]) return false
+
+            // Status
+            if (filters.statuses.length > 0 && !filters.statuses.includes(lead.lead_status)) return false
+
+            // Priority
+            if (filters.priorities.length > 0) {
+                const priority = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low'
+                if (!filters.priorities.includes(priority)) return false
             }
 
-            if (advancedFilters.statuses.length > 0) {
-                if (!advancedFilters.statuses.includes(lead.lead_status)) {
-                    return false
-                }
-            }
+            // Event
+            if (filters.eventId !== 'all' && lead.event_id !== filters.eventId) return false
 
-            if (advancedFilters.eventId !== 'all') {
-                if (lead.event_id !== advancedFilters.eventId) {
-                    return false
-                }
-            }
-
-            if (advancedFilters.dateFrom || advancedFilters.dateTo) {
+            // Date
+            if (filters.dateFrom || filters.dateTo) {
                 const leadDate = new Date(lead.created_at)
-                if (advancedFilters.dateFrom && leadDate < new Date(advancedFilters.dateFrom)) {
-                    return false
-                }
-                if (advancedFilters.dateTo) {
-                    const endDate = new Date(advancedFilters.dateTo)
+                if (filters.dateFrom && leadDate < new Date(filters.dateFrom)) return false
+                if (filters.dateTo) {
+                    const endDate = new Date(filters.dateTo)
                     endDate.setHours(23, 59, 59, 999)
-                    if (leadDate > endDate) {
-                        return false
-                    }
+                    if (leadDate > endDate) return false
                 }
             }
 
             return true
         })
 
-        // Apply sorting
-        if (sortField) {
-            result.sort((a: any, b: any) => {
-                let aVal = a[sortField]
-                let bVal = b[sortField]
-
-                if (sortField === 'score') {
-                    aVal = a.lead_score || 0
-                    bVal = b.lead_score || 0
-                } else if (sortField === 'status') {
-                    aVal = a.lead_status || ''
-                    bVal = b.lead_status || ''
-                }
-
-                if (typeof aVal === 'string') {
-                    aVal = aVal.toLowerCase()
-                    bVal = bVal?.toLowerCase() || ''
-                }
-
-                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
-                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-                return 0
-            })
-        }
+        // Sort
+        result.sort((a: any, b: any) => {
+            switch (sortBy) {
+                case 'date-desc':
+                    return new Date(b.captured_at || b.created_at || 0).getTime() - new Date(a.captured_at || a.created_at || 0).getTime()
+                case 'date-asc':
+                    return new Date(a.captured_at || a.created_at || 0).getTime() - new Date(b.captured_at || b.created_at || 0).getTime()
+                case 'score-desc':
+                    return (b.lead_score || 0) - (a.lead_score || 0)
+                case 'score-asc':
+                    return (a.lead_score || 0) - (b.lead_score || 0)
+                case 'name-asc':
+                    return (a.first_name || '').localeCompare(b.first_name || '')
+                case 'name-desc':
+                    return (b.first_name || '').localeCompare(a.first_name || '')
+                default:
+                    return 0
+            }
+        })
 
         return result
-    }, [leads, filter, debouncedSearch, sortField, sortDirection, advancedFilters])
+    }, [leads, debouncedSearch, sortBy, filters])
 
-    // Bulk selection hook (must be after filteredAndSortedLeads)
+    // Pagination
+    const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage)
+    const paginatedLeads = filteredAndSortedLeads.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    )
+
+    // Bulk selection
     const {
         selectedIds,
         selectedItems,
         selectedCount,
         isAllSelected,
-        isIndeterminate,
         toggleItem,
         toggleAll,
         clearSelection
-    } = useBulkSelection(filteredAndSortedLeads)
+    } = useBulkSelection(paginatedLeads)
 
     // Handle bulk status update
     const handleBulkStatusUpdate = async (newStatus: string) => {
         if (selectedCount === 0) return
-
         try {
             await bulkUpdateLeadStatus(
                 Array.from(selectedIds),
@@ -213,13 +225,62 @@ export default function LeadsPage() {
             )
             toast.success(`Updated ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to ${newStatus}`)
             clearSelection()
-            // Refresh leads data
             window.location.reload()
         } catch (error) {
-            toast.error('Failed to update lead status', {
-                description: 'Please try again or contact support'
-            })
+            toast.error('Failed to update lead status')
         }
+    }
+
+    // AI Generation
+    const { mutateAsync: summarizeLead } = useSummarizeLead()
+    const queryClient = useQueryClient()
+    const [isGeneratingBatch, setIsGeneratingBatch] = useState(false)
+
+    // Handle batch AI generation
+    const handleBatchAI = async () => {
+        if (selectedCount === 0) return
+        if (selectedCount > 10) {
+            if (!confirm(`You are about to generate intelligence for ${selectedCount} leads. This may take a minute. Continue?`)) return
+        }
+
+        setIsGeneratingBatch(true)
+        let successCount = 0
+        let failCount = 0
+
+        const toastId = toast.loading(`Generating intelligence for ${selectedCount} leads...`)
+
+        try {
+            // Process sequentially to avoid rate limits
+            for (const item of selectedItems) {
+                try {
+                    await summarizeLead({ leadId: item.id })
+                    successCount++
+                } catch (err) {
+                    console.error(`Failed for lead ${item.id}`, err)
+                    failCount++
+                }
+                // Small delay to be nice to the API
+                await new Promise(resolve => setTimeout(resolve, 500))
+            }
+
+            toast.dismiss(toastId)
+
+            if (failCount > 0) {
+                toast.warning(`Completed with checks: ${successCount} successful, ${failCount} failed.`)
+            } else {
+                toast.success(`Successfully analyzed all ${successCount} leads!`)
+            }
+
+            clearSelection()
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
+            // Soft refresh to ensure metadata updates show up if we display them in list later
+
+        } catch (error) {
+            toast.dismiss(toastId)
+            toast.error('Batch process interrupted')
+            setIsGeneratingBatch(false)
+        }
+        setIsGeneratingBatch(false)
     }
 
     // Handle bulk export
@@ -229,476 +290,381 @@ export default function LeadsPage() {
             toast.success(`Exported ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to CSV`)
             clearSelection()
         } catch (error) {
-            toast.error('Failed to export leads', {
-                description: 'Please try again or contact support'
-            })
+            toast.error('Failed to export leads')
         }
     }
 
-    // Handle column header click
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            // Toggle direction or clear sort
-            if (sortDirection === 'asc') {
-                setSortDirection('desc')
-            } else if (sortDirection === 'desc') {
-                setSortField(null) // Clear sort
-            }
-        } else {
-            setSortField(field)
-            setSortDirection('asc')
-        }
-    }
+    // Dialog state
+    const [isAddLeadOpen, setIsAddLeadOpen] = useState(false)
+    const [isImportLeadOpen, setIsImportLeadOpen] = useState(false)
 
-    // Sort icon component
-    const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return null
-        return sortDirection === 'asc' ? (
-            <ArrowUp className="inline h-4 w-4 ml-1" />
-        ) : (
-            <ArrowDown className="inline h-4 w-4 ml-1" />
-        )
-    }
-
-
-
-    // Count leads by priority
-    const leadCounts: { all: number; hot: number; warm: number; cold: number } = useMemo(() => {
-        if (!leads) return { all: 0, hot: 0, warm: 0, cold: 0 }
-        return {
-            all: leads.length,
-            hot: leads.filter((l: any) => l.lead_score >= 80).length,
-            warm: leads.filter((l: any) => l.lead_score >= 50 && l.lead_score < 80).length,
-            cold: leads.filter((l: any) => l.lead_score < 50).length
-        }
-    }, [leads])
-
-    // Handle export with toast feedback
-    const handleExport = () => {
-        try {
-            exportLeadsToCSV(filteredAndSortedLeads)
-            toast.success(`Exported ${filteredAndSortedLeads.length} lead${filteredAndSortedLeads.length !== 1 ? 's' : ''} to CSV`)
-        } catch (error) {
-            toast.error('Failed to export leads', {
-                description: 'Please try again or contact support'
-            })
-        }
-    }
+    const hasActiveFilters = activeFilterCount > 0 || debouncedSearch
 
     if (isLoading) {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-5xl font-medium text-zinc-900">Leads</h1>
-                    <Button variant="outline" disabled>
-                        Export to CSV
-                    </Button>
+            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
+                <div className="max-w-7xl mx-auto">
+                    <TableLoadingSkeleton />
                 </div>
-                <div className="flex gap-4 mb-8">
-                    <button className="text-base font-medium text-zinc-900 border-b-2 border-zinc-900 pb-2">
-                        All
-                    </button>
-                </div>
-                <TableLoadingSkeleton />
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <Card className="p-12 text-center border-red-200 bg-red-50">
-                    <div className="mb-4">
-                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
-                    </div>
-                    <h3 className="text-lg font-medium text-zinc-900 mb-2">
-                        Failed to Load Leads
-                    </h3>
-                    <p className="text-zinc-600 mb-6">
-                        {error.message || 'An unexpected error occurred'}
-                    </p>
-                    <Button
-                        onClick={() => window.location.reload()}
-                        variant="outline"
-                    >
-                        <RefreshCcw className="h-4 w-4 mr-2" />
-                        Retry
-                    </Button>
-                </Card>
+            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
+                <div className="max-w-7xl mx-auto">
+                    <Card className="p-12 text-center border-red-200 bg-red-50">
+                        <div className="mb-4">
+                            <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+                        </div>
+                        <h3 className="text-lg font-medium text-zinc-900 mb-2">Failed to Load Leads</h3>
+                        <p className="text-zinc-600 mb-6">{error.message}</p>
+                        <Button onClick={() => window.location.reload()} variant="outline">
+                            <RefreshCcw className="h-4 w-4 mr-2" /> Retry
+                        </Button>
+                    </Card>
+                </div>
             </div>
         )
     }
 
-    const hasActiveFilters = activeFilterCount > 0 || debouncedSearch || filter !== 'all'
-
     return (
         <PageTransition>
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">Leads</h1>
-                    <Button
-                        variant="outline"
-                        onClick={handleExport}
-                        disabled={!leads || leads.length === 0}
-                    >
-                        Export to CSV
-                    </Button>
-                </div>
+            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
+                <div className="max-w-7xl mx-auto">
+                    {/* Breadcrumb */}
+                    <nav className="flex items-center gap-2 text-xs text-zinc-500 uppercase mb-6">
+                        <span>Workspace</span>
+                        <span>›</span>
+                        <span className="text-zinc-900 dark:text-white font-medium">Leads</span>
+                    </nav>
 
-                {/* Priority Filter Tabs */}
-                <div className="flex gap-4 mb-6">
-                    <button
-                        onClick={() => setFilter('all')}
-                        className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'all'
-                            ? 'text-zinc-900 dark:text-white border-zinc-900 dark:border-white'
-                            : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-white'
-                            }`}
-                    >
-                        All ({leadCounts.all})
-                    </button>
-                    <button
-                        onClick={() => setFilter('hot')}
-                        className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'hot'
-                            ? 'text-lime-400 border-lime-400'
-                            : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-lime-400'
-                            }`}
-                    >
-                        🔥 Hot ({leadCounts.hot})
-                    </button>
-                    <button
-                        onClick={() => setFilter('warm')}
-                        className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'warm'
-                            ? 'text-yellow-400 border-yellow-400'
-                            : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-yellow-400'
-                            }`}
-                    >
-                        ☀️ Warm ({leadCounts.warm})
-                    </button>
-                    <button
-                        onClick={() => setFilter('cold')}
-                        className={`text-base font-medium pb-2 border-b-2 transition-colors ${filter === 'cold'
-                            ? 'text-zinc-400 border-zinc-400'
-                            : 'text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-400'
-                            }`}
-                    >
-                        ❄️ Cold ({leadCounts.cold})
-                    </button>
-                </div>
-
-                {/* Search and Filters */}
-                <div className="flex gap-4 mb-6">
-                    {/* Search */}
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                        <Input
-                            type="text"
-                            placeholder="Search by name, email, or company..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white"
-                        />
+                    {/* Page Header */}
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
+                                Leads
+                            </h1>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                Manage and track your sales pipeline.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => exportLeadsToCSV(filteredAndSortedLeads)}>
+                                Export CSV
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100">
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add New Lead
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem onClick={() => setIsAddLeadOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Manually
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setIsImportLeadOpen(true)}>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Import from CSV
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => downloadCSVTemplate()}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download Template
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
 
-                    {/* Advanced Filters */}
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="default" className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900">
-                                <Filter className="h-4 w-4 mr-2" />
-                                Advanced Filters
-                                {activeFilterCount > 0 && (
-                                    <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
-                                        {activeFilterCount}
-                                    </Badge>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4>
-                                </div>
+                    {/* Filter Bar */}
+                    <div className="flex gap-4 mb-6">
+                        {/* Filters */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-[180px] justify-start h-9">
+                                    <Filter className="h-4 w-4 mr-2" />
+                                    Filters
+                                    {activeFilterCount > 0 && (
+                                        <Badge variant="secondary" className="ml-2 bg-[#CBFB45] text-zinc-900 hover:bg-[#CBFB45]">
+                                            {activeFilterCount}
+                                        </Badge>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
+                                <div className="space-y-6">
+                                    <div><h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4></div>
 
-                                {/* Score Range */}
-                                <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Lead Score Range</Label>
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                                        {advancedFilters.scoreRange[0]} - {advancedFilters.scoreRange[1]}
+                                    {/* Score Range */}
+                                    <div className="space-y-3">
+                                        <Label className="text-sm font-medium text-zinc-900 dark:text-white">Lead Score Range</Label>
+                                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                                            {filters.scoreRange[0]} - {filters.scoreRange[1]}
+                                        </div>
+                                        <Slider
+                                            min={0} max={100} step={5}
+                                            value={filters.scoreRange}
+                                            onValueChange={(value) => setFilters({ ...filters, scoreRange: value as [number, number] })}
+                                        />
                                     </div>
-                                    <Slider
-                                        min={0}
-                                        max={100}
-                                        step={5}
-                                        value={advancedFilters.scoreRange}
-                                        onValueChange={(value) =>
-                                            setAdvancedFilters({ ...advancedFilters, scoreRange: value as [number, number] })
-                                        }
-                                    />
-                                </div>
 
-                                {/* Event Filter */}
-                                <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Associated Event</Label>
-                                    <Select
-                                        value={advancedFilters.eventId}
-                                        onValueChange={(value) =>
-                                            setAdvancedFilters({ ...advancedFilters, eventId: value })
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="All Events" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Events</SelectItem>
-                                            {events?.map((event: any) => (
-                                                <SelectItem key={event.id} value={event.id}>
-                                                    {event.name}
-                                                </SelectItem>
+                                    {/* Priority */}
+                                    <div className="space-y-3">
+                                        <Label className="text-sm font-medium text-zinc-900 dark:text-white">Priority</Label>
+                                        <div className="space-y-2">
+                                            {PRIORITY_OPTIONS.map((priority) => (
+                                                <div key={priority} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`priority-${priority}`}
+                                                        checked={filters.priorities.includes(priority)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setFilters({ ...filters, priorities: [...filters.priorities, priority] })
+                                                            } else {
+                                                                setFilters({ ...filters, priorities: filters.priorities.filter(p => p !== priority) })
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`priority-${priority}`} className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300">
+                                                        {priority}
+                                                    </label>
+                                                </div>
                                             ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                        </div>
+                                    </div>
 
-                                {/* Created Date Range */}
-                                <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Created Date Range</Label>
-                                    <div className="flex gap-2 items-center">
-                                        <Input
-                                            type="date"
-                                            value={advancedFilters.dateFrom}
-                                            onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateFrom: e.target.value })}
-                                            className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
-                                        />
-                                        <span className="text-zinc-600 dark:text-zinc-400">to</span>
-                                        <Input
-                                            type="date"
-                                            value={advancedFilters.dateTo}
-                                            onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateTo: e.target.value })}
-                                            className="dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
-                                        />
+                                    {/* Status */}
+                                    <div className="space-y-3">
+                                        <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
+                                        <div className="space-y-2">
+                                            {STATUS_OPTIONS.map((status) => (
+                                                <div key={status} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`status-${status}`}
+                                                        checked={filters.statuses.includes(status)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setFilters({ ...filters, statuses: [...filters.statuses, status] })
+                                                            } else {
+                                                                setFilters({ ...filters, statuses: filters.statuses.filter(s => s !== status) })
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`status-${status}`} className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300">
+                                                        {status}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-2 pt-4 border-t dark:border-zinc-700">
+                                        <Button variant="outline" size="sm" onClick={clearFilters} className="flex-1">Clear All</Button>
                                     </div>
                                 </div>
+                            </PopoverContent>
+                        </Popover>
 
-                                {/* Status Filter */}
-                                <div className="space-y-3">
-                                    <Label className="text-sm font-medium text-zinc-900 dark:text-white">Status</Label>
-                                    <div className="space-y-2">
-                                        {STATUS_OPTIONS.map((status) => (
-                                            <div key={status} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`status-${status}`}
-                                                    checked={advancedFilters.statuses.includes(status)}
-                                                    onCheckedChange={(checked) => {
-                                                        if (checked) {
-                                                            setAdvancedFilters({
-                                                                ...advancedFilters,
-                                                                statuses: [...advancedFilters.statuses, status]
-                                                            })
-                                                        } else {
-                                                            setAdvancedFilters({
-                                                                ...advancedFilters,
-                                                                statuses: advancedFilters.statuses.filter(s => s !== status)
-                                                            })
-                                                        }
+                        {/* Sort */}
+                        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Sort by..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="date-desc">Captured (Newest)</SelectItem>
+                                <SelectItem value="date-asc">Captured (Oldest)</SelectItem>
+                                <SelectItem value="score-desc">Priority (High)</SelectItem>
+                                <SelectItem value="score-asc">Priority (Low)</SelectItem>
+                                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {hasActiveFilters && (
+                            <Button variant="ghost" size="sm" onClick={clearFilters}>
+                                Clear all
+                            </Button>
+                        )}
+
+                        {/* Search -> Right Side */}
+                        <div className="flex-1"></div>
+                        <div className="relative w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                            <Input
+                                type="text"
+                                placeholder="Search leads..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Table View */}
+                    {filteredAndSortedLeads.length > 0 ? (
+                        <div className="flex gap-6">
+                            {/* List Pane */}
+                            <div className={`flex-1 flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden transition-all duration-300 ${selectedLeadId ? 'hidden lg:flex' : 'flex'}`}>
+                                <div className="flex-1 overflow-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+                                            <tr>
+                                                <th className="w-12 p-4">
+                                                    <Checkbox
+                                                        checked={isAllSelected}
+                                                        onCheckedChange={toggleAll}
+                                                        aria-label="Select all leads"
+                                                    />
+                                                </th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium whitespace-nowrap">Event</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium hidden md:table-cell whitespace-nowrap">Company</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium hidden md:table-cell whitespace-nowrap">Industry</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium whitespace-nowrap">Name</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium hidden lg:table-cell whitespace-nowrap">Title</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium hidden lg:table-cell whitespace-nowrap">Email</th>
+                                                <th className="text-left p-4 text-[10px] uppercase text-zinc-500 font-medium whitespace-nowrap">Priority</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedLeads.map((lead: any) => (
+                                                <motion.tr
+                                                    key={lead.id}
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    onClick={(e) => {
+                                                        if (
+                                                            (e.target as HTMLElement).closest('button') ||
+                                                            (e.target as HTMLElement).closest('a') ||
+                                                            (e.target as HTMLElement).closest('[role="checkbox"]')
+                                                        ) return
+                                                        setSelectedLeadId(selectedLeadId === lead.id ? null : lead.id)
                                                     }}
-                                                />
-                                                <label
-                                                    htmlFor={`status-${status}`}
-                                                    className="text-sm capitalize cursor-pointer text-zinc-700 dark:text-zinc-300"
+                                                    className={`border-b border-zinc-200 dark:border-zinc-700 cursor-pointer transition-colors ${selectedLeadId === lead.id
+                                                        ? 'bg-lime-50 dark:bg-lime-900/10'
+                                                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50'
+                                                        }`}
                                                 >
-                                                    {status}
-                                                </label>
-                                            </div>
-                                        ))}
-                                    </div>
+                                                    <td className="p-4">
+                                                        <Checkbox
+                                                            checked={selectedIds.has(lead.id)}
+                                                            onCheckedChange={() => toggleItem(lead.id)}
+                                                        />
+                                                    </td>
+                                                    <td className="p-4 text-xs font-medium text-zinc-900 dark:text-white max-w-[150px] truncate" title={lead.events?.name}>
+                                                        {lead.events?.name || 'Unassigned'}
+                                                    </td>
+                                                    <td className="p-4 text-xs text-zinc-600 dark:text-zinc-400 hidden md:table-cell max-w-[140px] truncate" title={lead.company}>
+                                                        {lead.company || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-xs text-zinc-600 dark:text-zinc-400 hidden md:table-cell max-w-[140px] truncate" title={lead.industry}>
+                                                        {lead.industry || '-'}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-medium text-zinc-900 dark:text-white block">
+                                                            {lead.first_name} {lead.last_name}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-500 lg:hidden">{lead.email}</span>
+                                                    </td>
+                                                    <td className="p-4 text-xs text-zinc-500 hidden lg:table-cell max-w-[140px] truncate" title={lead.job_title}>
+                                                        {lead.job_title || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-xs text-zinc-500 hidden lg:table-cell max-w-[180px] truncate" title={lead.email}>
+                                                        {lead.email}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`h-2 w-2 rounded-full ${lead.lead_score >= 80 ? 'bg-red-500' : lead.lead_score >= 50 ? 'bg-amber-500' : 'bg-blue-400'}`} />
+                                                            <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                                                {lead.lead_score >= 80 ? 'High' : lead.lead_score >= 50 ? 'Medium' : 'Low'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-
-                                {/* Actions */}
-                                <div className="flex gap-2 pt-4 border-t">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={clearAdvancedFilters}
-                                        className="flex-1"
-                                    >
-                                        Clear
-                                    </Button>
+                                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 text-xs text-zinc-500 flex justify-between items-center">
+                                    <span>Showing {paginatedLeads.length} of {filteredAndSortedLeads.length} leads</span>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline" size="sm"
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(currentPage - 1)}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        <span className="text-sm text-zinc-600 dark:text-zinc-400 flex items-center">Page {currentPage} of {totalPages}</span>
+                                        <Button
+                                            variant="outline" size="sm"
+                                            disabled={currentPage >= totalPages}
+                                            onClick={() => setCurrentPage(currentPage + 1)}
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
-                        </PopoverContent>
-                    </Popover>
+
+                            {/* Detail Pane */}
+                            <AnimatePresence>
+                                {selectedLeadId && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: 20, width: 0 }}
+                                        animate={{ opacity: 1, x: 0, width: 'auto' }}
+                                        exit={{ opacity: 0, x: 20, width: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex-shrink-0 w-full lg:w-[450px] xl:w-[500px] h-full"
+                                    >
+                                        <LeadDetailPanel
+                                            lead={leads?.find((l: any) => l.id === selectedLeadId)}
+                                            onClose={() => setSelectedLeadId(null)}
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    ) : (
+                        <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-12 text-center bg-white dark:bg-zinc-900">
+                            <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+                                {hasActiveFilters ? 'No leads match your filters' : 'No leads yet'}
+                            </p>
+                            {hasActiveFilters && (
+                                <Button variant="outline" onClick={clearFilters}>
+                                    Clear Filters
+                                </Button>
+                            )}
+                            {!hasActiveFilters && (
+                                <Button onClick={() => setIsAddLeadOpen(true)}>Add New Lead</Button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {/* Results Count */}
-                {hasActiveFilters && (
-                    <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                        Found {filteredAndSortedLeads.length} lead{filteredAndSortedLeads.length !== 1 ? 's' : ''}
-                        {(activeFilterCount > 0 || filter !== 'all') && (
-                            <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => {
-                                    setFilter('all')
-                                    clearAdvancedFilters()
-                                }}
-                                className="ml-2 h-auto p-0 text-zinc-600 hover:text-zinc-900"
-                            >
-                                Clear all filters
-                            </Button>
-                        )}
-                    </div>
-                )}
+                {/* Bulk Actions Toolbar */}
+                <BulkActionsToolbar
+                    count={selectedCount}
+                    itemType="lead"
+                    onExport={handleBulkExport}
+                    onUpdateStatus={handleBulkStatusUpdate}
+                    onGenerateAI={handleBatchAI}
+                    onClear={clearSelection}
+                    statusOptions={[
+                        { value: 'new', label: 'New' },
+                        { value: 'contacted', label: 'Contacted' },
+                        { value: 'qualified', label: 'Qualified' },
+                        { value: 'converted', label: 'Converted' },
+                    ]}
+                />
 
-                {/* Leads Table */}
-                {filteredAndSortedLeads.length > 0 ? (
-                    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12">
-                                        <Checkbox
-                                            checked={isAllSelected}
-                                            onCheckedChange={toggleAll}
-                                            aria-label="Select all leads"
-                                        />
-                                    </TableHead>
-                                    <TableHead
-                                        className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
-                                        onClick={() => handleSort('name')}
-                                    >
-                                        Name <SortIcon field="name" />
-                                    </TableHead>
-                                    <TableHead
-                                        className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
-                                        onClick={() => handleSort('email')}
-                                    >
-                                        Email <SortIcon field="email" />
-                                    </TableHead>
-                                    <TableHead
-                                        className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
-                                        onClick={() => handleSort('company')}
-                                    >
-                                        Company <SortIcon field="company" />
-                                    </TableHead>
-                                    <TableHead
-                                        className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
-                                        onClick={() => handleSort('score')}
-                                    >
-                                        Score <SortIcon field="score" />
-                                    </TableHead>
-                                    <TableHead className="font-medium text-zinc-700 dark:text-white">
-                                        <div className="flex items-center gap-1">
-                                            <Brain className="w-4 h-4 text-purple-600" />
-                                            AI Score
-                                        </div>
-                                    </TableHead>
-                                    <TableHead className="font-medium text-zinc-700 dark:text-white">
-                                        <div className="flex items-center gap-1">
-                                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                                            AI Fit
-                                        </div>
-                                    </TableHead>
-                                    <TableHead
-                                        className="font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 select-none text-zinc-700 dark:text-white"
-                                        onClick={() => handleSort('status')}
-                                    >
-                                        Status <SortIcon field="status" />
-                                    </TableHead>
-                                    <TableHead className="font-medium text-zinc-700 dark:text-white">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredAndSortedLeads.map((lead: any, index: number) => (
-                                    <motion.tr
-                                        key={lead.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: index * 0.03 }}
-                                        whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
-                                        className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                                    >
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={selectedIds.has(lead.id)}
-                                                onCheckedChange={() => toggleItem(lead.id)}
-                                                aria-label={`Select ${lead.first_name} ${lead.last_name}`}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium text-zinc-900 dark:text-white">
-                                            {lead.first_name} {lead.last_name}
-                                        </TableCell>
-                                        <TableCell className="text-zinc-700 dark:text-white">{lead.email}</TableCell>
-                                        <TableCell className="text-zinc-700 dark:text-white">{lead.company || '-'}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    lead.lead_score >= 80
-                                                        ? 'lime'
-                                                        : lead.lead_score >= 50
-                                                            ? 'default'
-                                                            : 'secondary'
-                                                }
-                                            >
-                                                {lead.lead_score || 0}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <LeadQualificationBadge
-                                                leadId={lead.id}
-                                                leadName={`${lead.first_name} ${lead.last_name}`}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="capitalize text-zinc-700 dark:text-white">{lead.status || 'new'}</TableCell>
-                                        <TableCell>
-                                            <Link href={`/leads/${lead.id}`}>
-                                                <Button variant="outline" size="sm">
-                                                    View
-                                                </Button>
-                                            </Link>
-                                        </TableCell>
-                                    </motion.tr>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                ) : (
-                    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-12 text-center bg-white dark:bg-zinc-900">
-                        <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-                            {hasActiveFilters ? 'No leads match your filters' : 'No leads yet'}
-                        </p>
-                        {hasActiveFilters && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setFilter('all')
-                                    clearAdvancedFilters()
-                                    setSearchQuery('')
-                                }}
-                            >
-                                Clear Filters
-                            </Button>
-                        )}
-                        {!hasActiveFilters && (
-                            <Button>Import Leads</Button>
-                        )}
-                    </div>
-                )}
+                {/* Dialogs */}
+                <AddLeadDialog open={isAddLeadOpen} onOpenChange={setIsAddLeadOpen} />
+                <ImportLeadsDialog open={isImportLeadOpen} onOpenChange={setIsImportLeadOpen} />
             </div>
-
-            {/* Bulk Actions Toolbar */}
-            <BulkActionsToolbar
-                count={selectedCount}
-                itemType="lead"
-                onExport={handleBulkExport}
-                onUpdateStatus={handleBulkStatusUpdate}
-                onClear={clearSelection}
-                statusOptions={[
-                    { value: 'new', label: 'New' },
-                    { value: 'contacted', label: 'Contacted' },
-                    { value: 'qualified', label: 'Qualified' },
-                    { value: 'converted', label: 'Converted' },
-                ]}
-            />
         </PageTransition>
     )
 }

@@ -29,3 +29,10 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+/* Required field indicator */
+.required::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: 500;
+}

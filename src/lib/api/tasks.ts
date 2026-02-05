@@ -25,7 +25,7 @@ export interface Task {
     archived_at: string | null
     // Joined data
     events?: { id: string; name: string }
-    assigned_user?: { id: string; email: string }
+    assigned_user?: { id: string; email: string; name?: string }
 }
 
 export interface TaskFilters {
@@ -66,7 +66,11 @@ export async function fetchTasks(filters?: TaskFilters) {
 
     let query = supabase
         .from('tasks')
-        .select('*')
+        .select(`
+            *,
+            events (id, name),
+            assigned_user:users!assigned_to (id, email, name)
+        `)
         .order('due_date', { ascending: true })
 
     // Apply filters
@@ -124,7 +128,10 @@ export async function fetchTasks(filters?: TaskFilters) {
 export async function fetchEventTasks(eventId: string) {
     const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select(`
+            *,
+            assigned_user:users!assigned_to (id, email, name)
+        `)
         .eq('event_id', eventId)
         .is('archived_at', null)
         .order('due_date', { ascending: true })
@@ -139,7 +146,11 @@ export async function fetchEventTasks(eventId: string) {
 export async function fetchTask(taskId: string) {
     const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select(`
+            *,
+            events (id, name),
+            assigned_user:users!assigned_to (id, email, name)
+        `)
         .eq('id', taskId)
         .single()
 

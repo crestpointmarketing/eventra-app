@@ -36,6 +36,19 @@ export function useEvent(eventId: string) {
 
             if (error) throw error
 
+            if (data && data.owner_id) {
+                const { data: owner } = await supabase
+                    .from('users')
+                    .select('id, name, email')
+                    .eq('id', data.owner_id)
+                    .single()
+
+                if (owner) {
+                    (data as any).owner = owner
+                }
+            }
+
+
             // Map priority to lead_score for UI compatibility
             if (data?.leads) {
                 data.leads = data.leads.map((lead: any) => ({

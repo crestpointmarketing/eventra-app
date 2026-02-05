@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
+import { UserSelect } from '@/components/users/user-select'
 
 export default function NewEventPage() {
     const router = useRouter()
@@ -57,6 +58,7 @@ export default function NewEventPage() {
                         location: formData.get('location') as string,
                         total_budget: parseFloat(formData.get('total_budget') as string) || 0,
                         target_leads: parseInt(formData.get('target_leads') as string) || 0,
+                        url: formData.get('url') as string,
                         owner_id: ownerId,
                     }
                 ])
@@ -130,16 +132,40 @@ export default function NewEventPage() {
                         </div>
                     </div>
 
+
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="location">Location *</Label>
+                            <Input
+                                id="location"
+                                name="location"
+                                type="text"
+                                required
+                                placeholder="San Francisco, CA"
+                                className="mt-1"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="url">Event URL</Label>
+                            <Input
+                                id="url"
+                                name="url"
+                                type="url"
+                                placeholder="https://..."
+                                className="mt-1"
+                            />
+                        </div>
+                    </div>
+
                     <div>
-                        <Label htmlFor="location">Location *</Label>
-                        <Input
-                            id="location"
-                            name="location"
-                            type="text"
-                            required
-                            placeholder="San Francisco, CA"
-                            className="mt-1"
-                        />
+                        <Label>Owner *</Label>
+                        <div className="mt-1">
+                            <UserSelect
+                                value={ownerId || ''}
+                                onValueChange={setOwnerId}
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -188,6 +214,6 @@ export default function NewEventPage() {
                     </div>
                 </form>
             </Card>
-        </div>
+        </div >
     )
 }

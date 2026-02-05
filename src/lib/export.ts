@@ -64,3 +64,37 @@ export function exportLeadsToCSV(leads: any[]) {
     const timestamp = new Date().toISOString().split('T')[0]
     downloadCSV(csv, `eventra_leads_${timestamp}.csv`)
 }
+
+export function exportTasksToCSV(tasks: any[]) {
+    const processedTasks = tasks.map(task => ({
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.due_date,
+        event: task.events?.name || 'N/A',
+        owner: task.assigned_user?.email || 'Unassigned',
+        description: task.description || ''
+    }))
+
+    const headers = ['title', 'status', 'priority', 'due_date', 'event', 'owner', 'description']
+    const csv = convertToCSV(processedTasks, headers)
+    const timestamp = new Date().toISOString().split('T')[0]
+    downloadCSV(csv, `eventra_tasks_${timestamp}.csv`)
+}
+
+export function downloadCSVTemplate() {
+    const headers = ['first_name', 'last_name', 'email', 'company', 'job_title', 'phone', 'industry', 'event_id']
+    // Create an empty row or sample row to help users understand format
+    const sampleRow = {
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'john@example.com',
+        company: 'Acme Corp',
+        job_title: 'Manager',
+        phone: '123-456-7890',
+        industry: 'SaaS',
+        event_id: 'optional-event-id'
+    }
+    const csv = convertToCSV([sampleRow], headers)
+    downloadCSV(csv, 'lead_import_template.csv')
+}

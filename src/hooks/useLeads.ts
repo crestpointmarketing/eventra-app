@@ -29,11 +29,20 @@ export function useLeads() {
 
             if (error) throw error
 
-            // Map priority to lead_score for UI compatibility
-            return data?.map(lead => ({
+            // Map priority to lead_score for UI compatibility & Mock missing fields
+            return data?.map((lead, index) => ({
                 ...lead,
                 lead_score: priorityToScore(lead.priority),
-                lead_status: lead.stage
+                lead_status: lead.stage,
+                // Mocked fields for UI demo
+                ai_summary: index % 3 === 0 ? 'High intent based on pricing page visits.' : index % 3 === 1 ? ' unresponsive to last 2 emails.' : 'New lead from webinar.',
+                next_action: index % 4 === 0 ? 'Send Contract' : index % 4 === 1 ? 'Follow Up Call' : index % 4 === 2 ? 'Schedule Demo' : 'Email Intro',
+                next_action_due: new Date(Date.now() + (index * 86400000)).toISOString(),
+                owner_id: index % 2 === 0 ? 'user_1' : 'user_2',
+                owner: {
+                    name: index % 2 === 0 ? 'Sarah Smith' : 'Mike Jones',
+                    avatar: ''
+                }
             }))
         },
         refetchOnWindowFocus: true, // Auto-refresh when returning to page
@@ -44,4 +53,23 @@ export function useLeads() {
 export function useInvalidateLeads() {
     const queryClient = useQueryClient()
     return () => queryClient.invalidateQueries({ queryKey: ['leads'] })
+}
+
+import { createLead, type CreateLeadDTO } from '@/lib/api/leads'
+import { useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
+
+export function useCreateLead() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (newLead: CreateLeadDTO) => createLead(newLead),
+        onSuccess: () => {
+            toast.success('Lead created successfully')
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to create lead: ${error.message}`)
+        }
+    })
 }

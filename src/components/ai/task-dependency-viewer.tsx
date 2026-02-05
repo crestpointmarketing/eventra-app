@@ -96,7 +96,21 @@ export function TaskDependencyViewer({ eventId, tasks }: TaskDependencyViewerPro
     }, [data, tasks])
 
     if (tasks.length < 2) {
-        return null // Don't show for events with less than 2 tasks
+        return (
+            <Card className="border-2 border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20">
+                <CardHeader>
+                    <div className="flex items-center gap-2">
+                        <Network className="w-5 h-5 text-indigo-400 dark:text-indigo-500" />
+                        <CardTitle className="text-xl text-zinc-500 dark:text-zinc-400">Task Dependencies</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Add at least 2 tasks to analyzing dependencies and blockers.
+                    </p>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (

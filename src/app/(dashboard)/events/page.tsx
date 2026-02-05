@@ -30,6 +30,7 @@ import { Search, ArrowUpDown, Filter, AlertCircle, RefreshCcw, MapPin, Plus, Che
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { getEventStatus, formatEventDateRange } from '@/lib/utils/event-status'
+import { formatUserShortName } from '@/lib/utils'
 import { PageTransition } from '@/components/animations/page-transition'
 import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
@@ -328,7 +329,7 @@ export default function EventsPage() {
                         {/* Advanced Filters Popup */}
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline">
+                                <Button variant="outline" className="w-[180px] justify-start h-9">
                                     <Filter className="h-4 w-4 mr-2" />
                                     Filters
                                     {activeFilterCount > 0 && (
@@ -581,13 +582,13 @@ export default function EventsPage() {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
-                                                        <img
-                                                            src={getOwnerAvatar(event)}
-                                                            alt="Owner"
-                                                            className="h-full w-full object-cover"
-                                                        />
-                                                    </div>
+                                                    {event.owner ? (
+                                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                                            {formatUserShortName(event.owner)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm text-zinc-400">-</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

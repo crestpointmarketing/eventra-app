@@ -57,6 +57,7 @@ export function TopNav() {
         { href: '/tasks', label: 'Tasks' },
         { href: '/assets', label: 'Assets' },
         { href: '/leads', label: 'Leads' },
+        { href: '/email-templates', label: 'Email' },
         { href: '/analytics', label: 'Analytics' },
         { href: '/settings', label: 'Settings' },
     ]
@@ -90,8 +91,8 @@ export function TopNav() {
                                             key={item.href}
                                             href={item.href}
                                             className={`relative py-2 px-1 text-base transition-colors ${isActive
-                                                    ? 'font-semibold text-zinc-900 dark:text-white'
-                                                    : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                                                ? 'font-semibold text-zinc-900 dark:text-white'
+                                                : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                                                 }`}
                                         >
                                             {item.label}

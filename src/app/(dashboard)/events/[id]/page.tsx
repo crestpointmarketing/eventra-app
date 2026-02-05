@@ -3,20 +3,21 @@
 import { use, useMemo } from 'react'
 import { useEvent } from '@/hooks/useEvent'
 import { useEventTasks } from '@/hooks/useTasks'
-import { useQueryClient } from '@tanstack/react-query'
-import { Card } from '@/components/ui/card'
+import { EventTasksTab } from '@/components/events/event-tasks-tab'
+import { EventRisksTab } from '@/components/events/event-risks-tab'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CheckCircle2, Clock, Plus } from 'lucide-react'
-import Link from 'next/link'
+import { Card } from '@/components/ui/card'
+import {
+    Flag,
+    MessageSquare,
+    Bell,
+    TrendingUp,
+} from 'lucide-react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getEventStatus } from '@/lib/utils/event-status'
-import { AITaskGenerator } from '@/components/ai/ai-task-generator'
-import { TaskDependencyViewer } from '@/components/ai/task-dependency-viewer'
-import { RiskAnalysisDashboard } from '@/components/ai/risk-analysis-dashboard'
-import { TaskProgressPredictor } from '@/components/ai/task-progress-predictor'
 import { EventIntelligenceCard } from '@/components/ai/event-intelligence-card'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 const COLORS = {
     hot: '#a3e635',    // lime-400
@@ -24,11 +25,36 @@ const COLORS = {
     cold: '#d4d4d8'    // zinc-300
 }
 
-export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+// Mock data
+const getMockEventData = (event: any) => ({
+    event_number: String(event.id),
+    objective: "Deliver a flawless enterprise summit for 500+ attendees with 100% vendor satisfaction and zero critical risks.",
+    key_messages: [
+        "Innovation is at the core of the CrestPoint legacy.",
+        "Scalable architecture for modern enterprises.",
+    ],
+    preparation_progress: {
+        'Strategy & Planning': 85,
+        'Outreach': 60,
+        'Creative Assets': 42,
+        'Logistics': 25,
+    },
+    recent_updates: [
+        {
+            id: '1',
+            message: 'Contract signed by venue vendor.',
+            hours_ago: 2,
+            user_name: 'Vivian',
+        },
+    ],
+})
+
+export default function EventOverviewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
-    const queryClient = useQueryClient()
     const { data: event, isLoading, error } = useEvent(id)
     const { data: eventTasks } = useEventTasks(id)
+    const searchParams = useSearchParams()
+    const view = searchParams.get('view') || 'overview'
 
     // Calculate lead analytics
     const leadAnalytics = useMemo(() => {
@@ -49,7 +75,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
         const avgScore = event.leads.reduce((sum: number, l: any) => sum + (l.lead_score || 0), 0) / event.leads.length
 
-        // Score distribution for histogram
         const scoreRanges = [
             { range: '0-20', count: 0 },
             { range: '20-40', count: 0 },
@@ -81,342 +106,301 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         { name: 'Hot', value: leadAnalytics.hot, fill: COLORS.hot },
         { name: 'Warm', value: leadAnalytics.warm, fill: COLORS.warm },
         { name: 'Cold', value: leadAnalytics.cold, fill: COLORS.cold }
-    ].filter(d => d.value > 0) // Only show categories with data
+    ].filter(d => d.value > 0)
 
-    if (isLoading) {
+    if (isLoading || !event) return null
+    // Layout handles loading/error, but we might be waiting for data here too. 
+    // Only return null if strictly needed to avoid flicker, or just let it render what it can.
+
+    const mockData = getMockEventData(event)
+
+    // Render content based on view
+    if (view === 'prep') {
+        return <EventTasksTab eventId={id} />
+    }
+
+    if (view === 'risks') {
+        return <EventRisksTab eventId={id} />
+    }
+
+    if (view === 'activity') {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-zinc-600 dark:text-white/70">Loading event...</p>
-            </div>
+            <Card className="p-12 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-center">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
+                    Event Activity Feed
+                </h3>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                    Coming soon: Full activity log of all event changes and actions
+                </p>
+            </Card>
         )
     }
 
-    if (error || !event) {
+    if (view === 'analytics') {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <p className="text-red-500">Event not found</p>
-                <p className="text-zinc-600 dark:text-white/70 mt-2">Error: {error?.message || 'Unknown error'}</p>
-                <Link href="/events">
-                    <Button className="mt-4">Back to Events</Button>
-                </Link>
-            </div>
-        )
-    }
-
-    return (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-            {/* Header */}
-            <div className="mb-8">
-                <Link href="/events" className="text-zinc-600 hover:text-zinc-900 dark:text-white/60 dark:hover:text-[#cbfb45] text-sm mb-4 inline-block">
-                    ← Back to Events
-                </Link>
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-4">{event.name}</h1>
-                        <div className="flex gap-4 text-zinc-600 dark:text-white/70">
-                            <span>📅 {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}</span>
-                            <span>📍 {event.location || 'No location'}</span>
-                            <span>💰 ${event.total_budget?.toLocaleString() || '0'}</span>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <Badge variant={getEventStatus(event.start_date, event.end_date).variant}>
-                            {getEventStatus(event.start_date, event.end_date).label}
-                        </Badge>
-                        <Link href={`/events/${id}/edit`}>
-                            <Button variant="outline">Edit Event</Button>
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="mb-8">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="leads">Leads ({event.leads?.length || 0})</TabsTrigger>
-                    <TabsTrigger value="tasks">Tasks ({eventTasks?.length || 0})</TabsTrigger>
-                </TabsList>
-
-                {/* Overview Tab */}
-                <TabsContent value="overview">
-                    {/* AI Event Intelligence */}
-                    <div className="mb-8">
-                        <EventIntelligenceCard eventId={id} eventName={event.name} />
-                    </div>
-
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
-                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Total Budget</p>
-                            <p className="text-4xl font-medium text-zinc-900 dark:text-white">${event.total_budget?.toLocaleString() || '0'}</p>
-                        </Card>
-
-                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
-                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Total Leads</p>
-                            <p className="text-4xl font-medium text-lime-400">{leadAnalytics.total}</p>
-                        </Card>
-
-                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
-                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Hot Leads</p>
-                            <p className="text-4xl font-medium text-lime-400">{leadAnalytics.hot}</p>
-                        </Card>
-
-                        <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
-                            <p className="text-zinc-600 dark:text-white/60 text-sm mb-2">Avg Score</p>
-                            <p className="text-4xl font-medium text-zinc-900 dark:text-white">{leadAnalytics.avgScore}</p>
-                        </Card>
-                    </div>
-
-                    {/* Charts Section */}
-                    {leadAnalytics.total > 0 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                            {/* Lead Priority Distribution */}
-                            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
-                                <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Priority Distribution</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={priorityData}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
-                                            outerRadius={100}
-                                            dataKey="value"
-                                        >
-                                            {priorityData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </Card>
-
-                            {/* Score Distribution */}
-                            <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
-                                <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Score Distribution</h3>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={leadAnalytics.scoreDistribution}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                                        <XAxis dataKey="range" stroke="#71717a" />
-                                        <YAxis stroke="#71717a" />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#fff',
-                                                border: '1px solid #e4e4e7',
-                                                borderRadius: '8px'
-                                            }}
-                                        />
-                                        <Bar dataKey="count" fill="#a3e635" radius={[8, 8, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </Card>
-                        </div>
-                    )}
-
-                    {/* Event Details */}
-                    <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
-                        <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-4">Event Details</h3>
-                        <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Start Date</p>
-                                <p className="text-zinc-900 dark:text-white/85">{event.start_date ? new Date(event.start_date).toLocaleDateString() : 'Not set'}</p>
-                            </div>
-                            <div>
-                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">End Date</p>
-                                <p className="text-zinc-900 dark:text-white/85">{event.end_date ? new Date(event.end_date).toLocaleDateString() : 'Not set'}</p>
-                            </div>
-                            <div>
-                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Location</p>
-                                <p className="text-zinc-900 dark:text-white/85">{event.location || 'Not set'}</p>
-                            </div>
-                            <div>
-                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Event Type</p>
-                                <p className="text-zinc-900 dark:text-white/85 capitalize">{event.event_type || 'Not set'}</p>
-                            </div>
-                            <div>
-                                <p className="text-zinc-600 dark:text-white/60 text-sm mb-1">Target Leads</p>
-                                <p className="text-zinc-900 dark:text-white/85">{event.target_leads || 0}</p>
-                            </div>
-                            <div>
-                                <p className="text-zinc-600 text-sm mb-1">Lead Progress</p>
-                                <p className="text-zinc-900 dark:text-white/85">
-                                    {leadAnalytics.total} / {event.target_leads || 0}
-                                    {event.target_leads > 0 && (
-                                        <span className="text-zinc-600 dark:text-white/60 text-sm ml-2">
-                                            ({Math.round((leadAnalytics.total / event.target_leads) * 100)}%)
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-                </TabsContent>
-
-                {/* Leads Tab */}
-                <TabsContent value="leads">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {event.leads?.map((lead: any) => (
-                            <Card key={lead.id} className="p-6 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <p className="font-medium text-zinc-900 dark:text-white">{lead.first_name} {lead.last_name}</p>
-                                        <p className="text-sm text-zinc-600 dark:text-white/70">{lead.company || 'No company'}</p>
-                                    </div>
-                                    <Badge variant={lead.lead_score >= 80 ? 'lime' : 'secondary'}>
-                                        {lead.lead_score || 0}
-                                    </Badge>
+            <div className="space-y-8">
+                {/* Preparation Progress */}
+                <Card className="p-6 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                    <h3 className="text-xs uppercase text-zinc-500 dark:text-zinc-400 mb-6 flex items-center gap-2 font-medium">
+                        <TrendingUp className="w-4 h-4" />
+                        PREPARATION PROGRESS
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {Object.entries(mockData.preparation_progress).map(([key, value]) => (
+                            <div key={key}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        {key}
+                                    </span>
+                                    <span className="text-sm text-zinc-500 dark:text-zinc-400">{value}%</span>
                                 </div>
-                                <p className="text-sm text-zinc-600 dark:text-white/70 mb-4">{lead.email}</p>
-                                <Link href={`/leads/${lead.id}`}>
-                                    <Button variant="outline" size="sm" className="w-full">View Lead</Button>
-                                </Link>
-                            </Card>
+                                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-[#CBFB45] rounded-full transition-all"
+                                        style={{ width: `${value}%` }}
+                                    />
+                                </div>
+                            </div>
                         ))}
-                        {(!event.leads || event.leads.length === 0) && (
-                            <p className="text-zinc-600 dark:text-white/70 col-span-3">No leads yet</p>
+                    </div>
+                </Card>
+
+                {/* Charts Section */}
+                {leadAnalytics.total > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Lead Priority Distribution */}
+                        <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                            <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Priority Distribution</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Pie
+                                        data={priorityData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                        outerRadius={100}
+                                        dataKey="value"
+                                    >
+                                        {priorityData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Card>
+
+                        {/* Score Distribution */}
+                        <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                            <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Score Distribution</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={leadAnalytics.scoreDistribution}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                    <XAxis dataKey="range" stroke="#71717a" />
+                                    <YAxis stroke="#71717a" />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            border: '1px solid #e4e4e7',
+                                            borderRadius: '8px'
+                                        }}
+                                    />
+                                    <Bar dataKey="count" fill="#a3e635" radius={[8, 8, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    // Default View: 'overview'
+    return (
+        <div className="space-y-8">
+            {/* Three-Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Event Objective */}
+                <Card className="p-6 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                    <h3 className="text-xs uppercase text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2 font-medium">
+                        <Flag className="w-4 h-4" />
+                        EVENT OBJECTIVE
+                    </h3>
+                    <p className="text-zinc-900 dark:text-white italic text-sm leading-relaxed">
+                        "{mockData.objective}"
+                    </p>
+                </Card>
+
+                {/* Key Messages */}
+                <Card className="p-6 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                    <h3 className="text-xs uppercase text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2 font-medium">
+                        <MessageSquare className="w-4 h-4" />
+                        KEY MESSAGES
+                    </h3>
+                    <ul className="space-y-3">
+                        {mockData.key_messages.map((msg, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></span>
+                                <span className="text-sm text-zinc-700 dark:text-zinc-300">{msg}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </Card>
+
+                {/* Recent Updates */}
+                <Card className="p-6 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                    <h3 className="text-xs uppercase text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2 font-medium">
+                        <Bell className="w-4 h-4" />
+                        RECENT UPDATES
+                    </h3>
+                    <div className="space-y-4">
+                        {mockData.recent_updates.map((update) => (
+                            <div key={update.id} className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[#CBFB45] flex items-center justify-center text-xs font-bold text-zinc-900 flex-shrink-0">
+                                    {update.user_name[0]}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm text-zinc-900 dark:text-white">{update.message}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                        {update.hours_ago} hours ago
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            </div>
+
+            {/* AI Event Intelligence */}
+            <EventIntelligenceCard eventId={id} eventName={event.name} />
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-center">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Budget</p>
+                    <p className="text-4xl font-medium text-zinc-900 dark:text-white">${event.total_budget?.toLocaleString() || '0'}</p>
+                </Card>
+
+                <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-center">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
+                    <p className="text-4xl font-medium text-lime-400">{leadAnalytics.total}</p>
+                </Card>
+
+                <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-center">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
+                    <p className="text-4xl font-medium text-lime-400">{leadAnalytics.hot}</p>
+                </Card>
+
+                <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-center">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Avg Score</p>
+                    <p className="text-4xl font-medium text-zinc-900 dark:text-white">{leadAnalytics.avgScore}</p>
+                </Card>
+            </div>
+
+            {/* Charts Section */}
+            {leadAnalytics.total > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Lead Priority Distribution */}
+                    <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                        <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Priority Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={priorityData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                    outerRadius={100}
+                                    dataKey="value"
+                                >
+                                    {priorityData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </Card>
+
+                    {/* Score Distribution */}
+                    <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                        <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-6">Lead Score Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={leadAnalytics.scoreDistribution}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                <XAxis dataKey="range" stroke="#71717a" />
+                                <YAxis stroke="#71717a" />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#fff',
+                                        border: '1px solid #e4e4e7',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                                <Bar dataKey="count" fill="#a3e635" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Card>
+                </div>
+            )}
+
+            {/* Event Details */}
+            <Card className="p-8 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                <h3 className="text-2xl font-medium text-zinc-900 dark:text-white mb-4">Event Details</h3>
+                <div className="grid grid-cols-2 gap-6">
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Start Date</p>
+                        <p className="text-zinc-900 dark:text-white">{event.start_date ? new Date(event.start_date).toLocaleDateString() : 'Not set'}</p>
+                    </div>
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">End Date</p>
+                        <p className="text-zinc-900 dark:text-white">{event.end_date ? new Date(event.end_date).toLocaleDateString() : 'Not set'}</p>
+                    </div>
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Location</p>
+                        <p className="text-zinc-900 dark:text-white">{event.location || 'Not set'}</p>
+                    </div>
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Event URL</p>
+                        {event.url ? (
+                            <a href={event.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline truncate block">
+                                {event.url}
+                            </a>
+                        ) : (
+                            <p className="text-zinc-900 dark:text-white">Not set</p>
                         )}
                     </div>
-                </TabsContent>
-
-                {/* Tasks Tab */}
-                <TabsContent value="tasks" className="space-y-6">
-                    {/* Header with Create Button */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Event Tasks</h2>
-                            <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                                Manage tasks for {event.name}
-                            </p>
-                        </div>
-                        <Link href={`/tasks/new?eventId=${id}`}>
-                            <Button>
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Task
-                            </Button>
-                        </Link>
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Event Type</p>
+                        <p className="text-zinc-900 dark:text-white capitalize">{event.event_type || 'Not set'}</p>
                     </div>
-
-                    {/* AI Task Generator */}
-                    <AITaskGenerator
-                        eventId={id}
-                        eventDate={event.start_date || undefined}
-                        onTasksCreated={() => {
-                            // Refetch tasks when new ones are created (without full page reload)
-                            queryClient.invalidateQueries({ queryKey: ['tasks', 'event', id] })
-                        }}
-                    />
-
-                    {/* Risk Analysis Dashboard (Phase AI-6) */}
-                    {eventTasks && eventTasks.length > 0 && (
-                        <RiskAnalysisDashboard eventId={id} />
-                    )}
-
-                    {/* Task Dependency Viewer */}
-                    {eventTasks && eventTasks.length >= 2 && (
-                        <TaskDependencyViewer
-                            eventId={id}
-                            tasks={eventTasks}
-                        />
-                    )}
-
-                    {/* Tasks Grid */}
-                    {eventTasks && eventTasks.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {eventTasks.map((task) => (
-                                <Card key={task.id} className="p-6 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 hover:shadow-lg transition-shadow">
-                                    <div className="space-y-4">
-                                        {/* Header */}
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <Link href={`/tasks/${task.id}`}>
-                                                    <h3 className="font-semibold text-zinc-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                                                        {task.title}
-                                                    </h3>
-                                                </Link>
-                                                {task.description && (
-                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">
-                                                        {task.description}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            {task.status === 'done' && (
-                                                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 ml-2" />
-                                            )}
-                                        </div>
-
-                                        {/* Metadata */}
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {/* Priority Badge */}
-                                            <Badge className={
-                                                task.priority === 'urgent'
-                                                    ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
-                                                    : task.priority === 'high'
-                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
-                                                        : task.priority === 'medium'
-                                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                                                            : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-                                            }>
-                                                {task.priority}
-                                            </Badge>
-
-                                            {/* Status Badge */}
-                                            <Badge variant="outline">
-                                                {task.status.replace('_', ' ')}
-                                            </Badge>
-                                        </div>
-
-                                        {/* Due Date */}
-                                        {task.due_date && (
-                                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                                                <Clock className="w-4 h-4" />
-                                                <span>
-                                                    {new Date(task.due_date) < new Date() && task.status !== 'done'
-                                                        ? <span className="text-red-600 dark:text-red-400 font-medium">Overdue: {new Date(task.due_date).toLocaleDateString()}</span>
-                                                        : `Due ${new Date(task.due_date).toLocaleDateString()}`
-                                                    }
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {/* AI Progress Prediction (Phase AI-6) */}
-                                        {task.status !== 'done' && (
-                                            <TaskProgressPredictor taskId={task.id} eventId={id} />
-                                        )}
-
-                                        {/* Action Button */}
-                                        <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                                            <Link href={`/tasks/${task.id}`} className="block">
-                                                <Button variant="outline" size="sm" className="w-full">
-                                                    View Details
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    ) : (
-                        <Card className="p-12 border border-zinc-200 dark:bg-slate-900 dark:border-white/10 text-center">
-                            <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-zinc-400" />
-                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                                No tasks yet
-                            </h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-                                Create your first task to get started with event planning
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Target Leads</p>
+                        <p className="text-zinc-900 dark:text-white">{event.target_leads || 0}</p>
+                    </div>
+                    <div>
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">Lead Progress</p>
+                        <p className="text-zinc-900 dark:text-white">
+                            {leadAnalytics.total} / {event.target_leads || 0}
+                            {event.target_leads > 0 && (
+                                <span className="text-zinc-600 dark:text-zinc-400 text-sm ml-2">
+                                    ({Math.round((leadAnalytics.total / event.target_leads) * 100)}%)
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                    {event.description && (
+                        <div className="col-span-2 pt-4 border-t border-zinc-100 dark:border-zinc-700 mt-2">
+                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Description</p>
+                            <p className="text-zinc-900 dark:text-white text-sm leading-relaxed">
+                                {event.description}
                             </p>
-                            <Link href={`/tasks/new?eventId=${id}`}>
-                                <Button>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create First Task
-                                </Button>
-                            </Link>
-                        </Card>
+                        </div>
                     )}
-                </TabsContent>
-            </Tabs>
+                </div>
+            </Card>
         </div>
     )
 }

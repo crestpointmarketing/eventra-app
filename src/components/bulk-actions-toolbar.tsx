@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { X, Download } from 'lucide-react'
+import { X, Download, Sparkles } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -13,9 +13,10 @@ import {
 
 interface BulkActionsToolbarProps {
     count: number
-    itemType: 'lead' | 'event'
+    itemType: 'lead' | 'event' | 'task'
     onExport: () => void
     onUpdateStatus?: (status: string) => void
+    onGenerateAI?: () => void
     onClear: () => void
     statusOptions?: Array<{ value: string; label: string }>
 }
@@ -25,6 +26,7 @@ export function BulkActionsToolbar({
     itemType,
     onExport,
     onUpdateStatus,
+    onGenerateAI,
     onClear,
     statusOptions,
 }: BulkActionsToolbarProps) {
@@ -52,11 +54,23 @@ export function BulkActionsToolbar({
                                         variant="outline"
                                         size="sm"
                                         onClick={onExport}
-                                        className="border-white/20 hover:bg-white/10 dark:border-zinc-900 dark:bg-lime-400 dark:text-zinc-900 dark:hover:bg-lime-500 text-white font-medium"
+                                        className="bg-white text-indigo-600 hover:bg-zinc-100 dark:bg-lime-400 dark:text-zinc-900 dark:hover:bg-lime-500 font-medium border-none"
                                     >
                                         <Download className="h-4 w-4 mr-2" />
                                         Export Selected
                                     </Button>
+
+                                    {onGenerateAI && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={onGenerateAI}
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indiogo-500 dark:text-white dark:hover:bg-indigo-600 font-medium border-none"
+                                        >
+                                            <Sparkles className="h-4 w-4 mr-2" />
+                                            Generate AI
+                                        </Button>
+                                    )}
 
                                     {onUpdateStatus && statusOptions && (
                                         <Select onValueChange={onUpdateStatus}>
@@ -79,7 +93,7 @@ export function BulkActionsToolbar({
                                 variant="ghost"
                                 size="sm"
                                 onClick={onClear}
-                                className="hover:bg-white/10 dark:hover:bg-zinc-900/10 text-white dark:text-zinc-900"
+                                className="bg-white text-indigo-600 hover:bg-zinc-100 dark:bg-lime-400 dark:text-zinc-900 dark:hover:bg-lime-500 font-medium border-none"
                             >
                                 <X className="h-4 w-4 mr-2" />
                                 Clear Selection
