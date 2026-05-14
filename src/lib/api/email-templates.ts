@@ -11,11 +11,15 @@ import type {
     EmailTemplateFilters,
 } from '@/types/email-templates'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // Fetch all templates with optional filters
 export async function getEmailTemplates(filters?: EmailTemplateFilters) {
-    let query = supabase
+    let query = getSupabase()
         .from('email_templates')
         .select('*')
         .is('deleted_at', null)
@@ -54,7 +58,7 @@ export async function getEmailTemplates(filters?: EmailTemplateFilters) {
 
 // Fetch a single template with all details
 export async function getEmailTemplateById(id: string) {
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await getSupabase()
         .from('email_templates')
         .select('*')
         .eq('id', id)
@@ -64,7 +68,7 @@ export async function getEmailTemplateById(id: string) {
     if (templateError) throw templateError
 
     // Fetch subjects
-    const { data: subjects, error: subjectsError } = await supabase
+    const { data: subjects, error: subjectsError } = await getSupabase()
         .from('email_template_subjects')
         .select('*')
         .eq('template_id', id)
@@ -73,7 +77,7 @@ export async function getEmailTemplateById(id: string) {
     if (subjectsError) throw subjectsError
 
     // Fetch blocks
-    const { data: blocks, error: blocksError } = await supabase
+    const { data: blocks, error: blocksError } = await getSupabase()
         .from('email_template_blocks')
         .select('*')
         .eq('template_id', id)
@@ -82,7 +86,7 @@ export async function getEmailTemplateById(id: string) {
     if (blocksError) throw blocksError
 
     // Fetch CTA
-    const { data: cta, error: ctaError } = await supabase
+    const { data: cta, error: ctaError } = await getSupabase()
         .from('email_template_ctas')
         .select('*')
         .eq('template_id', id)
@@ -103,11 +107,11 @@ export async function createEmailTemplate(input: CreateEmailTemplateInput) {
     const { subjects, blocks, cta, ...templateData } = input
 
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getSupabase().auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
     // Create template
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await getSupabase()
         .from('email_templates')
         .insert({
             ...templateData,
@@ -120,7 +124,7 @@ export async function createEmailTemplate(input: CreateEmailTemplateInput) {
     if (templateError) throw templateError
 
     // Create subjects
-    const { error: subjectsError } = await supabase
+    const { error: subjectsError } = await getSupabase()
         .from('email_template_subjects')
         .insert(
             subjects.map((s) => ({
@@ -132,7 +136,7 @@ export async function createEmailTemplate(input: CreateEmailTemplateInput) {
     if (subjectsError) throw subjectsError
 
     // Create blocks
-    const { error: blocksError } = await supabase
+    const { error: blocksError } = await getSupabase()
         .from('email_template_blocks')
         .insert(
             blocks.map((b) => ({
@@ -144,7 +148,7 @@ export async function createEmailTemplate(input: CreateEmailTemplateInput) {
     if (blocksError) throw blocksError
 
     // Create CTA
-    const { error: ctaError } = await supabase
+    const { error: ctaError } = await getSupabase()
         .from('email_template_ctas')
         .insert({
             template_id: template.id,
@@ -161,11 +165,11 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
     const { id, subjects, blocks, cta, ...templateData } = input
 
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getSupabase().auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
     // Update template (version will auto-increment via trigger)
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await getSupabase()
         .from('email_templates')
         .update({
             ...templateData,
@@ -180,10 +184,10 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
     // Update subjects if provided
     if (subjects) {
         // Delete existing subjects
-        await supabase.from('email_template_subjects').delete().eq('template_id', id)
+        await getSupabase().from('email_template_subjects').delete().eq('template_id', id)
 
         // Insert new subjects
-        const { error: subjectsError } = await supabase
+        const { error: subjectsError } = await getSupabase()
             .from('email_template_subjects')
             .insert(
                 subjects.map((s) => ({
@@ -198,10 +202,10 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
     // Update blocks if provided
     if (blocks) {
         // Delete existing blocks
-        await supabase.from('email_template_blocks').delete().eq('template_id', id)
+        await getSupabase().from('email_template_blocks').delete().eq('template_id', id)
 
         // Insert new blocks
-        const { error: blocksError } = await supabase
+        const { error: blocksError } = await getSupabase()
             .from('email_template_blocks')
             .insert(
                 blocks.map((b) => ({
@@ -216,10 +220,10 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
     // Update CTA if provided
     if (cta) {
         // Delete existing CTA
-        await supabase.from('email_template_ctas').delete().eq('template_id', id)
+        await getSupabase().from('email_template_ctas').delete().eq('template_id', id)
 
         // Insert new CTA
-        const { error: ctaError } = await supabase
+        const { error: ctaError } = await getSupabase()
             .from('email_template_ctas')
             .insert({
                 template_id: id,
@@ -234,7 +238,7 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
 
 // Soft delete a template
 export async function deleteEmailTemplate(id: string) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('email_templates')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
@@ -244,7 +248,7 @@ export async function deleteEmailTemplate(id: string) {
 
 // Duplicate a template (uses RPC function)
 export async function duplicateEmailTemplate(templateId: string, newName?: string) {
-    const { data, error } = await supabase.rpc('rpc_duplicate_email_template', {
+    const { data, error } = await getSupabase().rpc('rpc_duplicate_email_template', {
         p_template_id: templateId,
         p_new_name: newName || null,
     })
@@ -258,7 +262,7 @@ export async function updateTemplateStatus(
     id: string,
     status: 'active' | 'disabled' | 'archived'
 ) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('email_templates')
         .update({ status })
         .eq('id', id)
@@ -272,7 +276,7 @@ export async function updateTemplateStatus(
 // Increment usage count
 export async function incrementTemplateUsage(id: string) {
     // Fetch current count
-    const { data: template } = await supabase
+    const { data: template } = await getSupabase()
         .from('email_templates')
         .select('usage_count')
         .eq('id', id)
@@ -281,7 +285,7 @@ export async function incrementTemplateUsage(id: string) {
     if (!template) throw new Error('Template not found')
 
     // Update with incremented count
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('email_templates')
         .update({ usage_count: template.usage_count + 1 })
         .eq('id', id)

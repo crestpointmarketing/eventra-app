@@ -1,17 +1,9 @@
 // Lead Qualification Service
 // Assesses lead-company fit based on industry alignment, company size, and product needs
 
-import OpenAI from 'openai'
+import { openai } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-})
-
-// ============================================================================
-// Types
-// ============================================================================
+export type { Lead } from './types'
 
 export interface LeadQualification {
     fitScore: number // 0-100 overall product-company alignment
@@ -33,17 +25,7 @@ export interface LeadQualification {
     reasoning: string // Overall assessment explanation
 }
 
-export interface Lead {
-    id: string
-    name: string
-    email: string
-    company?: string
-    title?: string
-    industry?: string
-    company_size?: string
-    notes?: string
-    lead_score?: number
-}
+import type { Lead } from './types'
 
 export interface CompanyProfile {
     name: string

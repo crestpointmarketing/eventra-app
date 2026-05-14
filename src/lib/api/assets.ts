@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -51,7 +55,7 @@ export interface CreateAssetData {
 // Fetch Assets (with filters)
 // ============================================
 export async function fetchAssets(filters?: AssetFilters) {
-    let query = supabase
+    let query = getSupabase()
         .from('assets')
         .select(`
       *,
@@ -87,7 +91,7 @@ export async function fetchAssets(filters?: AssetFilters) {
 // Fetch Single Asset
 // ============================================
 export async function fetchAsset(assetId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('assets')
         .select(`
       *,
@@ -105,7 +109,7 @@ export async function fetchAsset(assetId: string) {
 // Create Asset (after file upload)
 // ============================================
 export async function createAsset(assetData: CreateAssetData) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('assets')
         .insert(assetData)
         .select()
@@ -119,7 +123,7 @@ export async function createAsset(assetData: CreateAssetData) {
 // Update Asset Metadata
 // ============================================
 export async function updateAsset(assetId: string, updates: Partial<CreateAssetData>) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('assets')
         .update(updates)
         .eq('id', assetId)
@@ -137,7 +141,7 @@ export async function deleteAsset(assetId: string) {
     console.log('🟡 Delete attempt for asset:', assetId)
 
     // First get asset details
-    const { data: asset, error: fetchError } = await supabase
+    const { data: asset, error: fetchError } = await getSupabase()
         .from('assets')
         .select('*')
         .eq('id', assetId)
@@ -159,7 +163,7 @@ export async function deleteAsset(assetId: string) {
             console.log('🟡 Deleting from storage, path:', filePath)
 
             // Delete from storage
-            const { error: storageError } = await supabase.storage
+            const { error: storageError } = await getSupabase().storage
                 .from('event-assets')
                 .remove([filePath])
 
@@ -174,7 +178,7 @@ export async function deleteAsset(assetId: string) {
 
     // Delete from database
     console.log('🟡 Deleting from database...')
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('assets')
         .delete()
         .eq('id', assetId)
@@ -209,7 +213,7 @@ export async function uploadFile(file: File, userId: string) {
 
     console.log('🔵 Upload path:', filePath)
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await getSupabase().storage
         .from('event-assets')
         .upload(filePath, file, {
             cacheControl: '3600',
@@ -228,7 +232,7 @@ export async function uploadFile(file: File, userId: string) {
     console.log('🟢 Upload success:', data)
 
     // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = getSupabase().storage
         .from('event-assets')
         .getPublicUrl(filePath)
 
@@ -247,7 +251,7 @@ export async function uploadFile(file: File, userId: string) {
 // Mark Asset as Not New
 // ============================================
 export async function markAssetAsViewed(assetId: string) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('assets')
         .update({ is_new: false })
         .eq('id', assetId)

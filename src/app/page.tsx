@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { TopNav } from '@/components/layout/top-nav'
 import { Button } from '@/components/ui/button'

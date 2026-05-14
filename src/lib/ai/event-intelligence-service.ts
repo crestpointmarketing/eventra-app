@@ -1,17 +1,10 @@
 // Event Intelligence Service
 // Analyzes events to identify target audience, suitable industries, budget recommendations, and ROI insights
 
-import OpenAI from 'openai'
+import { openai } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-})
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { AIEvent } from './types'
+export type { AIEvent as Event } from './types'
 
 export interface EventProfile {
     targetAudience: {
@@ -44,20 +37,6 @@ export interface EventProfile {
     summary: string
 }
 
-export interface Event {
-    id: string
-    name: string
-    event_type: string
-    description?: string
-    url?: string
-    owner_id?: string
-    start_date?: string
-    end_date?: string
-    location?: string
-    budget?: number
-    expected_attendees?: number
-}
-
 // ============================================================================
 // Main Functions
 // ============================================================================
@@ -65,7 +44,7 @@ export interface Event {
 /**
  * Analyze event to generate comprehensive profile
  */
-export async function analyzeEventProfile(event: Event): Promise<EventProfile> {
+export async function analyzeEventProfile(event: AIEvent): Promise<EventProfile> {
     try {
         // Get company intelligence context
         const companyContext = await getCompanyContext()
@@ -189,7 +168,7 @@ Format as JSON matching this structure:
 /**
  * Generate concise event summary
  */
-export async function generateEventSummary(event: Event): Promise<string> {
+export async function generateEventSummary(event: AIEvent): Promise<string> {
     try {
         const prompt = `Create a compelling 2-3 sentence summary for this event that highlights its key value proposition and target audience:
 

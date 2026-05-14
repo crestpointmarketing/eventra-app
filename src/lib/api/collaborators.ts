@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -25,7 +29,7 @@ export interface AddCollaboratorData {
 // Fetch Collaborators for Task
 // ============================================
 export async function fetchTaskCollaborators(taskId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_collaborators')
         .select(`
       *,
@@ -41,7 +45,7 @@ export async function fetchTaskCollaborators(taskId: string) {
 // Add Collaborator
 // ============================================
 export async function addCollaborator(collaboratorData: AddCollaboratorData) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_collaborators')
         .insert(collaboratorData)
         .select(`
@@ -58,7 +62,7 @@ export async function addCollaborator(collaboratorData: AddCollaboratorData) {
 // Remove Collaborator
 // ============================================
 export async function removeCollaborator(collaboratorId: string) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('task_collaborators')
         .delete()
         .eq('id', collaboratorId)
@@ -70,7 +74,7 @@ export async function removeCollaborator(collaboratorId: string) {
 // Update Collaborator Role
 // ============================================
 export async function updateCollaboratorRole(collaboratorId: string, role: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_collaborators')
         .update({ role })
         .eq('id', collaboratorId)

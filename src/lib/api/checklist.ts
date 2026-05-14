@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -25,7 +29,7 @@ export interface CreateChecklistItemData {
 // Fetch Checklist Items for Task
 // ============================================
 export async function fetchTaskChecklist(taskId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_checklist_items')
         .select('*')
         .eq('task_id', taskId)
@@ -41,7 +45,7 @@ export async function fetchTaskChecklist(taskId: string) {
 export async function createChecklistItem(itemData: CreateChecklistItemData) {
     // If no position provided, get the max position and add 1
     if (itemData.position === undefined) {
-        const { data: existingItems } = await supabase
+        const { data: existingItems } = await getSupabase()
             .from('task_checklist_items')
             .select('position')
             .eq('task_id', itemData.task_id)
@@ -52,7 +56,7 @@ export async function createChecklistItem(itemData: CreateChecklistItemData) {
         itemData.position = maxPosition + 1
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_checklist_items')
         .insert(itemData)
         .select()
@@ -66,7 +70,7 @@ export async function createChecklistItem(itemData: CreateChecklistItemData) {
 // Toggle Checklist Item Completion
 // ============================================
 export async function toggleChecklistItem(itemId: string, isCompleted: boolean) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_checklist_items')
         .update({
             is_completed: isCompleted,
@@ -84,7 +88,7 @@ export async function toggleChecklistItem(itemId: string, isCompleted: boolean) 
 // Update Checklist Item
 // ============================================
 export async function updateChecklistItem(itemId: string, updates: Partial<ChecklistItem>) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('task_checklist_items')
         .update(updates)
         .eq('id', itemId)
@@ -99,7 +103,7 @@ export async function updateChecklistItem(itemId: string, updates: Partial<Check
 // Delete Checklist Item
 // ============================================
 export async function deleteChecklistItem(itemId: string) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('task_checklist_items')
         .delete()
         .eq('id', itemId)
@@ -113,7 +117,7 @@ export async function deleteChecklistItem(itemId: string) {
 export async function reorderChecklistItems(taskId: string, itemIds: string[]) {
     // Update position for each item based on array order
     const updates = itemIds.map((id, index) =>
-        supabase
+        getSupabase()
             .from('task_checklist_items')
             .update({ position: index })
             .eq('id', id)

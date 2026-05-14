@@ -1,17 +1,9 @@
 // AI Task Prediction Service
 // Provides intelligent task completion prediction, risk analysis, and bottleneck detection
 
-import OpenAI from 'openai'
+import { openai } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-})
-
-// ============================================================================
-// Types
-// ============================================================================
+export type { Task } from './types'
 
 export interface CompletionPrediction {
     estimatedDays: number
@@ -46,16 +38,7 @@ export interface Bottleneck {
     suggestion: string
 }
 
-export interface Task {
-    id: string
-    title: string
-    description?: string
-    status: string
-    priority: string
-    due_date?: string
-    created_at: string
-    dependencies?: string[]
-}
+import type { Task } from './types'
 
 // ============================================================================
 // Event Type Baselines (in days)

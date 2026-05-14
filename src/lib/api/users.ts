@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -19,7 +23,7 @@ export interface User {
 export async function fetchUsers() {
     console.log('🔵 Fetching users...')
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('users')
         .select('*')
         .order('name', { ascending: true })
@@ -37,7 +41,7 @@ export async function fetchUsers() {
 // Fetch Single User
 // ============================================
 export async function fetchUser(userId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('users')
         .select('*')
         .eq('id', userId)

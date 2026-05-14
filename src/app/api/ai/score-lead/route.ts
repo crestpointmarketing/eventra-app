@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { generateChatCompletion, storeAIInsight } from '@/lib/ai/openai-service'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
     try {
@@ -16,8 +16,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Fetch lead data from database
-        const supabase = createClient()
+        const supabase = await createClient()
         const { data: lead, error: leadError } = await supabase
             .from('leads')
             .select('*')
@@ -142,7 +141,7 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        const supabase = createClient()
+        const supabase = await createClient()
         const { data, error } = await supabase
             .from('ai_insights')
             .select('*')

@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -64,7 +68,7 @@ export interface UpdateTaskData extends Partial<CreateTaskData> {
 export async function fetchTasks(filters?: TaskFilters) {
     console.log('🔵 fetchTasks called with filters:', filters)
 
-    let query = supabase
+    let query = getSupabase()
         .from('tasks')
         .select(`
             *,
@@ -126,7 +130,7 @@ export async function fetchTasks(filters?: TaskFilters) {
 // Fetch Tasks for Specific Event
 // ============================================
 export async function fetchEventTasks(eventId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .select(`
             *,
@@ -144,7 +148,7 @@ export async function fetchEventTasks(eventId: string) {
 // Fetch Single Task
 // ============================================
 export async function fetchTask(taskId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .select(`
             *,
@@ -162,7 +166,7 @@ export async function fetchTask(taskId: string) {
 // Create Task
 // ============================================
 export async function createTask(taskData: CreateTaskData) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .insert(taskData)
         .select()
@@ -178,7 +182,7 @@ export async function createTask(taskData: CreateTaskData) {
 export async function updateTask(taskId: string, updates: UpdateTaskData) {
     console.log('🔵 API: Updating task in database:', { taskId, updates })
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .update(updates)
         .eq('id', taskId)
@@ -203,7 +207,7 @@ export async function updateTask(taskId: string, updates: UpdateTaskData) {
 // Delete Task
 // ============================================
 export async function deleteTask(taskId: string) {
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('tasks')
         .delete()
         .eq('id', taskId)
@@ -215,7 +219,7 @@ export async function deleteTask(taskId: string) {
 // Archive Task
 // ============================================
 export async function archiveTask(taskId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .update({
             status: 'archived' as Task['status'],
@@ -233,7 +237,7 @@ export async function archiveTask(taskId: string) {
 // Mark Task as Done
 // ============================================
 export async function markTaskAsDone(taskId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
         .from('tasks')
         .update({
             status: 'done' as Task['status'],

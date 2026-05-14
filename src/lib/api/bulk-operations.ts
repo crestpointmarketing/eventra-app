@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted'
 
@@ -15,7 +19,7 @@ export async function bulkUpdateLeadStatus(
         throw new Error('No leads provided for bulk update')
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
         .from('leads')
         .update({ lead_status: newStatus })
         .in('id', leadIds)

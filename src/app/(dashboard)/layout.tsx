@@ -1,6 +1,8 @@
 import { TopNav } from '@/components/layout/top-nav'
 import { NavigationControls } from '@/components/ui/navigation-controls'
 
+export const dynamic = 'force-dynamic'
+
 export default function DashboardLayout({
     children,
 }: {

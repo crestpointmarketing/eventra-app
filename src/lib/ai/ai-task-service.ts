@@ -2,9 +2,14 @@
 // Provides intelligent task generation, dependency analysis, and priority scoring
 
 import { generateChatCompletion } from './openai-service'
+import { parseAIJSON } from './utils'
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
 // ============================================
 // Types
@@ -193,7 +198,7 @@ export async function generateTaskSuggestions(params: {
         // Fetch event details if not provided
         let eventData = params
         if (!params.eventType || !params.eventDate) {
-            const { data: event, error } = await supabase
+            const { data: event, error } = await getSupabase()
                 .from('events')
                 .select('*')
                 .eq('id', params.eventId)
@@ -218,7 +223,7 @@ export async function generateTaskSuggestions(params: {
         }
 
         // ===== NEW: Fetch existing tasks to avoid duplicates =====
-        const { data: existingTasks, error: tasksError } = await supabase
+        const { data: existingTasks, error: tasksError } = await getSupabase()
             .from('tasks')
             .select('title, description')
             .eq('event_id', params.eventId)
@@ -290,15 +295,8 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
             }
         }
 
-        // Parse JSON response
         try {
-            // Extract JSON from potential markdown code blocks
-            let jsonContent = content.trim()
-            if (jsonContent.startsWith('```')) {
-                jsonContent = jsonContent.replace(/```json?\n?/g, '').replace(/```\n?$/g, '')
-            }
-
-            const tasks: SuggestedTask[] = JSON.parse(jsonContent)
+            const tasks = parseAIJSON(content) as SuggestedTask[]
 
             // Validate and normalize tasks
             const validatedTasks = tasks.map((task) => ({
@@ -362,7 +360,7 @@ export async function analyzeTaskDependencies(params: {
 }): Promise<{ dependencies: TaskDependency[]; error?: string }> {
     try {
         // Fetch tasks for the event
-        let query = supabase
+        let query = getSupabase()
             .from('tasks')
             .select('id, title, description, due_date, priority, status')
             .eq('event_id', params.eventId)
@@ -419,14 +417,8 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
             return { dependencies: [], error: aiError || 'Failed to analyze dependencies' }
         }
 
-        // Parse response
         try {
-            let jsonContent = content.trim()
-            if (jsonContent.startsWith('```')) {
-                jsonContent = jsonContent.replace(/```json?\n?/g, '').replace(/```\n?$/g, '')
-            }
-
-            const dependencies: TaskDependency[] = JSON.parse(jsonContent)
+            const dependencies = parseAIJSON(content) as TaskDependency[]
             return { dependencies }
         } catch (parseError) {
             console.error('Failed to parse dependency analysis:', parseError)
@@ -452,7 +444,7 @@ export async function scoreTaskPriority(params: {
 }): Promise<PriorityScore | null> {
     try {
         // Fetch task details
-        const { data: task, error } = await supabase
+        const { data: task, error } = await getSupabase()
             .from('tasks')
             .select('*, events(*)')
             .eq('id', params.taskId)

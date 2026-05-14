@@ -3,14 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { openai } from '@/lib/ai/openai-service'
 
 export async function POST(request: NextRequest) {
-    console.log('[generate-draft] API route called')
     try {
-        console.log('[generate-draft] Parsing request body...')
         const { leadId, templateId, tone, language, personalizationPoints } = await request.json()
-        console.log('[generate-draft] Parameters:', { leadId, templateId, tone, language })
 
         if (!leadId || !templateId) {
-            console.warn('[generate-draft] Missing required parameters')
             return NextResponse.json(
                 { error: 'Lead ID and Template ID are required' },
                 { status: 400 }
@@ -19,8 +15,6 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient()
 
-        // 1. Fetch lead data
-        console.log('[generate-draft] Fetching lead data...')
         const { data: lead, error: leadError } = await supabase
             .from('leads')
             .select('*')
@@ -28,22 +22,15 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (leadError || !lead) {
-            console.error('[generate-draft] Lead not found:', leadError)
-            return NextResponse.json(
-                { error: 'Lead not found' },
-                { status: 404 }
-            )
+            return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
         }
 
-        // 2. Fetch event context (if available)
         const { data: event } = await supabase
             .from('events')
             .select('*')
             .eq('id', lead.event_id)
             .single()
 
-        // 3. Fetch template with all components
-        console.log('[generate-draft] Fetching template...')
         const { data: template, error: templateError } = await supabase
             .from('email_templates')
             .select(`
@@ -56,21 +43,9 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (templateError || !template) {
-            console.error('[generate-draft] Template not found:', templateError)
-            return NextResponse.json(
-                { error: 'Template not found' },
-                { status: 404 }
-            )
+            return NextResponse.json({ error: 'Template not found' }, { status: 404 })
         }
 
-        console.log('[generate-draft] Template loaded:', {
-            name: template.name,
-            blocksCount: template.blocks?.length || 0,
-            subjectsCount: template.subjects?.length || 0,
-            ctasCount: template.ctas?.length || 0
-        })
-
-        // 4. Extract variables from template
         const extractVariables = (text: string): string[] => {
             const regex = /\{\{([^}]+)\}\}/g
             const matches = []
@@ -83,15 +58,12 @@ export async function POST(request: NextRequest) {
 
         const allVariables = new Set<string>()
         template.blocks?.forEach((block: any) => {
-            extractVariables(block.content).forEach(v => allVariables.add(v))
+            extractVariables(block.content).forEach((v: string) => allVariables.add(v))
         })
         template.subjects?.forEach((subject: any) => {
-            extractVariables(subject.text).forEach(v => allVariables.add(v))
+            extractVariables(subject.text).forEach((v: string) => allVariables.add(v))
         })
 
-        console.log('[generate-draft] Variables found:', Array.from(allVariables))
-
-        // 5. Build AI prompt for email generation
         const prompt = `You are an expert sales email writer. Generate a personalized email for this lead.
 
 Lead Information:
@@ -158,8 +130,6 @@ Output ONLY valid JSON (no markdown, no code blocks):
   "selectedCta": "CTA text if applicable"
 }`
 
-        // 6. Call OpenAI
-        console.log('[generate-draft] Calling OpenAI...')
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
@@ -167,30 +137,18 @@ Output ONLY valid JSON (no markdown, no code blocks):
                     role: 'system',
                     content: 'You are an expert sales email writer. Always respond with valid JSON only, no markdown formatting.'
                 },
-                {
-                    role: 'user',
-                    content: prompt
-                }
+                { role: 'user', content: prompt }
             ],
-            temperature: 0.8, // Higher temperature for more creative content
+            temperature: 0.8,
             max_tokens: 1500,
             response_format: { type: 'json_object' }
         })
 
         const aiResponse = completion.choices[0]?.message?.content
-        if (!aiResponse) {
-            throw new Error('No response from AI')
-        }
+        if (!aiResponse) throw new Error('No response from AI')
 
         const draft = JSON.parse(aiResponse)
-        console.log('[generate-draft] Draft generated:', {
-            subjectLength: draft.subject?.length,
-            bodyLength: draft.body?.length,
-            variablesCount: Object.keys(draft.variables || {}).length
-        })
 
-        // 7. Log activity
-        console.log('[generate-draft] Logging activity...')
         await supabase.from('lead_activities').insert({
             lead_id: leadId,
             activity_type: 'email_drafted',
@@ -205,7 +163,6 @@ Output ONLY valid JSON (no markdown, no code blocks):
             }
         })
 
-        // 8. Return the generated draft
         return NextResponse.json({
             subject: draft.subject,
             body: draft.body,

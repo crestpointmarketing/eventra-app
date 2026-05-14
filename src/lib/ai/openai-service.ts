@@ -4,11 +4,26 @@
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/client'
 
-const supabase = createClient()
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase(): ReturnType<typeof createClient> {
+    if (!_supabase) _supabase = createClient()
+    return _supabase
+}
 
-// OpenAI Configuration
-export const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
+// OpenAI Configuration — lazy singleton to avoid build-time initialization errors
+let _openai: OpenAI | null = null
+
+function getOpenAIInstance(): OpenAI {
+    if (!_openai) {
+        _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    }
+    return _openai
+}
+
+export const openai = new Proxy({} as OpenAI, {
+    get(_, prop: string | symbol) {
+        return Reflect.get(getOpenAIInstance(), prop)
+    },
 })
 
 // Pricing per 1M tokens (as of Jan 2026)
@@ -71,7 +86,7 @@ function calculateCost(
  */
 async function trackUsage(usage: AIUsageRecord): Promise<void> {
     try {
-        const { error } = await supabase
+        const { error } = await getSupabase()
             .from('ai_usage')
             .insert({
                 user_id: usage.user_id,
@@ -106,7 +121,7 @@ async function checkRateLimits(userId?: string): Promise<boolean> {
         const oneDayAgo = new Date()
         oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
-        const { count, error } = await supabase
+        const { count, error } = await getSupabase()
             .from('ai_usage')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId)
@@ -246,7 +261,7 @@ export async function storeAIInsight(params: {
             ? new Date(Date.now() + params.expiresInHours * 60 * 60 * 1000)
             : null
 
-        const { error } = await supabase
+        const { error } = await getSupabase()
             .from('ai_insights')
             .insert({
                 entity_type: params.entityType,
@@ -279,7 +294,7 @@ export async function getAIInsight(params: {
     insightType?: 'score' | 'summary' | 'recommendation' | 'prediction'
 }): Promise<any | null> {
     try {
-        let query = supabase
+        let query = getSupabase()
             .from('ai_insights')
             .select('*')
             .eq('entity_type', params.entityType)
@@ -318,7 +333,7 @@ export async function getAIUsageStats(userId: string, days: number = 7): Promise
         const startDate = new Date()
         startDate.setDate(startDate.getDate() - days)
 
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
             .from('ai_usage')
             .select('*')
             .eq('user_id', userId)
