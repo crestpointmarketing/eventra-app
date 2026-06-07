@@ -225,7 +225,7 @@ export default function LeadsPage() {
             )
             toast.success(`Updated ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to ${newStatus}`)
             clearSelection()
-            window.location.reload()
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
         } catch (error) {
             toast.error('Failed to update lead status')
         }

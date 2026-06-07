@@ -145,8 +145,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 <Card className="p-12 text-center">
                     <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Event not found</h3>
-                    <Link href="/events">
-                        <Button>Back to Events</Button>
+                    <Link href="/discover">
+                        <Button>Back to EventPulse</Button>
                     </Link>
                 </Card>
             </div>

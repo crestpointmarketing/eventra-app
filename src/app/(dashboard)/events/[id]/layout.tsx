@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -22,10 +22,13 @@ import {
     ListChecks,
     Users,
     FileText,
+    Mail,
     AlertTriangle,
     Activity,
-    BarChart3
+    BarChart3,
+    Check,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatEventDateRange } from '@/lib/utils/event-status'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -47,27 +50,22 @@ export default function EventLayout({
     const supabase = createClient()
 
     // Determine active tab
-    // - overview: pathname ends with /[id] AND (no view OR view is overview)
-    // - prep: pathname ends with /[id] AND view is prep
-    // - leads: pathname includes /leads
-    // - assets: pathname includes /assets
-    // ... etc
     const isOverview = pathname.endsWith(`/${id}`) && (!currentView || currentView === 'overview')
-    const isPrep = pathname.endsWith(`/${id}`) && currentView === 'prep'
-    const isRisks = pathname.endsWith(`/${id}`) && currentView === 'risks'
-    const isActivity = pathname.endsWith(`/${id}`) && currentView === 'activity'
-    const isAnalytics = pathname.endsWith(`/${id}`) && currentView === 'analytics'
+    const isTasks = pathname.endsWith(`/${id}`) && currentView === 'tasks'
+    const isNotes = pathname.endsWith(`/${id}`) && currentView === 'notes'
+    const isInsights = pathname.endsWith(`/${id}`) && currentView === 'insights'
+    const isEmail = pathname.endsWith(`/${id}`) && currentView === 'email'
     const isLeads = pathname.includes('/leads')
     const isAssets = pathname.includes('/assets')
 
     const tabs = [
         { name: 'Overview', icon: LayoutGrid, href: `/events/${id}`, active: isOverview },
-        { name: 'Prep', icon: ListChecks, href: `/events/${id}?view=prep`, count: eventTasks?.length, active: isPrep },
+        { name: 'Tasks', icon: ListChecks, href: `/events/${id}?view=tasks`, count: eventTasks?.length, active: isTasks },
         { name: 'Leads', icon: Users, href: `/events/${id}/leads`, count: event?.leads?.length, active: isLeads },
+        { name: 'Email', icon: Mail, href: `/events/${id}?view=email`, active: isEmail },
         { name: 'Assets', icon: FileText, href: `/events/${id}/assets`, count: 0, active: isAssets },
-        { name: 'Notes & Risks', icon: AlertTriangle, href: `/events/${id}?view=risks`, count: 1, active: isRisks },
-        { name: 'Activity', icon: Activity, href: `/events/${id}?view=activity`, active: isActivity },
-        { name: 'Analytics', icon: BarChart3, href: `/events/${id}?view=analytics`, active: isAnalytics },
+        { name: 'Notes', icon: AlertTriangle, href: `/events/${id}?view=notes`, count: 1, active: isNotes },
+        { name: 'Insights', icon: BarChart3, href: `/events/${id}?view=insights`, active: isInsights },
     ]
 
     const handleDuplicate = async () => {
@@ -113,6 +111,27 @@ export default function EventLayout({
         }
     }
 
+    const [sharing, setSharing] = useState(false)
+    const [copied, setCopied] = useState(false)
+
+    const handleShare = async () => {
+        setSharing(true)
+        try {
+            const res = await fetch(`/api/events/${id}/share`, { method: 'POST' })
+            const { token, error } = await res.json()
+            if (error) throw new Error(error)
+            const shareUrl = `${window.location.origin}/share/${token}`
+            await navigator.clipboard.writeText(shareUrl)
+            setCopied(true)
+            toast.success('Share link copied to clipboard')
+            setTimeout(() => setCopied(false), 3000)
+        } catch (err) {
+            toast.error('Failed to generate share link')
+        } finally {
+            setSharing(false)
+        }
+    }
+
     const handleExport = () => {
         if (!event) return
         try {
@@ -146,13 +165,15 @@ export default function EventLayout({
             <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
                 <div className="max-w-7xl mx-auto">
                     <p className="text-red-500">Event not found</p>
-                    <Link href="/events">
-                        <Button className="mt-4">Back to Events</Button>
+                    <Link href="/discover">
+                        <Button className="mt-4">Back to EventPulse</Button>
                     </Link>
                 </div>
             </div>
         )
     }
+
+    const eventUrl = event.website_url ?? event.url
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
@@ -160,12 +181,12 @@ export default function EventLayout({
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 uppercase mb-6">
                     <span>WORKSPACE</span>
-                    <span>›</span>
-                    <Link href="/events" className="hover:text-zinc-900 dark:hover:text-white transition-colors">
-                        EVENTS
+                    <span>/</span>
+                    <Link href="/discover" className="hover:text-zinc-900 dark:hover:text-white transition-colors">
+                        EVENTPULSE
                     </Link>
-                    <span>›</span>
-                    <span className="text-zinc-900 dark:text-white font-medium">OVERVIEW</span>
+                    <span>/</span>
+                    <span className="text-zinc-900 dark:text-white font-medium">EVENT WORKSPACE</span>
                 </nav>
 
                 {/* Header */}
@@ -182,22 +203,22 @@ export default function EventLayout({
                         </div>
                         <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs font-normal">
-                                📅 {formatEventDateRange(event.start_date, event.end_date).toUpperCase()}
+                                Date: {formatEventDateRange(event.start_date, event.end_date).toUpperCase()}
                             </Badge>
                             <Badge variant="outline" className="text-xs font-normal">
-                                📍 {(event.location || 'NO LOCATION').toUpperCase()}
+                                Location: {(event.location || 'NO LOCATION').toUpperCase()}
                             </Badge>
                             <Badge variant="outline" className="text-xs font-normal">
-                                👤 {(event.owner?.name ? event.owner.name.substring(0, 2) : 'NO').toUpperCase()}
+                                Owner: {(event.owner?.name ? event.owner.name.substring(0, 2) : 'NO').toUpperCase()}
                             </Badge>
-                            {event.url && (
+                            {eventUrl && (
                                 <a
-                                    href={event.url}
+                                    href={eventUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs font-normal px-2 py-1 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1"
                                 >
-                                    🔗 EVENT URL
+                                    Website
                                     <Share2 className="w-3 h-3" />
                                 </a>
                             )}
@@ -229,8 +250,15 @@ export default function EventLayout({
                                 <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button className="bg-[#CBFB45] hover:bg-[#b8e33d] text-zinc-900 uppercase text-xs font-medium">
-                            SHARE VIEW
+                        <Button
+                            onClick={handleShare}
+                            disabled={sharing}
+                            className="bg-[#CBFB45] hover:bg-[#b8e33d] text-zinc-900 uppercase text-xs font-medium flex items-center gap-2"
+                        >
+                            {copied
+                                ? <><Check className="w-3.5 h-3.5" /> COPIED!</>
+                                : <><Share2 className="w-3.5 h-3.5" /> SHARE VIEW</>
+                            }
                         </Button>
                     </div>
                 </div>

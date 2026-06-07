@@ -27,8 +27,10 @@ export function useEvent(eventId: string) {
             last_name,
             email,
             company,
+            job_title,
             priority,
-            stage
+            stage,
+            last_contacted_at
           )
         `)
                 .eq('id', eventId)

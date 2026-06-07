@@ -1,9 +1,9 @@
 // Event Intelligence Service
 // Analyzes events to identify target audience, suitable industries, budget recommendations, and ROI insights
 
-import { openai } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
 import type { AIEvent } from './types'
+import { createPerplexityClient } from './perplexity'
 export type { AIEvent as Event } from './types'
 
 export interface EventProfile {
@@ -37,6 +37,15 @@ export interface EventProfile {
     summary: string
 }
 
+interface EventIntelligenceInput extends AIEvent {
+    website_url?: string | null
+    focus_area?: string | null
+    target_audience?: string | null
+    expected_attendees?: number | null
+    discovery_priority?: string | null
+    total_budget?: number | null
+}
+
 // ============================================================================
 // Main Functions
 // ============================================================================
@@ -46,40 +55,40 @@ export interface EventProfile {
  */
 export async function analyzeEventProfile(event: AIEvent): Promise<EventProfile> {
     try {
-        // Get company intelligence context
+        const intelligenceEvent = event as EventIntelligenceInput
         const companyContext = await getCompanyContext()
 
-        const prompt = `Analyze this event and provide detailed insights:
+        const eventDetails = [
+            `Name: ${event.name}`,
+            `Type: ${event.event_type || 'conference'}`,
+            event.description        ? `Description: ${event.description}` : null,
+            event.location           ? `Location: ${event.location}` : null,
+            intelligenceEvent.website_url        ? `Website: ${intelligenceEvent.website_url}` : null,
+            intelligenceEvent.focus_area         ? `Focus Area: ${intelligenceEvent.focus_area}` : null,
+            intelligenceEvent.target_audience    ? `Known Target Audience: ${intelligenceEvent.target_audience}` : null,
+            intelligenceEvent.expected_attendees ? `Expected Attendees: ${intelligenceEvent.expected_attendees}` : null,
+            intelligenceEvent.discovery_priority ? `Strategic Priority: ${intelligenceEvent.discovery_priority}` : null,
+            intelligenceEvent.total_budget       ? `Budget: $${intelligenceEvent.total_budget.toLocaleString()}` : null,
+        ].filter(Boolean).join('\n')
 
-Event Details:
-- Name: ${event.name}
-- Type: ${event.event_type}
-- Description: ${event.description || 'Not provided'}
-- Budget: ${event.budget ? `$${event.budget.toLocaleString()}` : 'Not specified'}
-- Expected Attendees: ${event.expected_attendees || 'Not specified'}
-- Location: ${event.location || 'Not specified'}
+        const prompt = `Search the web for information about this event and provide a detailed intelligence analysis.
 
-Provide a comprehensive analysis with:
-1. Target Audience (demographics, job roles, interests, company sizes)
-2. Top 5 Suitable Industries (with fit scores 0-100 and reasoning)
-3. Budget Breakdown (percentage allocation across 6 categories with recommendations)
-4. ROI Insights (attendance range, lead gen potential, networking value, brand awareness, ROI estimate)
-5. 5-7 Actionable Recommendations
-6. Brief 2-sentence summary
+EVENT:
+${eventDetails}
 
-Format as JSON matching this structure:
+Using what you find online about this specific event, return a JSON object with this exact structure:
 {
   "targetAudience": {
-    "demographics": ["age range", "education level", etc.],
-    "jobRoles": ["CEO", "Marketing Director", etc.],
-    "interests": ["innovation", "networking", etc.],
-    "companySize": ["1-50", "50-200", etc.]
+    "demographics": ["specific demographics based on real attendee profiles"],
+    "jobRoles": ["specific job titles that attend this event"],
+    "interests": ["specific professional interests"],
+    "companySize": ["company size ranges typical for attendees"]
   },
   "suitableIndustries": [
-    { "industry": "Technology", "fitScore": 95, "reasoning": "why it fits" }
+    { "industry": "Industry Name", "fitScore": 95, "reasoning": "specific reason based on event content" }
   ],
   "budgetBreakdown": {
-    "venue": { "percentage": 30, "recommendation": "specific advice" },
+    "venue": { "percentage": 30, "recommendation": "specific advice for this event type" },
     "marketing": { "percentage": 25, "recommendation": "specific advice" },
     "catering": { "percentage": 20, "recommendation": "specific advice" },
     "technology": { "percentage": 10, "recommendation": "specific advice" },
@@ -87,39 +96,36 @@ Format as JSON matching this structure:
     "miscellaneous": { "percentage": 5, "recommendation": "specific advice" }
   },
   "roiInsights": {
-    "expectedAttendance": { "min": 100, "max": 150 },
+    "expectedAttendance": { "min": 500, "max": 1000 },
     "leadGenerationPotential": "high",
     "networkingValue": "very_high",
     "brandAwareness": "high",
-    "estimatedROI": "200-300% based on X factors"
+    "estimatedROI": "specific ROI estimate with reasoning"
   },
-  "recommendations": ["recommendation 1", "recommendation 2", ...],
-  "summary": "Two sentence overview of the event and its value proposition"
-}`
+  "recommendations": ["5-7 specific, actionable recommendations for sponsoring or attending this event"],
+  "summary": "2-sentence summary based on what you found about this event online"
+}
 
-        // Create system prompt with company context
+Return ONLY valid JSON. Use real data from your search — do NOT use generic placeholders.`
+
         const systemPrompt = createAISystemPrompt(
             companyContext,
-            'You are an expert event planner and marketing strategist. Provide detailed, actionable insights based on event data and company goals. Focus recommendations on the company\'s primary business goal and ICP. Be specific and realistic in your recommendations.'
+            'You are an expert event intelligence analyst. Search the web for real information about the event before responding. Provide specific, data-driven insights — never generic placeholders. Base all analysis on actual event details found online.'
         )
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const response = await createPerplexityClient().chat.completions.create({
+            model: 'sonar-pro',
             messages: [
-                {
-                    role: 'system',
-                    content: systemPrompt
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
+                { role: 'system', content: systemPrompt },
+                { role: 'user',   content: prompt },
             ],
-            temperature: 0.4,
-            response_format: { type: 'json_object' }
+            temperature: 0.2,
         })
 
-        const analysis = JSON.parse(response.choices[0].message.content || '{}')
+        const raw = response.choices[0].message.content || '{}'
+        const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
+        const match = cleaned.match(/\{[\s\S]*\}/)
+        const analysis = JSON.parse(match ? match[0] : cleaned)
 
         return {
             targetAudience: analysis.targetAudience || {

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { X, Download, Sparkles } from 'lucide-react'
+import { X, Download, Sparkles, Trash2 } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -17,6 +17,7 @@ interface BulkActionsToolbarProps {
     onExport: () => void
     onUpdateStatus?: (status: string) => void
     onGenerateAI?: () => void
+    onDelete?: () => void
     onClear: () => void
     statusOptions?: Array<{ value: string; label: string }>
 }
@@ -27,6 +28,7 @@ export function BulkActionsToolbar({
     onExport,
     onUpdateStatus,
     onGenerateAI,
+    onDelete,
     onClear,
     statusOptions,
 }: BulkActionsToolbarProps) {
@@ -85,6 +87,18 @@ export function BulkActionsToolbar({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    )}
+
+                                    {onDelete && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={onDelete}
+                                            className="bg-red-500 text-white hover:bg-red-600 dark:bg-red-500 dark:text-white dark:hover:bg-red-600 font-medium border-none"
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete Selected
+                                        </Button>
                                     )}
                                 </div>
                             </div>

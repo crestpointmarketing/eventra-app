@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { useTasks, useDeleteTask, useArchiveTask } from '@/hooks/useTasks'
+import { useTasks, useDeleteTask } from '@/hooks/useTasks'
 import { useEvents } from '@/hooks/useEvents'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,7 +39,7 @@ import {
 import Link from 'next/link'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { Search, MoreHorizontal, Eye, Edit, Archive, Trash2, Plus, Sparkles, Filter, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react'
+import { Search, MoreHorizontal, Eye, Edit, Trash2, Plus, Sparkles, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
@@ -48,43 +47,28 @@ import { AITaskGenerator } from '@/components/ai/ai-task-generator'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatUserShortName } from '@/lib/utils'
 import type { Task } from '@/lib/api/tasks'
-import { format } from 'date-fns'
+import { formatDateOnly } from '@/lib/date-only'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import { exportTasksToCSV } from '@/lib/export'
 
-type SortField = 'title' | 'due_date' | 'priority' | 'status' | null
-
-// Helper functions (restored)
-const formatDueDate = (date: string | null) => {
-    if (!date) return '-'
-    return format(new Date(date), 'MMM d')
-}
-
-const getStatusBadge = (status: Task['status']) => {
-    const variants: Record<string, string> = {
-        done: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-        in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-        pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-        review: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-        draft: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400',
-        archived: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500',
-    }
-    return (
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${variants[status] || variants.draft}`}>
-            {status.replace('_', ' ')}
-        </span>
-    )
+interface UserOption {
+    id: string
+    name?: string | null
+    email: string
 }
 
 export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<string>('all')
     const [ownerFilter, setOwnerFilter] = useState<string>('all')
-    const [eventFilter, setEventFilter] = useState<string>('all')
+    const [eventFilter, setEventFilter] = useState<string>(() => {
+        if (typeof window === 'undefined') return 'all'
+        return new URLSearchParams(window.location.search).get('eventId') ?? 'all'
+    })
     const debouncedSearch = useDebounce(searchQuery, 300)
-    const [users, setUsers] = useState<any[]>([])
+    const [users, setUsers] = useState<UserOption[]>([])
 
     const supabase = createClient()
 
@@ -103,7 +87,6 @@ export default function TasksPage() {
 
     // Mutations
     const { mutate: deleteTask } = useDeleteTask()
-    const { mutate: archiveTask } = useArchiveTask()
 
     // State for quick view dialog
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -115,23 +98,6 @@ export default function TasksPage() {
 
     // Query client for cache invalidation
     const queryClient = useQueryClient()
-
-    // Read eventId from URL parameters and set filter on mount
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search)
-            const eventIdParam = urlParams.get('eventId')
-            if (eventIdParam) {
-                setEventFilter(eventIdParam)
-            }
-        }
-    }, [])
-
-    // Find the filtered event name for display
-    const filteredEvent = useMemo(() => {
-        if (eventFilter === 'all' || !events) return null
-        return events.find((e: any) => e.id === eventFilter)
-    }, [eventFilter, events])
 
     // Filter and search tasks
     const filteredTasks = useMemo(() => {
@@ -173,7 +139,7 @@ export default function TasksPage() {
             exportTasksToCSV(selectedItems)
             toast.success(`Exported ${selectedCount} task${selectedCount > 1 ? 's' : ''} to CSV`)
             clearSelection()
-        } catch (error) {
+        } catch {
             toast.error('Failed to export tasks')
         }
     }
@@ -216,8 +182,7 @@ export default function TasksPage() {
     // Format due date
     const formatDueDate = (dueDate: string | null) => {
         if (!dueDate) return <span className="text-zinc-400">-</span>
-        const date = new Date(dueDate)
-        return <span className="text-zinc-600 dark:text-zinc-400">{format(date, 'MMM d')}</span>
+        return <span className="text-zinc-600 dark:text-zinc-400">{formatDateOnly(dueDate, { month: 'short', day: 'numeric' })}</span>
     }
 
     // Handle quick view
@@ -231,11 +196,6 @@ export default function TasksPage() {
         if (confirm('Are you sure you want to delete this task?')) {
             deleteTask(taskId)
         }
-    }
-
-    // Handle archive
-    const handleArchive = (taskId: string) => {
-        archiveTask(taskId)
     }
 
     if (error) {
@@ -502,6 +462,7 @@ export default function TasksPage() {
                     count={selectedCount}
                     itemType="task"
                     onExport={handleBulkExport}
+                    onDelete={handleBulkDelete}
                     onClear={clearSelection}
                 />
 
@@ -524,7 +485,7 @@ export default function TasksPage() {
                                     <div>
                                         <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Due Date</p>
                                         <p className="font-medium text-zinc-900 dark:text-white">
-                                            {selectedTask.due_date ? format(new Date(selectedTask.due_date), 'MMMM d, yyyy') : 'No date set'}
+                                            {selectedTask.due_date ? formatDateOnly(selectedTask.due_date, { month: 'long', day: 'numeric', year: 'numeric' }) : 'No date set'}
                                         </p>
                                     </div>
                                 </div>
@@ -595,7 +556,7 @@ export default function TasksPage() {
                                             events.map((event) => (
                                                 <SelectItem key={event.id} value={event.id}>
                                                     {event.name || 'Untitled Event'}
-                                                    {event.start_date && ` (${format(new Date(event.start_date), 'MMM d, yyyy')})`}
+                                                    {event.start_date && ` (${formatDateOnly(event.start_date)})`}
                                                 </SelectItem>
                                             ))
                                         ) : (

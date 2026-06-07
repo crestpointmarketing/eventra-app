@@ -77,24 +77,13 @@ export function useUpdateTask() {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: ({ taskId, updates }: { taskId: string; updates: UpdateTaskData }) => {
-            console.log('🔵 Updating task:', { taskId, updates })
-            return updateTask(taskId, updates)
-        },
-        onSuccess: (updatedTask) => {
-            console.log('🟢 Task updated successfully:', updatedTask)
-            // Invalidate all task queries
+        mutationFn: ({ taskId, updates }: { taskId: string; updates: UpdateTaskData }) =>
+            updateTask(taskId, updates),
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] })
             toast.success('Task updated successfully')
         },
         onError: (error: any) => {
-            console.error('🔴 Error updating task:', {
-                message: error?.message,
-                details: error?.details,
-                hint: error?.hint,
-                code: error?.code,
-                fullError: error
-            })
             toast.error(`Failed to update task: ${error?.message || 'Unknown error'}`)
         },
     })

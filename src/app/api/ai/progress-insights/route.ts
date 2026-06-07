@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectBottlenecks } from '@/lib/ai/task-prediction-service'
+import { dateOnlyToLocalDate } from '@/lib/date-only'
 
 export async function GET(request: NextRequest) {
     try {
@@ -69,11 +70,11 @@ export async function GET(request: NextRequest) {
 
         // Calculate progress metrics
         const now = new Date()
-        const eventDate = new Date(event.start_date)
+        const eventDate = dateOnlyToLocalDate(event.start_date)
         const daysUntilEvent = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
         // Simple risk calculation: tasks with due dates within 7 days or overdue
-        const atRiskTasks = tasks.filter((t: any) => {
+        const atRiskTasks = tasks.filter((t) => {
             if (t.status === 'completed') return false
             if (!t.due_date) return false
 

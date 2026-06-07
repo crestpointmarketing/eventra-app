@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { safeGetUser } from '@/lib/supabase/auth'
 import { useAssets, useUploadAsset, useDeleteAsset } from '@/hooks/useAssets'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,13 +14,12 @@ import Link from 'next/link'
 export function EventAssetsTab({ eventId }: { eventId: string }) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [isDragging, setIsDragging] = useState(false)
-    const supabase = createClient()
-
     // Get current user
     const [userId, setUserId] = useState<string | null>(null)
-    useState(() => {
-        supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id || null))
-    })
+    useEffect(() => {
+        const supabase = createClient()
+        safeGetUser(supabase).then((user) => setUserId(user?.id || null))
+    }, [])
 
     const { data: assets, isLoading } = useAssets({ eventId })
     const { mutate: uploadAsset, isPending: isUploading } = useUploadAsset()

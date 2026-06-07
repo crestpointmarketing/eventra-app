@@ -60,6 +60,7 @@ export default function NewEventPage() {
                         target_leads: parseInt(formData.get('target_leads') as string) || 0,
                         url: formData.get('url') as string,
                         owner_id: ownerId,
+                        source: 'manual',
                     }
                 ])
                 .select()

@@ -3,6 +3,7 @@
 // =========================
 
 import { createClient } from '@/lib/supabase/client'
+import { safeGetUser } from '@/lib/supabase/auth'
 import type {
     EmailTemplate,
     EmailTemplateWithDetails,
@@ -107,7 +108,7 @@ export async function createEmailTemplate(input: CreateEmailTemplateInput) {
     const { subjects, blocks, cta, ...templateData } = input
 
     // Get current user
-    const { data: { user } } = await getSupabase().auth.getUser()
+    const user = await safeGetUser(getSupabase())
     if (!user) throw new Error('Not authenticated')
 
     // Create template
@@ -165,7 +166,7 @@ export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
     const { id, subjects, blocks, cta, ...templateData } = input
 
     // Get current user
-    const { data: { user } } = await getSupabase().auth.getUser()
+    const user = await safeGetUser(getSupabase())
     if (!user) throw new Error('Not authenticated')
 
     // Update template (version will auto-increment via trigger)

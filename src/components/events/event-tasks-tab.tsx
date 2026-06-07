@@ -17,14 +17,13 @@ import {
     Plus,
     MoreVertical,
     Calendar,
-    AlertCircle,
     CheckCircle2,
-    Circle,
     User as UserIcon,
     Loader2
 } from 'lucide-react'
-import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { formatDateOnly } from '@/lib/date-only'
+import type { Task } from '@/lib/api/tasks'
 
 import { TaskDependencyViewer } from '@/components/ai/task-dependency-viewer'
 
@@ -53,12 +52,12 @@ export function EventTasksTab({ eventId }: EventTasksTabProps) {
         )
     }
 
-    const handleToggleDone = (taskId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'done' ? 'pending' : 'done'
+    const handleToggleDone = (taskId: string, currentStatus: Task['status']) => {
+        const newStatus: Task['status'] = currentStatus === 'done' ? 'pending' : 'done'
         updateTask({
             taskId,
             updates: {
-                status: newStatus as any,
+                status: newStatus,
                 completed_at: newStatus === 'done' ? new Date().toISOString() : null
             }
         })
@@ -150,7 +149,7 @@ export function EventTasksTab({ eventId }: EventTasksTabProps) {
                                     {task.due_date && (
                                         <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
                                             <Calendar className="w-3.5 h-3.5" />
-                                            <span>{format(new Date(task.due_date), 'MMM d, yyyy')}</span>
+                                            <span>{formatDateOnly(task.due_date)}</span>
                                         </div>
                                     )}
 

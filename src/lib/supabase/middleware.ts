@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isInvalidRefreshTokenError } from './auth'
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -27,8 +28,12 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    // Refresh session if expired
-    await supabase.auth.getUser()
+    // Refresh session if expired. Clear stale auth cookies instead of surfacing
+    // Supabase refresh-token errors to the Next.js dev overlay.
+    const { error } = await supabase.auth.getUser()
+    if (error && isInvalidRefreshTokenError(error)) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    }
 
     // Auth redirect temporarily disabled for development
     // Will be enabled when login page is created

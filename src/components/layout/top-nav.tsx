@@ -1,28 +1,36 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { safeGetUser } from '@/lib/supabase/auth'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import {
-    Bell, Map, User, LogOut,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+    Bell, Map, LogOut, ChevronDown,
     Settings, LayoutDashboard
 } from 'lucide-react'
 
 export function TopNav() {
     const pathname = usePathname()
     const router = useRouter()
-    const supabase = createClient()
-    const [user, setUser] = useState<any>(null)
+    const supabase = useMemo(() => createClient(), [])
+    const [user, setUser] = useState<SupabaseUser | null>(null)
     const [showUserMenu, setShowUserMenu] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
 
     // Check authentication status
     useEffect(() => {
         const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
+            const user = await safeGetUser(supabase)
             setUser(user)
         }
         checkUser()
@@ -33,7 +41,7 @@ export function TopNav() {
         })
 
         return () => subscription.unsubscribe()
-    }, [])
+    }, [supabase])
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -51,15 +59,18 @@ export function TopNav() {
         router.push('/login')
     }
 
-    const navItems = [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/events', label: 'Events' },
-        { href: '/tasks', label: 'Tasks' },
-        { href: '/assets', label: 'Assets' },
-        { href: '/leads', label: 'Leads' },
+    const primaryNavItems = [
+        { href: '/discover', label: 'EventPulse', activePaths: ['/discover', '/events'] },
+        { href: '/leads', label: 'Leads', activePaths: ['/leads'] },
+        { href: '/tasks', label: 'Tasks', activePaths: ['/tasks'] },
+    ]
+
+    const secondaryNavItems = [
         { href: '/email-templates', label: 'Email' },
+        { href: '/assets', label: 'Assets' },
         { href: '/analytics', label: 'Analytics' },
         { href: '/settings', label: 'Settings' },
+        { href: '/contact', label: 'Feedback' },
     ]
 
     return (
@@ -67,7 +78,7 @@ export function TopNav() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-20 items-center justify-between">
                     {/* LEFT: Logo */}
-                    <Link href="/" className="flex items-center">
+                    <Link href="/dashboard" className="flex items-center">
                         <img
                             src="/eventra-logo-light.png"
                             alt="Eventra - Leads to Revenue"
@@ -83,9 +94,9 @@ export function TopNav() {
                     {/* CENTER: Primary Navigation - Only show when logged in */}
                     {user && (
                         <div className="flex-1 flex justify-center">
-                            <nav className="flex gap-6">
-                                {navItems.map((item) => {
-                                    const isActive = pathname?.startsWith(item.href)
+                            <nav className="flex items-center gap-6">
+                                {primaryNavItems.map((item) => {
+                                    const isActive = item.activePaths.some((activePath) => pathname?.startsWith(activePath))
                                     return (
                                         <Link
                                             key={item.href}
@@ -103,6 +114,43 @@ export function TopNav() {
                                         </Link>
                                     )
                                 })}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button
+                                            className={`relative flex items-center gap-1 py-2 px-1 text-base transition-colors ${
+                                                secondaryNavItems.some((item) => pathname?.startsWith(item.href))
+                                                    ? 'font-semibold text-zinc-900 dark:text-white'
+                                                    : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                                            }`}
+                                            aria-label="More navigation"
+                                        >
+                                            More
+                                            <ChevronDown className="h-4 w-4" />
+                                            {secondaryNavItems.some((item) => pathname?.startsWith(item.href)) && (
+                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CBFB45] rounded-sm" />
+                                            )}
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-44">
+                                        {secondaryNavItems.map((item) => {
+                                            const isActive = pathname?.startsWith(item.href)
+                                            return (
+                                                <DropdownMenuItem key={item.href} asChild>
+                                                    <Link
+                                                        href={item.href}
+                                                        className={`w-full ${
+                                                            isActive
+                                                                ? 'font-semibold text-zinc-900 dark:text-white'
+                                                                : 'text-zinc-700 dark:text-zinc-300'
+                                                        }`}
+                                                    >
+                                                        {item.label}
+                                                    </Link>
+                                                </DropdownMenuItem>
+                                            )
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </nav>
                         </div>
                     )}
@@ -112,15 +160,6 @@ export function TopNav() {
                         {user ? (
                             // Authenticated user controls
                             <>
-                                {/* Feedback Button */}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-zinc-700 dark:text-zinc-300"
-                                >
-                                    Feedback
-                                </Button>
-
                                 {/* Notifications */}
                                 <button
                                     className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"

@@ -40,11 +40,67 @@ export function downloadCSV(csvContent: string, filename: string) {
     URL.revokeObjectURL(url)
 }
 
-export function exportEventsToCSV(events: any[]) {
-    const headers = ['name', 'event_type', 'start_date', 'end_date', 'location', 'total_budget', 'target_leads', 'actual_leads']
-    const csv = convertToCSV(events, headers)
-    const timestamp = new Date().toISOString().split('T')[0]
-    downloadCSV(csv, `eventra_events_${timestamp}.csv`)
+export async function exportEventsToCSV(events: any[]) {
+    const ExcelJS = (await import('exceljs')).default
+
+    const COLUMNS = [
+        { key: 'name',               label: 'Event Name',      width: 40 },
+        { key: 'event_type',         label: 'Type',            width: 14 },
+        { key: 'status',             label: 'Status',          width: 14 },
+        { key: 'start_date',         label: 'Start Date',      width: 14 },
+        { key: 'end_date',           label: 'End Date',        width: 14 },
+        { key: 'location',           label: 'Location',        width: 28 },
+        { key: 'website_url',        label: 'Website',         width: 42 },
+        { key: 'source',             label: 'Source',          width: 16 },
+        { key: 'discovery_priority', label: 'Priority',        width: 12 },
+        { key: 'focus_area',         label: 'Focus Area',      width: 24 },
+        { key: 'target_audience',    label: 'Target Audience', width: 28 },
+        { key: 'description',        label: 'Description',     width: 60 },
+    ]
+
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Events')
+
+    ws.columns = COLUMNS.map(c => ({ header: c.label, key: c.key, width: c.width }))
+
+    // Freeze header row
+    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
+
+    const border: Partial<ExcelJS.Borders> = {
+        top:    { style: 'thin', color: { argb: 'FFD4D4D8' } },
+        bottom: { style: 'thin', color: { argb: 'FFD4D4D8' } },
+        left:   { style: 'thin', color: { argb: 'FFD4D4D8' } },
+        right:  { style: 'thin', color: { argb: 'FFD4D4D8' } },
+    }
+
+    // Header row — dark background, white bold text, centered, 36px tall
+    const headerRow = ws.getRow(1)
+    headerRow.height = 36
+    headerRow.eachCell({ includeEmpty: true }, cell => {
+        cell.font      = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 }
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3F3F46' } }
+        cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+        cell.border    = border
+    })
+
+    // Data rows — wrap text, top-aligned, bordered
+    events.forEach(e => {
+        const row = ws.addRow(COLUMNS.reduce((acc, c) => ({ ...acc, [c.key]: e[c.key] ?? '' }), {}))
+        row.eachCell({ includeEmpty: true }, cell => {
+            cell.alignment = { wrapText: true, vertical: 'top' }
+            cell.border    = border
+            cell.font      = { size: 10 }
+        })
+    })
+
+    const buf = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `eventra_events_${new Date().toISOString().split('T')[0]}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
 }
 
 export function exportLeadsToCSV(leads: any[]) {

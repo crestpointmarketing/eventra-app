@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { safeGetUser } from '@/lib/supabase/auth'
 
 export interface User {
     id: string
@@ -10,10 +11,9 @@ export interface User {
 // Fetch current authenticated user
 async function fetchUser(): Promise<User | null> {
     const supabase = createClient()
+    const user = await safeGetUser(supabase)
 
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    if (!user) {
         return null
     }
 

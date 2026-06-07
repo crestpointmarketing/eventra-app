@@ -33,11 +33,11 @@ export default function EmailTemplatesPage() {
     return (
         <div className="flex h-full flex-col">
             {/* Header */}
-            <div className="border-b bg-white px-6 py-4">
+            <div className="border-b bg-white dark:bg-zinc-800 dark:border-zinc-700 px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold">Email Templates</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">Email Templates</h1>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
                             Manage AI-powered email templates for lead outreach
                         </p>
                     </div>

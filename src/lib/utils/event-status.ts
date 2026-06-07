@@ -7,6 +7,29 @@ export interface EventStatusInfo {
     daysInfo?: string
 }
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function parseLocalDate(value: string) {
+    const match = value.match(DATE_ONLY_PATTERN)
+    if (!match) return new Date(value)
+
+    const [, year, month, day] = match
+    return new Date(Number(year), Number(month) - 1, Number(day))
+}
+
+function getDateParts(value: string) {
+    const match = value.match(DATE_ONLY_PATTERN)
+    if (!match) return null
+
+    const [, year, month, day] = match
+    return {
+        year: Number(year),
+        month: Number(month),
+        day: Number(day),
+    }
+}
+
 export function getEventStatus(startDate: string | null, endDate: string | null): EventStatusInfo {
     if (!startDate || !endDate) {
         return {
@@ -19,10 +42,10 @@ export function getEventStatus(startDate: string | null, endDate: string | null)
     const now = new Date()
     now.setHours(0, 0, 0, 0)
 
-    const start = new Date(startDate)
+    const start = parseLocalDate(startDate)
     start.setHours(0, 0, 0, 0)
 
-    const end = new Date(endDate)
+    const end = parseLocalDate(endDate)
     end.setHours(0, 0, 0, 0)
 
     if (now < start) {
@@ -55,27 +78,25 @@ export function getEventStatus(startDate: string | null, endDate: string | null)
 export function formatEventDateRange(startDate: string | null, endDate: string | null): string {
     if (!startDate) return 'No date'
 
-    const start = new Date(startDate)
-    const end = endDate ? new Date(endDate) : null
+    const start = getDateParts(startDate)
+    const end = endDate ? getDateParts(endDate) : null
+
+    if (!start) return startDate
 
     // Single day or no end date
-    if (!end || start.toDateString() === end.toDateString()) {
-        const formatOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
-        return start.toLocaleDateString('en-US', formatOptions)
+    if (!end || (start.year === end.year && start.month === end.month && start.day === end.day)) {
+        return `${SHORT_MONTHS[start.month - 1]} ${start.day}, ${start.year}`
     }
 
     // Multi-day event
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
-    const startDay = start.getDate()
-    const endDay = end.getDate()
-    const year = start.getFullYear()
+    const startMonth = SHORT_MONTHS[start.month - 1]
+    const endMonth = SHORT_MONTHS[end.month - 1]
 
     // Same month: "Jan 25-27 2026"
-    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-        return `${startMonth} ${startDay}-${endDay} ${year}`
+    if (start.month === end.month && start.year === end.year) {
+        return `${startMonth} ${start.day}-${end.day} ${start.year}`
     }
 
     // Different months: "Jan 25 - Feb 3 2026"
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay} ${year}`
+    return `${startMonth} ${start.day} - ${endMonth} ${end.day} ${end.year}`
 }

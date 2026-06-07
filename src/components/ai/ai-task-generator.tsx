@@ -13,7 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Brain, Sparkles, RefreshCcw, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { format, addDays } from 'date-fns'
+import { addDays } from 'date-fns'
+import { dateOnlyToLocalDate, formatDateOnly } from '@/lib/date-only'
 
 interface AITaskGeneratorProps {
     eventId: string
@@ -67,9 +68,12 @@ export function AITaskGenerator({ eventId, eventDate, onTasksCreated }: AITaskGe
 
     const calculateDueDate = (daysBeforeEvent: number): string | undefined => {
         if (!eventDate) return undefined
-        const eventDateObj = new Date(eventDate)
+        const eventDateObj = dateOnlyToLocalDate(eventDate)
         const dueDate = addDays(eventDateObj, daysBeforeEvent)
-        return dueDate.toISOString().split('T')[0]
+        const year = dueDate.getFullYear()
+        const month = String(dueDate.getMonth() + 1).padStart(2, '0')
+        const day = String(dueDate.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
     }
 
     const handleCreateTasks = async () => {
@@ -243,7 +247,7 @@ export function AITaskGenerator({ eventId, eventDate, onTasksCreated }: AITaskGe
                                                 <span>
                                                     📅 {Math.abs(task.estimated_days_before_event)} days before event
                                                     {eventDate && calculateDueDate(task.estimated_days_before_event) && (
-                                                        <> ({format(new Date(calculateDueDate(task.estimated_days_before_event)!), 'MMM d, yyyy')})</>
+                                                        <> ({formatDateOnly(calculateDueDate(task.estimated_days_before_event)!)})</>
                                                     )}
                                                 </span>
                                                 {task.estimated_cost && (

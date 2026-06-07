@@ -29,20 +29,10 @@ export function useLeads() {
 
             if (error) throw error
 
-            // Map priority to lead_score for UI compatibility & Mock missing fields
-            return data?.map((lead, index) => ({
+            return data?.map((lead) => ({
                 ...lead,
                 lead_score: priorityToScore(lead.priority),
                 lead_status: lead.stage,
-                // Mocked fields for UI demo
-                ai_summary: index % 3 === 0 ? 'High intent based on pricing page visits.' : index % 3 === 1 ? ' unresponsive to last 2 emails.' : 'New lead from webinar.',
-                next_action: index % 4 === 0 ? 'Send Contract' : index % 4 === 1 ? 'Follow Up Call' : index % 4 === 2 ? 'Schedule Demo' : 'Email Intro',
-                next_action_due: new Date(Date.now() + (index * 86400000)).toISOString(),
-                owner_id: index % 2 === 0 ? 'user_1' : 'user_2',
-                owner: {
-                    name: index % 2 === 0 ? 'Sarah Smith' : 'Mike Jones',
-                    avatar: ''
-                }
             }))
         },
         refetchOnWindowFocus: true, // Auto-refresh when returning to page

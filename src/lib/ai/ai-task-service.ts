@@ -4,6 +4,7 @@
 import { generateChatCompletion } from './openai-service'
 import { parseAIJSON } from './utils'
 import { createClient } from '@/lib/supabase/client'
+import { dateOnlyToLocalDate } from '@/lib/date-only'
 
 let _supabase: ReturnType<typeof createClient> | null = null
 function getSupabase(): ReturnType<typeof createClient> {
@@ -339,12 +340,12 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
                 error: 'Failed to parse AI response',
             }
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error in generateTaskSuggestions:', error)
         return {
             tasks: [],
             confidence: 0,
-            error: error.message || 'Unknown error',
+            error: error instanceof Error ? error.message : 'Unknown error',
         }
     }
 }
@@ -424,9 +425,9 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
             console.error('Failed to parse dependency analysis:', parseError)
             return { dependencies: [], error: 'Failed to parse AI response' }
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error in analyzeTaskDependencies:', error)
-        return { dependencies: [], error: error.message || 'Unknown error' }
+        return { dependencies: [], error: error instanceof Error ? error.message : 'Unknown error' }
     }
 }
 
@@ -457,7 +458,7 @@ export async function scoreTaskPriority(params: {
         const eventDate = params.eventContext?.eventDate || task.events?.start_date
         const currentDate = params.eventContext?.currentDate || new Date().toISOString()
         const daysUntilEvent = eventDate
-            ? Math.ceil((new Date(eventDate).getTime() - new Date(currentDate).getTime()) / (1000 * 60 * 60 * 24))
+            ? Math.ceil((dateOnlyToLocalDate(eventDate).getTime() - new Date(currentDate).getTime()) / (1000 * 60 * 60 * 24))
             : null
 
         // Simple rule-based scoring for now (can be enhanced with AI later)
