@@ -88,6 +88,10 @@ function classifyEvent(event: DiscoverEvent): string {
     return 'GENERAL AI'
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback
+}
+
 type View = 'portfolio' | 'discover' | 'review' | 'insights'
 
 const TAB_LABELS: { id: View; label: string }[] = [
@@ -111,6 +115,19 @@ export default function EventPulsePage() {
     const [sheetOpen, setSheetOpen]         = useState(false)
     const [checkedIds, setCheckedIds]       = useState<Set<string>>(new Set())
     const [bulkLoading, setBulkLoading]     = useState(false)
+
+    async function deleteEventsByIds(ids: string[]) {
+        const res = await fetch('/api/events/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+            throw new Error(data.error ?? 'Failed to delete events')
+        }
+        return data as { success: boolean; deleted: number }
+    }
 
     const { data: events, isLoading } = useQuery({
         queryKey: ['eventpulse-events'],
@@ -154,15 +171,14 @@ export default function EventPulsePage() {
 
     const { mutate: deleteEvent } = useMutation({
         mutationFn: async (eventId: string) => {
-            const supabase = createClient()
-            const { error } = await supabase.from('events').delete().eq('id', eventId)
-            if (error) throw error
+            await deleteEventsByIds([eventId])
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-task-summary'] })
             toast.success('Event deleted')
         },
-        onError: () => toast.error('Failed to delete event'),
+        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to delete event')),
     })
 
     const { mutate: updatePriority } = useMutation({
@@ -201,14 +217,14 @@ export default function EventPulsePage() {
         if (!confirm(`Delete ${checkedIds.size} events? This cannot be undone.`)) return
         setBulkLoading(true)
         try {
-            const supabase = createClient()
-            const { error } = await supabase
-                .from('events').delete().in('id', Array.from(checkedIds))
-            if (error) throw error
+            const result = await deleteEventsByIds(Array.from(checkedIds))
             queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-            toast.success(`${checkedIds.size} events deleted`)
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-task-summary'] })
+            toast.success(`${result.deleted} events deleted`)
             setCheckedIds(new Set())
-        } catch { toast.error('Bulk delete failed') }
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Bulk delete failed'))
+        }
         finally { setBulkLoading(false) }
     }
 
