@@ -17,6 +17,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Eventra - AI-Enabled Event-to-Revenue OS",
   description: "Event management and lead tracking platform",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
