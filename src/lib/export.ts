@@ -1,5 +1,7 @@
 // CSV Export Utility
 
+import type { Borders } from 'exceljs'
+
 export function convertToCSV(data: any[], headers: string[]): string {
     if (!data || data.length === 0) return ''
 
@@ -66,7 +68,7 @@ export async function exportEventsToCSV(events: any[]) {
     // Freeze header row
     ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
 
-    const border: Partial<ExcelJS.Borders> = {
+    const border: Partial<Borders> = {
         top:    { style: 'thin', color: { argb: 'FFD4D4D8' } },
         bottom: { style: 'thin', color: { argb: 'FFD4D4D8' } },
         left:   { style: 'thin', color: { argb: 'FFD4D4D8' } },

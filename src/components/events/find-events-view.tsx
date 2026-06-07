@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Search, Filter, Plus, MapPin, ExternalLink, Loader2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { safeGetUser } from '@/lib/supabase/auth'
-import { formatDateOnly } from '@/lib/date-only'
+import { dateOnlyTime, formatDateOnly } from '@/lib/date-only'
 import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/duplicates'
 import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
 import { toast } from 'sonner'
@@ -117,6 +117,7 @@ async function findDuplicate(event: DiscoveredEvent): Promise<DupeMatch | null> 
                 location:   existing.location,
                 source:     existing.source,
                 reason:     reasons.join(', '),
+                score:      overlap,
             }
         }
     }

@@ -37,7 +37,7 @@ export interface EventProfile {
     summary: string
 }
 
-interface EventIntelligenceInput extends AIEvent {
+interface EventIntelligenceInput extends Omit<AIEvent, 'expected_attendees'> {
     website_url?: string | null
     focus_area?: string | null
     target_audience?: string | null
@@ -184,8 +184,8 @@ Description: ${event.description || 'Not provided'}
 
 Make it engaging and suitable for marketing materials.`
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const response = await createPerplexityClient().chat.completions.create({
+            model: 'sonar',
             messages: [
                 {
                     role: 'system',
