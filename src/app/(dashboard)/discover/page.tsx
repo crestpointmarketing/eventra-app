@@ -612,13 +612,13 @@ export default function EventPulsePage() {
                                         </td>
 
                                         {/* Event Name */}
-                                        <td className="p-4 max-w-xs" onClick={(e) => e.stopPropagation()}>
-                                            <Link
-                                                href={`/events/${event.id}`}
-                                                className="font-medium text-zinc-900 dark:text-white leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        <td className="p-4 max-w-xs">
+                                            <button
+                                                type="button"
+                                                className="text-left font-medium text-zinc-900 dark:text-white leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                             >
                                                 {event.name}
-                                            </Link>
+                                            </button>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {event.focus_area && (
                                                     <span className="text-xs text-zinc-400 truncate max-w-[220px]">
@@ -693,10 +693,11 @@ export default function EventPulsePage() {
                                             <div className="flex items-center justify-end gap-1.5">
                                                 <Link
                                                     href={`/events/${event.id}`}
-                                                    className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                                                    className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white"
                                                     title="Open event workspace"
                                                 >
                                                     <Sparkles className="h-4 w-4" />
+                                                    Open
                                                 </Link>
                                                 {event.website_url && (
                                                     <a
