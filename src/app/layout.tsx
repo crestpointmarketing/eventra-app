@@ -19,11 +19,13 @@ export const metadata: Metadata = {
   description: "Event management and lead tracking platform",
   icons: {
     icon: [
-      { url: "/favicon.png?v=brain-only-2", type: "image/png" },
-      { url: "/icon.png?v=brain-only-2", type: "image/png", sizes: "512x512" },
+      { url: "/favicon-light.png?v=brain-image-1", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png?v=brain-image-1", type: "image/png", media: "(prefers-color-scheme: dark)" },
+      { url: "/favicon.png?v=brain-image-1", type: "image/png" },
+      { url: "/icon.png?v=brain-image-1", type: "image/png", sizes: "512x512" },
     ],
-    shortcut: "/favicon.png?v=brain-only-2",
-    apple: "/apple-icon.png?v=brain-only-2",
+    shortcut: "/favicon.png?v=brain-image-1",
+    apple: "/apple-icon.png?v=brain-image-1",
   },
 };
 
