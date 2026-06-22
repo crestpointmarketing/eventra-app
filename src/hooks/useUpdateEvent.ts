@@ -6,6 +6,8 @@ export interface UpdateEventInput {
     // Basic Information
     name?: string
     event_type?: string
+    discovery_priority?: string
+    engagement_type?: string
     status?: string
     start_date?: string
     end_date?: string

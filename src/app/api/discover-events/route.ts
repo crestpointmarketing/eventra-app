@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPerplexityClient, getAIProviderErrorMessage } from '@/lib/ai/perplexity'
+import { normalizeEventPriority } from '@/lib/events/priority'
+import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 
 const PARKING_DOMAINS = [
     'godaddy.com', 'sedo.com', 'dan.com', 'afternic.com',
@@ -13,6 +15,7 @@ const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi
 
 interface DiscoveredEvent {
     name?: string
+    event_type?: string
     start_date?: string | null
     end_date?: string | null
     location?: string | null
@@ -22,6 +25,7 @@ interface DiscoveredEvent {
     expected_attendees?: number | null
     description?: string | null
     discovery_priority?: string
+    engagement_type?: string
     confidence?: number
     match_notes?: string | null
 }
@@ -120,7 +124,9 @@ Return ONLY a valid JSON array with this object shape:
     "target_audience": "who typically attends",
     "expected_attendees": null,
     "description": "2-3 sentence verified description",
-    "discovery_priority": "Sponsor",
+    "event_type": "Summit",
+    "discovery_priority": "High",
+    "engagement_type": "Attend",
     "confidence": 0-100,
     "match_notes": "short explanation of why this matches the user's query"
   }
@@ -197,6 +203,7 @@ async function resolveKnownEventFallback(knownDetailsText: string): Promise<Disc
         if (excerpt) {
             return [{
                 name: 'The AI Summit London 2026',
+                event_type: 'Summit',
                 start_date: '2026-06-10',
                 end_date: '2026-06-11',
                 location: 'London, United Kingdom',
@@ -205,7 +212,8 @@ async function resolveKnownEventFallback(knownDetailsText: string): Promise<Disc
                 target_audience: 'Enterprise AI leaders, technology executives, practitioners, and AI solution providers',
                 expected_attendees: null,
                 description: 'The AI Summit London 2026 is an official Informa event taking place 10-11 June 2026 at Tobacco Dock in London. The event focuses on enterprise AI adoption, applied AI strategy, and the AI ecosystem.',
-                discovery_priority: 'Sponsor',
+                discovery_priority: 'High',
+                engagement_type: 'Attend',
                 confidence: 98,
                 match_notes: 'Matched exact known details: AI Summit, London, 2026, official Informa event page.',
             }]
@@ -259,6 +267,7 @@ Search the web for actual event listings. Only include events with verified deta
 
 For each event return a JSON object with these exact fields:
 - name: official event name
+- event_type: one of "Conference", "Trade Show", "Summit", "Expo", "Workshop", "Webinar", "Hackathon", "Networking", "Roadshow", "Training"
 - start_date: confirmed start date in YYYY-MM-DD format, or null if not confirmed
 - end_date: confirmed end date in YYYY-MM-DD format, or null if not confirmed
 - location: exact city and country (e.g. "Chicago, IL, USA")
@@ -267,7 +276,8 @@ For each event return a JSON object with these exact fields:
 - target_audience: who typically attends
 - expected_attendees: typical attendance number as integer, or null
 - description: 2-3 sentences from the official website or reliable sources
-- discovery_priority: one of "Sponsor", "Attend", "Follow" based on strategic relevance
+- discovery_priority: one of "High", "Medium", "Low" based on business importance
+- engagement_type: one of "Sponsor", "Exhibit", "Attend", "Speaking", "Follow" based on the recommended participation mode
 - confidence: integer 0-100 representing how confident you are that this is the exact event and details are verified
 - match_notes: short plain-English explanation of the strongest match signals and official source confidence
 
@@ -319,7 +329,10 @@ Return ONLY a valid JSON array. No markdown, no explanation, no extra text.`
 
                 return {
                     ...event,
+                    event_type: normalizeEventType(event.event_type),
                     website_url: urlOk ? event.website_url : null,
+                    discovery_priority: normalizeEventPriority(event.discovery_priority),
+                    engagement_type: normalizeEngagementType(event.engagement_type),
                     confidence,
                     match_notes: event.match_notes ?? (
                         hasKnownDetails

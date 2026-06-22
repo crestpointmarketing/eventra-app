@@ -18,6 +18,8 @@ import {
 import { formatDateOnly } from '@/lib/date-only'
 import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/duplicates'
 import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
+import { EVENT_PRIORITIES, normalizeEventPriority } from '@/lib/events/priority'
+import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
 
 const TYPE_BADGE: Record<string, string> = {
     'NEW':       'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
@@ -40,6 +42,7 @@ interface ReviewQueueItem {
         expected_attendees?: number | null
         description?: string | null
         discovery_priority?: string
+        engagement_type?: string
     }
     created_at?: string | null
 }
@@ -54,7 +57,7 @@ function buildEventPayload(eventData: QueueEventData, ownerId: string) {
     return {
         owner_id: ownerId,
         name: eventData.name ?? 'Untitled Event',
-        event_type: eventData.event_type ?? 'conference',
+        event_type: normalizeEventType(eventData.event_type),
         start_date: eventData.start_date ?? null,
         end_date: eventData.end_date ?? null,
         location: eventData.location ?? null,
@@ -63,7 +66,8 @@ function buildEventPayload(eventData: QueueEventData, ownerId: string) {
         target_audience: eventData.target_audience ?? null,
         expected_attendees: eventData.expected_attendees ?? null,
         description: eventData.description ?? null,
-        discovery_priority: eventData.discovery_priority ?? 'Follow',
+        discovery_priority: normalizeEventPriority(eventData.discovery_priority),
+        engagement_type: normalizeEngagementType(eventData.engagement_type),
         source: 'ai_discovered',
         status: 'upcoming',
     }
@@ -375,15 +379,39 @@ export function ReviewQueueView() {
                                     />
                                 </div>
                                 <div>
+                                    <label className="text-[10px] uppercase font-semibold tracking-widest text-zinc-400 mb-1 block">Event Type</label>
+                                    <select
+                                        value={normalizeEventType(detailData.event_type)}
+                                        onChange={(e) => setDraftField('event_type', e.target.value)}
+                                        className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white"
+                                    >
+                                        {EVENT_TYPES.map(type => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
                                     <label className="text-[10px] uppercase font-semibold tracking-widest text-zinc-400 mb-1 block">Priority</label>
                                     <select
-                                        value={detailData.discovery_priority ?? 'Follow'}
+                                        value={normalizeEventPriority(detailData.discovery_priority)}
                                         onChange={(e) => setDraftField('discovery_priority', e.target.value)}
                                         className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white"
                                     >
-                                        <option value="Sponsor">Sponsor</option>
-                                        <option value="Attend">Attend</option>
-                                        <option value="Follow">Follow</option>
+                                        {EVENT_PRIORITIES.map(priority => (
+                                            <option key={priority} value={priority}>{priority}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase font-semibold tracking-widest text-zinc-400 mb-1 block">Engagement Type</label>
+                                    <select
+                                        value={normalizeEngagementType(detailData.engagement_type)}
+                                        onChange={(e) => setDraftField('engagement_type', e.target.value)}
+                                        className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white"
+                                    >
+                                        {ENGAGEMENT_TYPES.map(type => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

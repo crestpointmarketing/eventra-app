@@ -7,6 +7,8 @@ import { safeGetUser } from '@/lib/supabase/auth'
 import { dateOnlyTime, formatDateOnly } from '@/lib/date-only'
 import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/duplicates'
 import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
+import { EVENT_PRIORITY_PILL, type EventPriority, normalizeEventPriority } from '@/lib/events/priority'
+import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 import { toast } from 'sonner'
 
 const DEFAULT_TOPICS = [
@@ -24,14 +26,9 @@ const DEFAULT_TOPICS = [
     'Autonomous Systems',
 ]
 
-const PRIORITY_BADGE: Record<string, string> = {
-    'Sponsor': 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
-    'Attend':  'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    'Follow':  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-}
-
 interface DiscoveredEvent {
     name: string
+    event_type?: string
     start_date: string
     end_date: string
     location: string
@@ -40,7 +37,8 @@ interface DiscoveredEvent {
     target_audience: string
     expected_attendees: number | null
     description: string
-    discovery_priority: 'Sponsor' | 'Attend' | 'Follow'
+    discovery_priority: EventPriority | string
+    engagement_type?: string
     confidence?: number
     match_notes?: string | null
 }
@@ -259,7 +257,7 @@ export function FindEventsView() {
             const payload = {
                 owner_id:           user.id,
                 name:               event.name,
-                event_type:         'conference',
+                event_type:         normalizeEventType(event.event_type),
                 start_date:         event.start_date || null,
                 end_date:           event.end_date   || null,
                 location:           event.location   || null,
@@ -268,7 +266,8 @@ export function FindEventsView() {
                 target_audience:    event.target_audience || null,
                 expected_attendees: event.expected_attendees ?? null,
                 description:        event.description || null,
-                discovery_priority: event.discovery_priority ?? 'Follow',
+                discovery_priority: normalizeEventPriority(event.discovery_priority),
+                engagement_type:    normalizeEngagementType(event.engagement_type),
                 source:             'ai_discovered',
                 status:             'upcoming',
             }
@@ -288,7 +287,14 @@ export function FindEventsView() {
                 toast.success('Event added directly with starter tasks')
             } else {
                 const { error } = await supabase.from('event_discovery_queue').insert({
-                    type: 'NEW', status: 'PENDING', event_data: event,
+                    type: 'NEW',
+                    status: 'PENDING',
+                    event_data: {
+                        ...event,
+                        event_type: normalizeEventType(event.event_type),
+                        discovery_priority: normalizeEventPriority(event.discovery_priority),
+                        engagement_type: normalizeEngagementType(event.engagement_type),
+                    },
                 })
                 if (error) throw error
                 toast.success('Event added to review queue')
@@ -585,11 +591,9 @@ export function FindEventsView() {
                                                 <h4 className="font-semibold text-zinc-900 dark:text-white text-sm leading-snug">
                                                     {event.name}
                                                 </h4>
-                                                {event.discovery_priority && (
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_BADGE[event.discovery_priority] ?? PRIORITY_BADGE['Follow']}`}>
-                                                        {event.discovery_priority}
-                                                    </span>
-                                                )}
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVENT_PRIORITY_PILL[normalizeEventPriority(event.discovery_priority)]}`}>
+                                                    {normalizeEventPriority(event.discovery_priority)}
+                                                </span>
                                                 {typeof event.confidence === 'number' && (
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                                         event.confidence >= 85

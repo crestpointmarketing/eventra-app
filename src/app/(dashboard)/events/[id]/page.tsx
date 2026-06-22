@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDateOnly } from '@/lib/date-only'
+import { normalizeEventPriority } from '@/lib/events/priority'
+import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 
 const COLORS = {
     hot: '#a3e635',
@@ -209,7 +211,15 @@ export default function EventOverviewPage({ params }: { params: Promise<{ id: st
                             </div>
                             <div>
                                 <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Type</p>
-                                <p className="text-sm font-medium text-zinc-900 dark:text-white capitalize">{event.event_type || 'Not set'}</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-white">{normalizeEventType(event.event_type)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Priority</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-white">{normalizeEventPriority(event.discovery_priority)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Engagement</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-white">{normalizeEngagementType(event.engagement_type)}</p>
                             </div>
                             <div>
                                 <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">Website</p>

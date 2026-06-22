@@ -26,19 +26,8 @@ import {
 import { ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { UserSelect } from '@/components/users/user-select'
-
-const EVENT_TYPES = [
-    'conference',
-    'seminar',
-    'workshop',
-    'networking_event',
-    'product_launch',
-    'trade_show',
-    'webinar',
-    'vip_dinner',
-    'fundraiser',
-    'other'
-]
+import { EVENT_PRIORITIES, normalizeEventPriority } from '@/lib/events/priority'
+import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
 
 const EVENT_STATUSES = [
     { value: 'draft', label: 'Draft', color: 'bg-gray-100 text-gray-700' },
@@ -68,7 +57,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         if (event) {
             reset({
                 name: event.name || '',
-                event_type: event.event_type || '',
+                event_type: normalizeEventType(event.event_type),
+                discovery_priority: normalizeEventPriority(event.discovery_priority),
+                engagement_type: normalizeEngagementType(event.engagement_type),
                 status: event.status || 'draft',
                 start_date: event.start_date || '',
                 end_date: event.end_date || '',
@@ -208,7 +199,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                 <SelectContent>
                                     {EVENT_TYPES.map((type) => (
                                         <SelectItem key={type} value={type}>
-                                            {type.replace(/_/g, ' ').toUpperCase()}
+                                            {type}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -223,6 +214,41 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                     value={watch('owner_id')}
                                     onValueChange={(value) => setValue('owner_id', value, { shouldDirty: true })}
                                 />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="discovery_priority">Priority</Label>
+                                <Select
+                                    value={watch('discovery_priority')}
+                                    onValueChange={(value) => setValue('discovery_priority', value, { shouldDirty: true })}
+                                >
+                                    <SelectTrigger className="mt-2">
+                                        <SelectValue placeholder="Select priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {EVENT_PRIORITIES.map(priority => (
+                                            <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="engagement_type">Engagement Type</Label>
+                                <Select
+                                    value={watch('engagement_type')}
+                                    onValueChange={(value) => setValue('engagement_type', value, { shouldDirty: true })}
+                                >
+                                    <SelectTrigger className="mt-2">
+                                        <SelectValue placeholder="Select engagement" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ENGAGEMENT_TYPES.map(type => (
+                                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

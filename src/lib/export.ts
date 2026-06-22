@@ -1,6 +1,8 @@
 // CSV Export Utility
 
 import type { Borders } from 'exceljs'
+import { normalizeEventPriority } from '@/lib/events/priority'
+import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 
 export function convertToCSV(data: any[], headers: string[]): string {
     if (!data || data.length === 0) return ''
@@ -55,6 +57,7 @@ export async function exportEventsToCSV(events: any[]) {
         { key: 'website_url',        label: 'Website',         width: 42 },
         { key: 'source',             label: 'Source',          width: 16 },
         { key: 'discovery_priority', label: 'Priority',        width: 12 },
+        { key: 'engagement_type',    label: 'Engagement',      width: 16 },
         { key: 'focus_area',         label: 'Focus Area',      width: 24 },
         { key: 'target_audience',    label: 'Target Audience', width: 28 },
         { key: 'description',        label: 'Description',     width: 60 },
@@ -87,7 +90,13 @@ export async function exportEventsToCSV(events: any[]) {
 
     // Data rows — wrap text, top-aligned, bordered
     events.forEach(e => {
-        const row = ws.addRow(COLUMNS.reduce((acc, c) => ({ ...acc, [c.key]: e[c.key] ?? '' }), {}))
+        const normalizedEvent = {
+            ...e,
+            event_type: normalizeEventType(e.event_type),
+            discovery_priority: normalizeEventPriority(e.discovery_priority),
+            engagement_type: normalizeEngagementType(e.engagement_type),
+        }
+        const row = ws.addRow(COLUMNS.reduce((acc, c) => ({ ...acc, [c.key]: normalizedEvent[c.key] ?? '' }), {}))
         row.eachCell({ includeEmpty: true }, cell => {
             cell.alignment = { wrapText: true, vertical: 'top' }
             cell.border    = border

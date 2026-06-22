@@ -4,10 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 
 function getAdminClient() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_KEY
 
     if (!url || !serviceRoleKey) {
-        throw new Error('Missing Supabase service role configuration')
+        return null
     }
 
     return createSupabaseAdmin(url, serviceRoleKey, {
@@ -55,51 +55,52 @@ export async function POST(req: NextRequest) {
         }
 
         const admin = getAdminClient()
+        const db = admin ?? supabase
 
         const taskRows = await applyStep(
             'Load event tasks',
-            admin.from('tasks').select('id').in('event_id', eventIds)
+            db.from('tasks').select('id').in('event_id', eventIds)
         )
         const taskIds = (taskRows ?? []).map(task => task.id).filter(Boolean)
 
         if (taskIds.length > 0) {
             await applyStep(
                 'Unlink task assets',
-                admin.from('assets').update({ task_id: null }).in('task_id', taskIds)
+                db.from('assets').update({ task_id: null }).in('task_id', taskIds)
             )
             await applyStep(
                 'Delete task checklist items',
-                admin.from('task_checklist_items').delete().in('task_id', taskIds)
+                db.from('task_checklist_items').delete().in('task_id', taskIds)
             )
             await applyStep(
                 'Delete task collaborators',
-                admin.from('task_collaborators').delete().in('task_id', taskIds)
+                db.from('task_collaborators').delete().in('task_id', taskIds)
             )
         }
 
         await applyStep(
             'Unlink event assets',
-            admin.from('assets').update({ event_id: null }).in('event_id', eventIds)
+            db.from('assets').update({ event_id: null }).in('event_id', eventIds)
         )
         await applyStep(
             'Unlink event leads',
-            admin.from('leads').update({ event_id: null }).in('event_id', eventIds)
+            db.from('leads').update({ event_id: null }).in('event_id', eventIds)
         )
         await applyStep(
             'Delete event comments',
-            admin.from('event_comments').delete().in('event_id', eventIds)
+            db.from('event_comments').delete().in('event_id', eventIds)
         )
         await applyStep(
             'Delete event tasks',
-            admin.from('tasks').delete().in('event_id', eventIds)
+            db.from('tasks').delete().in('event_id', eventIds)
         )
         await applyStep(
             'Clear discovery queue links',
-            admin.from('event_discovery_queue').update({ existing_event_id: null }).in('existing_event_id', eventIds)
+            db.from('event_discovery_queue').update({ existing_event_id: null }).in('existing_event_id', eventIds)
         )
         await applyStep(
             'Delete events',
-            admin.from('events').delete().in('id', eventIds)
+            db.from('events').delete().in('id', eventIds)
         )
 
         return NextResponse.json({ success: true, deleted: eventIds.length })

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { MapPin, Calendar, Globe, Users, Target } from 'lucide-react'
 import { formatDateOnly } from '@/lib/date-only'
+import { normalizeEventPriority } from '@/lib/events/priority'
+import { normalizeEngagementType } from '@/lib/events/taxonomy'
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = await params
@@ -107,7 +109,16 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
                                 <Target className="h-5 w-5 text-zinc-400" />
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1">Priority</p>
-                                    <p className="text-zinc-800 font-medium">{event.discovery_priority}</p>
+                                    <p className="text-zinc-800 font-medium">{normalizeEventPriority(event.discovery_priority)}</p>
+                                </div>
+                            </div>
+                        )}
+                        {event.engagement_type && (
+                            <div className="bg-white border border-zinc-200 rounded-xl p-6 flex items-center gap-3">
+                                <Target className="h-5 w-5 text-zinc-400" />
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1">Engagement</p>
+                                    <p className="text-zinc-800 font-medium">{normalizeEngagementType(event.engagement_type)}</p>
                                 </div>
                             </div>
                         )}

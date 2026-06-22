@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { UserSelect } from '@/components/users/user-select'
+import { EVENT_PRIORITIES } from '@/lib/events/priority'
+import { ENGAGEMENT_TYPES, EVENT_TYPES } from '@/lib/events/taxonomy'
+import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
 
 export default function NewEventPage() {
     const router = useRouter()
@@ -53,6 +56,8 @@ export default function NewEventPage() {
                     {
                         name: formData.get('name') as string,
                         event_type: formData.get('event_type') as string,
+                        discovery_priority: formData.get('discovery_priority') as string,
+                        engagement_type: formData.get('engagement_type') as string,
                         start_date: formData.get('start_date') as string,
                         end_date: formData.get('end_date') as string,
                         location: formData.get('location') as string,
@@ -67,6 +72,8 @@ export default function NewEventPage() {
                 .single()
 
             if (insertError) throw insertError
+
+            await seedDefaultEventTasks(supabase, data.id, data.start_date)
 
             router.push(`/events/${data.id}`)
         } catch (err: any) {
@@ -100,14 +107,46 @@ export default function NewEventPage() {
 
                     <div>
                         <Label htmlFor="event_type">Event Type *</Label>
-                        <Input
+                        <select
                             id="event_type"
                             name="event_type"
-                            type="text"
                             required
-                            placeholder="conference"
-                            className="mt-1"
-                        />
+                            defaultValue="Conference"
+                            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            {EVENT_TYPES.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="discovery_priority">Priority</Label>
+                            <select
+                                id="discovery_priority"
+                                name="discovery_priority"
+                                defaultValue="Medium"
+                                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                {EVENT_PRIORITIES.map(priority => (
+                                    <option key={priority} value={priority}>{priority}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <Label htmlFor="engagement_type">Engagement Type</Label>
+                            <select
+                                id="engagement_type"
+                                name="engagement_type"
+                                defaultValue="Attend"
+                                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                {ENGAGEMENT_TYPES.map(type => (
+                                    <option key={type} value={type}>{type}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

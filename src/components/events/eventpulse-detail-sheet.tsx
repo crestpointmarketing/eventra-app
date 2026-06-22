@@ -9,6 +9,8 @@ import {
     Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet'
 import { EventComments } from '@/components/events/event-comments'
+import { EVENT_PRIORITIES, EVENT_PRIORITY_TEXT, normalizeEventPriority } from '@/lib/events/priority'
+import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
 
 const SECTORS = [
     'GENERAL AI', 'AI IN HEALTHCARE', 'AI IN EDUCATION',
@@ -17,12 +19,6 @@ const SECTORS = [
     'AI IN VISION / IMAGING', 'AI IN INDUSTRY / ENTERPRISE',
     'AI IN INSURANCE', 'AI IN SECURITY', 'CONSUMER AI',
 ]
-
-const PRIORITY_COLOR: Record<string, string> = {
-    Sponsor: 'text-rose-600',
-    Attend:  'text-amber-600',
-    Follow:  'text-blue-600',
-}
 
 type Event = Record<string, any>
 
@@ -75,9 +71,11 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
             const supabase = createClient()
             const { error } = await supabase.from('events').update({
                 name:               form.name,
+                event_type:         normalizeEventType(form.event_type),
                 website_url:        form.website_url,
                 focus_area:         form.focus_area,
-                discovery_priority: form.discovery_priority,
+                discovery_priority: normalizeEventPriority(form.discovery_priority),
+                engagement_type:    normalizeEngagementType(form.engagement_type),
                 expected_attendees: form.expected_attendees ? Number(form.expected_attendees) : null,
                 target_audience:    form.target_audience,
                 start_date:         form.start_date,
@@ -153,15 +151,37 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
                                     {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </Field>
+                            <Field label="Event Type">
+                                <select
+                                    value={normalizeEventType(form.event_type)}
+                                    onChange={e => set('event_type', e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-violet-200 rounded-md bg-white text-zinc-900 focus:outline-none"
+                                >
+                                    {EVENT_TYPES.map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                            </Field>
                             <Field label="Strategic Priority">
                                 <select
-                                    value={form.discovery_priority ?? 'Follow'}
+                                    value={normalizeEventPriority(form.discovery_priority)}
                                     onChange={e => set('discovery_priority', e.target.value)}
-                                    className={`w-full px-3 py-2 text-sm border border-violet-200 rounded-md bg-white focus:outline-none font-semibold ${PRIORITY_COLOR[form.discovery_priority ?? 'Follow']}`}
+                                    className={`w-full px-3 py-2 text-sm border border-violet-200 rounded-md bg-white focus:outline-none font-semibold ${EVENT_PRIORITY_TEXT[normalizeEventPriority(form.discovery_priority)]}`}
                                 >
-                                    <option value="Sponsor">Sponsor</option>
-                                    <option value="Attend">Attend</option>
-                                    <option value="Follow">Follow</option>
+                                    {EVENT_PRIORITIES.map(priority => (
+                                        <option key={priority} value={priority}>{priority}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <Field label="Engagement Type">
+                                <select
+                                    value={normalizeEngagementType(form.engagement_type)}
+                                    onChange={e => set('engagement_type', e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-violet-200 rounded-md bg-white text-zinc-900 focus:outline-none"
+                                >
+                                    {ENGAGEMENT_TYPES.map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
                                 </select>
                             </Field>
                         </div>
