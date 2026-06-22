@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { MapPin, ExternalLink, Search, Trash2, Plus, Sparkles, Download, X } from 'lucide-react'
+import { MapPin, ExternalLink, Search, Trash2, Plus, FolderOpen, Download, X, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateOnly, formatMonthOnly } from '@/lib/date-only'
@@ -18,14 +18,9 @@ import {
 import { EventPulseDetailSheet } from '@/components/events/eventpulse-detail-sheet'
 import { FindEventsView } from '@/components/events/find-events-view'
 import { ReviewQueueView } from '@/components/events/review-queue-view'
-
-const PRIORITY_BADGE: Record<string, string> = {
-    'Sponsor': 'bg-transparent text-rose-600 dark:text-rose-400',
-    'Attend':  'bg-transparent text-amber-600 dark:text-amber-400',
-    'Follow':  'bg-transparent text-blue-600 dark:text-blue-400',
-}
-
-const PRIORITIES = ['Sponsor', 'Attend', 'Follow']
+import { EVENT_PRIORITIES, EVENT_PRIORITY_BADGE, normalizeEventPriority } from '@/lib/events/priority'
+import { ENGAGEMENT_TYPES, EVENT_TYPES, normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
+import { findEventDuplicateGroups } from '@/lib/events/duplicates'
 
 // Predefined sectors matching EventPulse categories
 const SECTORS = [
@@ -76,6 +71,7 @@ interface DiscoverEvent {
     target_audience?: string | null
     expected_attendees?: number | null
     discovery_priority?: string | null
+    engagement_type?: string | null
     source?: string | null
 }
 
@@ -101,11 +97,22 @@ const TAB_LABELS: { id: View; label: string }[] = [
     { id: 'insights',  label: 'Insights' },
 ]
 
+const EVENT_STATUS_OPTIONS = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'planned', label: 'Planned' },
+    { value: 'planning', label: 'Planning' },
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'live', label: 'Live' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'canceled', label: 'Canceled' },
+]
+
 export default function EventPulsePage() {
     const queryClient = useQueryClient()
     const [view, setView]                   = useState<View>('portfolio')
     const [search, setSearch]               = useState('')
     const [priorityFilter, setPriority]     = useState('all')
+    const [engagementFilter, setEngagement] = useState('all')
     const [sectorFilter, setSector]         = useState('all')
     const [monthFilter, setMonth]           = useState('all')
     const [sourceFilter, setSourceFilter]   = useState('all')
@@ -193,6 +200,38 @@ export default function EventPulsePage() {
         },
     })
 
+    const { mutate: updateEngagement } = useMutation({
+        mutationFn: async ({ id, engagement }: { id: string; engagement: string }) => {
+            const supabase = createClient()
+            const { error } = await supabase
+                .from('events').update({ engagement_type: engagement }).eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+        },
+    })
+
+    async function bulkUpdateEvents(values: Partial<Pick<DiscoverEvent, 'status' | 'discovery_priority' | 'engagement_type'>>) {
+        if (checkedIds.size === 0) return
+        setBulkLoading(true)
+        try {
+            const supabase = createClient()
+            const { error } = await supabase
+                .from('events')
+                .update(values)
+                .in('id', Array.from(checkedIds))
+            if (error) throw error
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            toast.success(`${checkedIds.size} events updated`)
+            setCheckedIds(new Set())
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Bulk update failed'))
+        } finally {
+            setBulkLoading(false)
+        }
+    }
+
     function toggleCheck(id: string) {
         setCheckedIds(prev => {
             const next = new Set(prev)
@@ -252,6 +291,7 @@ export default function EventPulsePage() {
     function clearFilters() {
         setSearch('')
         setPriority('all')
+        setEngagement('all')
         setSector('all')
         setMonth('all')
         setSourceFilter('all')
@@ -274,19 +314,15 @@ export default function EventPulsePage() {
         return Array.from(new Set(events.map(e => e.status).filter(Boolean))) as string[]
     }, [events])
 
-    const eventTypes = useMemo(() => {
-        if (!events) return []
-        return Array.from(new Set(events.map(e => e.event_type).filter(Boolean))) as string[]
-    }, [events])
-
     const filtered = useMemo(() => {
         if (!events) return []
         return events.filter((e) => {
-            if (priorityFilter !== 'all' && e.discovery_priority !== priorityFilter) return false
+            if (priorityFilter !== 'all' && normalizeEventPriority(e.discovery_priority) !== priorityFilter) return false
+            if (engagementFilter !== 'all' && normalizeEngagementType(e.engagement_type ?? e.discovery_priority) !== engagementFilter) return false
             if (sectorFilter !== 'all' && classifyEvent(e) !== sectorFilter) return false
             if (sourceFilter !== 'all' && (e.source ?? 'manual') !== sourceFilter) return false
             if (statusFilter !== 'all' && e.status !== statusFilter) return false
-            if (typeFilter !== 'all' && e.event_type !== typeFilter) return false
+            if (typeFilter !== 'all' && normalizeEventType(e.event_type) !== typeFilter) return false
             if (monthFilter !== 'all') {
                 const m = e.start_date
                     ? formatMonthOnly(e.start_date)
@@ -299,19 +335,33 @@ export default function EventPulsePage() {
             }
             return true
         })
-    }, [events, priorityFilter, sectorFilter, sourceFilter, statusFilter, typeFilter, monthFilter, search])
+    }, [events, priorityFilter, engagementFilter, sectorFilter, sourceFilter, statusFilter, typeFilter, monthFilter, search])
 
-    const highCount = events?.filter((e) => e.discovery_priority === 'Sponsor').length ?? 0
+    const highCount = events?.filter((e) => normalizeEventPriority(e.discovery_priority) === 'High').length ?? 0
     const aiCount = events?.filter((e) => e.source === 'ai_discovered').length ?? 0
     const today = new Date().toISOString().slice(0, 10)
     const next30 = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
     const upcomingCount = events?.filter((e) => e.start_date && e.start_date >= today).length ?? 0
     const next30Events = (events ?? []).filter(e => e.start_date && e.start_date >= today && e.start_date <= next30).slice(0, 5)
+    const duplicateGroups = useMemo(() => findEventDuplicateGroups(events ?? []), [events])
+    const duplicatePreview = duplicateGroups.slice(0, 5)
+    const duplicateAlertById = useMemo(() => {
+        const alerts = new Map<string, { matchId: string; matchName: string; reason: string }>()
+        duplicateGroups.forEach(({ event, match }) => {
+            if (!alerts.has(event.id)) {
+                alerts.set(event.id, { matchId: match.id, matchName: match.name, reason: match.reason })
+            }
+            if (!alerts.has(match.id)) {
+                alerts.set(match.id, { matchId: event.id, matchName: event.name ?? 'Untitled Event', reason: match.reason })
+            }
+        })
+        return alerts
+    }, [duplicateGroups])
     const openTaskCount = eventTasks.filter((task: any) => task.status !== 'completed').length
     const overdueTaskCount = eventTasks.filter((task: any) => task.status !== 'completed' && task.due_date && task.due_date < today).length
     const selectedCount = checkedIds.size
     const visibleSelectedCount = filtered.filter(event => checkedIds.has(event.id)).length
-    const hasActiveFilters = search || priorityFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all'
+    const hasActiveFilters = search || priorityFilter !== 'all' || engagementFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all'
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
@@ -337,7 +387,7 @@ export default function EventPulsePage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="px-3 py-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full text-sm font-medium">
-                            {highCount} Sponsor
+                            {highCount} High Priority
                         </span>
                         <Link
                             href="/events/new"
@@ -387,14 +437,14 @@ export default function EventPulsePage() {
                                 <p className="text-sm text-zinc-500 mt-1">discoveries waiting for approval</p>
                             </div>
                             <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-5">
-                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-2">Sponsor</p>
+                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-2">High Priority</p>
                                 <p className="text-3xl font-semibold text-rose-600">{highCount}</p>
                                 <p className="text-sm text-zinc-500 mt-1">high-priority opportunities</p>
                             </div>
                             <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-5">
-                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-2">Overdue Tasks</p>
-                                <p className={`text-3xl font-semibold ${overdueTaskCount > 0 ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`}>{overdueTaskCount}</p>
-                                <p className="text-sm text-zinc-500 mt-1">{openTaskCount} open event tasks</p>
+                                <p className="text-xs uppercase tracking-wide text-zinc-400 mb-2">Potential Duplicates</p>
+                                <p className={`text-3xl font-semibold ${duplicateGroups.length > 0 ? 'text-amber-600' : 'text-zinc-900 dark:text-white'}`}>{duplicateGroups.length}</p>
+                                <p className="text-sm text-zinc-500 mt-1">similar event pairs detected</p>
                             </div>
                         </div>
 
@@ -444,6 +494,38 @@ export default function EventPulsePage() {
                                     ))}
                                 </div>
                             </div>
+
+                            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 overflow-hidden">
+                                <div className="border-b border-zinc-200 dark:border-zinc-700 px-5 py-4">
+                                    <h3 className="font-semibold text-zinc-900 dark:text-white">Potential Duplicates</h3>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Review similar events before cleaning the portfolio.</p>
+                                </div>
+                                <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
+                                    {duplicatePreview.length > 0 ? duplicatePreview.map(({ event, match }) => (
+                                        <div key={`${event.id}-${match.id}`} className="px-5 py-4">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{event.name}</p>
+                                                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                                                        Matches: {match.name}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{match.reason}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <Link href={`/events/${event.id}`} className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400">
+                                                        Open
+                                                    </Link>
+                                                    <Link href={`/events/${match.id}`} className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400">
+                                                        Match
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <p className="px-5 py-8 text-sm text-zinc-400 dark:text-zinc-500">No likely duplicates detected.</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -482,19 +564,19 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Filter bar */}
-                <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 mb-4 flex flex-wrap gap-3 items-center">
-                    <div className="relative flex-1 min-w-52">
+                <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 mb-4 flex flex-wrap gap-2 items-center">
+                    <div className="relative flex-1 min-w-44">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             placeholder="Search events..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9"
+                            className="h-9 pl-9 text-sm"
                         />
                     </div>
 
                     <Select value={sectorFilter} onValueChange={setSector}>
-                        <SelectTrigger className="w-52">
+                        <SelectTrigger className="h-9 w-[8.5rem] text-sm">
                             <SelectValue placeholder="All Sectors" />
                         </SelectTrigger>
                         <SelectContent>
@@ -506,19 +588,31 @@ export default function EventPulsePage() {
                     </Select>
 
                     <Select value={priorityFilter} onValueChange={setPriority}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="h-9 w-32 text-sm">
                             <SelectValue placeholder="All Priorities" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Priorities</SelectItem>
-                            <SelectItem value="Sponsor">Sponsor</SelectItem>
-                            <SelectItem value="Attend">Attend</SelectItem>
-                            <SelectItem value="Follow">Follow</SelectItem>
+                            {EVENT_PRIORITIES.map(priority => (
+                                <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={engagementFilter} onValueChange={setEngagement}>
+                        <SelectTrigger className="h-9 w-36 text-sm">
+                            <SelectValue placeholder="All Engagements" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Engagements</SelectItem>
+                            {ENGAGEMENT_TYPES.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
 
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="h-9 w-32 text-sm">
                             <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
@@ -532,21 +626,21 @@ export default function EventPulsePage() {
                     </Select>
 
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="h-9 w-[7.5rem] text-sm">
                             <SelectValue placeholder="All Types" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Types</SelectItem>
-                            {eventTypes.map(type => (
+                            {EVENT_TYPES.map(type => (
                                 <SelectItem key={type} value={type}>
-                                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                                    {type}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
 
                     <Select value={monthFilter} onValueChange={setMonth}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="h-9 w-32 text-sm">
                             <SelectValue placeholder="All Months" />
                         </SelectTrigger>
                         <SelectContent>
@@ -560,7 +654,7 @@ export default function EventPulsePage() {
                     {hasActiveFilters && (
                         <button
                             onClick={clearFilters}
-                            className="inline-flex items-center gap-1.5 px-2 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                            className="inline-flex h-9 items-center gap-1 px-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                         >
                             <X className="h-4 w-4" />
                             Clear filters
@@ -569,8 +663,18 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
-                    <table className="w-full">
+                <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-x-auto">
+                    <table className="w-full min-w-[1180px] table-fixed">
+                        <colgroup>
+                            <col className="w-12" />
+                            <col className="w-[25%]" />
+                            <col className="w-[11%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[11%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[20%]" />
+                            <col className="w-32" />
+                        </colgroup>
                         <thead>
                             <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
                                 <th className="p-4 w-10" onClick={(e) => e.stopPropagation()}>
@@ -584,9 +688,10 @@ export default function EventPulsePage() {
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Event Name</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Sector</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Priority</th>
+                                <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Engagement</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Start Date</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Location / Audience</th>
-                                <th className="text-right p-4 text-xs uppercase text-zinc-500 font-medium">Action</th>
+                                <th className="text-center p-4 text-xs uppercase text-zinc-500 font-medium">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -597,6 +702,7 @@ export default function EventPulsePage() {
                                         <td className="p-4"><Skeleton className="h-4 w-52" /></td>
                                         <td className="p-4"><Skeleton className="h-4 w-24" /></td>
                                         <td className="p-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                                        <td className="p-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
                                         <td className="p-4"><Skeleton className="h-4 w-20" /></td>
                                         <td className="p-4"><Skeleton className="h-4 w-36" /></td>
                                         <td className="p-4 text-right"><Skeleton className="h-8 w-28 ml-auto" /></td>
@@ -604,13 +710,14 @@ export default function EventPulsePage() {
                                 ))
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-16 text-center text-zinc-400 dark:text-zinc-500">
+                                    <td colSpan={8} className="p-16 text-center text-zinc-400 dark:text-zinc-500">
                                         No events match your filters
                                     </td>
                                 </tr>
                             ) : (
                                 filtered.map((event) => {
                                     const checked = checkedIds.has(event.id)
+                                    const duplicateAlert = duplicateAlertById.get(event.id)
                                     return (
                                     <tr
                                         key={event.id}
@@ -628,14 +735,26 @@ export default function EventPulsePage() {
                                         </td>
 
                                         {/* Event Name */}
-                                        <td className="p-4 max-w-xs">
+                                        <td className="p-4 min-w-0">
                                             <button
                                                 type="button"
-                                                className="text-left font-medium text-zinc-900 dark:text-white leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                className="block w-full truncate text-left font-medium text-zinc-900 dark:text-white leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                title={event.name}
                                             >
                                                 {event.name}
                                             </button>
                                             <div className="flex items-center gap-2 mt-1">
+                                                {duplicateAlert && (
+                                                    <Link
+                                                        href={`/events/${duplicateAlert.matchId}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+                                                        title={`Possible duplicate: ${duplicateAlert.matchName}. ${duplicateAlert.reason}`}
+                                                    >
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        Duplicate
+                                                    </Link>
+                                                )}
                                                 {event.focus_area && (
                                                     <span className="text-xs text-zinc-400 truncate max-w-[220px]">
                                                         {event.focus_area}
@@ -659,21 +778,38 @@ export default function EventPulsePage() {
                                         {/* Priority inline editable */}
                                         <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                             <Select
-                                                value={event.discovery_priority ?? 'Follow'}
+                                                value={normalizeEventPriority(event.discovery_priority)}
                                                 onValueChange={(priority) => updatePriority({ id: event.id, priority })}
                                             >
                                                 <SelectTrigger
-                                                    className={`h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-bold uppercase tracking-wide shadow-none focus:ring-0 ${PRIORITY_BADGE[event.discovery_priority ?? 'Follow'] ?? 'text-zinc-500'}`}
+                                                    className={`h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-bold uppercase tracking-wide shadow-none focus:ring-0 ${EVENT_PRIORITY_BADGE[normalizeEventPriority(event.discovery_priority)]}`}
                                                 >
-                                                    <SelectValue />
+                                                    <span>{normalizeEventPriority(event.discovery_priority)}</span>
                                                 </SelectTrigger>
                                                 <SelectContent className="min-w-32">
-                                                    {PRIORITIES.map((priority) => (
+                                                    {EVENT_PRIORITIES.map((priority) => (
                                                         <SelectItem key={priority} value={priority}>
-                                                            <span className={`text-xs font-bold uppercase tracking-wide ${PRIORITY_BADGE[priority]}`}>
+                                                            <span className={`text-xs font-bold uppercase tracking-wide ${EVENT_PRIORITY_BADGE[priority]}`}>
                                                                 {priority}
                                                             </span>
                                                         </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </td>
+
+                                        {/* Engagement inline editable */}
+                                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                                            <Select
+                                                value={normalizeEngagementType(event.engagement_type ?? event.discovery_priority)}
+                                                onValueChange={(engagement) => updateEngagement({ id: event.id, engagement })}
+                                            >
+                                                <SelectTrigger className="h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-semibold text-zinc-600 shadow-none focus:ring-0 dark:text-zinc-300">
+                                                    <span>{normalizeEngagementType(event.engagement_type ?? event.discovery_priority)}</span>
+                                                </SelectTrigger>
+                                                <SelectContent className="min-w-32">
+                                                    {ENGAGEMENT_TYPES.map((type) => (
+                                                        <SelectItem key={type} value={type}>{type}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -705,22 +841,24 @@ export default function EventPulsePage() {
                                         </td>
 
                                         {/* Action */}
-                                        <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex items-center justify-end gap-1.5">
+                                        <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center justify-center gap-1.5">
                                                 <Link
                                                     href={`/events/${event.id}`}
-                                                    className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-white"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-white"
                                                     title="Open event workspace"
+                                                    aria-label={`Open ${event.name}`}
                                                 >
-                                                    <Sparkles className="h-4 w-4" />
-                                                    Open
+                                                    <FolderOpen className="h-4 w-4" />
                                                 </Link>
                                                 {event.website_url && (
                                                     <a
                                                         href={event.website_url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-white"
+                                                        title="Open event website"
+                                                        aria-label={`Open ${event.name} website`}
                                                     >
                                                         <ExternalLink className="h-4 w-4" />
                                                     </a>
@@ -729,8 +867,9 @@ export default function EventPulsePage() {
                                                     onClick={() => {
                                                         if (confirm(`Delete "${event.name}"?`)) deleteEvent(event.id)
                                                     }}
-                                                    className="p-1.5 text-zinc-300 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-500 dark:hover:border-red-900 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                                                     title="Delete event"
+                                                    aria-label={`Delete ${event.name}`}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
@@ -762,8 +901,14 @@ export default function EventPulsePage() {
                 count={selectedCount}
                 itemType="event"
                 onExport={exportSelected}
+                onUpdateStatus={(status) => bulkUpdateEvents({ status })}
+                onUpdatePriority={(priority) => bulkUpdateEvents({ discovery_priority: priority })}
+                onUpdateEngagement={(engagement) => bulkUpdateEvents({ engagement_type: engagement })}
                 onDelete={bulkDelete}
                 onClear={() => setCheckedIds(new Set())}
+                statusOptions={EVENT_STATUS_OPTIONS}
+                priorityOptions={EVENT_PRIORITIES.map(priority => ({ value: priority, label: priority }))}
+                engagementOptions={ENGAGEMENT_TYPES.map(type => ({ value: type, label: type }))}
             />
         </div>
     )

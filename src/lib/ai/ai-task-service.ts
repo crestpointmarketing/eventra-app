@@ -5,6 +5,12 @@ import { generateChatCompletion } from './openai-service'
 import { parseAIJSON } from './utils'
 import { createClient } from '@/lib/supabase/client'
 import { dateOnlyToLocalDate } from '@/lib/date-only'
+import {
+    decodeTaskModule,
+    inferTaskModule,
+    normalizeTaskModule,
+    type TaskModuleId,
+} from '@/lib/tasks/modules'
 
 let _supabase: ReturnType<typeof createClient> | null = null
 function getSupabase(): ReturnType<typeof createClient> {
@@ -21,7 +27,7 @@ export interface SuggestedTask {
     description: string
     priority: 'low' | 'medium' | 'high' | 'urgent'
     estimated_days_before_event: number // e.g., -30 means 30 days before event
-    category?: string
+    category: TaskModuleId
     estimated_cost?: number
 }
 
@@ -253,6 +259,34 @@ Budget: ${eventData.budget ? `$${eventData.budget}` : 'Not specified'}
 Context: ${context.description}
 Typical tasks for this event type: ${context.typical_tasks.join(', ')}${existingTasksContext}
 
+Financial controls are required unless existing tasks already cover them. Include specific tasks for:
+- Reviewing and signing the event participation or sponsorship contract
+- Receiving and validating the invoice and payment terms
+- Completing payment before the invoice due date and recording proof of payment
+- Obtaining the final receipt and confirming there is no outstanding balance
+
+Organize every task into exactly one of these eight modules:
+- strategy: Event Strategy
+- budget_planning: Budget & Planning
+- marketing: Marketing Campaigns
+- sales: Sales Enablement
+- logistics_operations: Logistics & Operations
+- execution: Event Execution
+- follow_up: Post Event Follow-up
+- analytics_roi: Analytics & ROI
+
+Use this ROI emphasis when deciding how many tasks and how much detail to give each module:
+- Strategy 10%
+- Marketing 25%
+- Sales 25%
+- Logistics & Operations 15%
+- Event Execution 10%
+- Post Event Follow-up 10%
+- Analytics & ROI 5%
+Budget & Planning is mandatory foundational coverage and sits outside the ROI weighting.
+
+For B2B events, prioritize measurable revenue outcomes over generic booth activity. When supported by the event data, create tasks with numeric targets for target accounts, executive meetings, customer conversations, qualified leads, and pipeline. Do not invent arbitrary numbers when the event has no useful target or budget context.
+
 Please generate 10-15 specific, actionable tasks needed to successfully execute this event. For each task, provide:
 1. A clear, specific title (max 60 characters)
 2. A detailed description of what needs to be done (2-3 sentences)
@@ -267,7 +301,7 @@ Format your response as a JSON array with this structure:
     "description": "Detailed description",
     "priority": "high",
     "estimated_days_before_event": -30,
-    "category": "Venue" or "Marketing" or "Logistics" etc,
+    "category": "strategy" or "budget_planning" or "marketing" or "sales" or "logistics_operations" or "execution" or "follow_up" or "analytics_roi",
     "estimated_cost": 1000 (optional)
   }
 ]
@@ -307,7 +341,7 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
                     ? task.priority
                     : 'medium',
                 estimated_days_before_event: task.estimated_days_before_event || -7,
-                category: task.category,
+                category: normalizeTaskModule(task.category),
                 estimated_cost: task.estimated_cost,
             })) as SuggestedTask[]
 
@@ -354,6 +388,55 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
 /**
  * Analyze dependencies between tasks
  */
+function buildRuleBasedDependencies(tasks: Array<{
+    id: string
+    title: string
+    description: string | null
+    due_date: string | null
+}>): TaskDependency[] {
+    const prerequisiteModules: Record<TaskModuleId, TaskModuleId[]> = {
+        strategy: [],
+        budget_planning: ['strategy'],
+        marketing: ['strategy', 'budget_planning'],
+        sales: ['strategy', 'marketing'],
+        logistics_operations: ['budget_planning'],
+        execution: ['marketing', 'sales', 'logistics_operations'],
+        follow_up: ['execution', 'sales'],
+        analytics_roi: ['strategy', 'follow_up'],
+    }
+
+    const normalized = tasks.map((task, index) => {
+        const decoded = decodeTaskModule(task.description)
+        return {
+            ...task,
+            index,
+            module: decoded.module ?? inferTaskModule(task.title, decoded.description),
+            dueTime: task.due_date ? new Date(`${task.due_date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY,
+        }
+    }).sort((a, b) => a.dueTime - b.dueTime || a.index - b.index)
+
+    return normalized.flatMap(task => {
+        const dependencies = prerequisiteModules[task.module]
+            .map(prerequisiteModule => normalized
+                .filter(candidate =>
+                    candidate.id !== task.id
+                    && candidate.module === prerequisiteModule
+                    && candidate.dueTime <= task.dueTime
+                )
+                .at(-1))
+            .filter((candidate): candidate is (typeof normalized)[number] => Boolean(candidate))
+            .slice(0, 3)
+
+        if (dependencies.length === 0) return []
+
+        return [{
+            taskId: task.id,
+            dependsOn: dependencies.map(dependency => dependency.id),
+            reasoning: `${task.title} follows ${dependencies.map(dependency => dependency.title).join(' and ')} in the Eventra event playbook.`,
+        }]
+    })
+}
+
 export async function analyzeTaskDependencies(params: {
     eventId: string
     taskIds?: string[]
@@ -415,7 +498,7 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
         })
 
         if (aiError || !content) {
-            return { dependencies: [], error: aiError || 'Failed to analyze dependencies' }
+            return { dependencies: buildRuleBasedDependencies(tasks) }
         }
 
         try {
@@ -423,7 +506,7 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
             return { dependencies }
         } catch (parseError) {
             console.error('Failed to parse dependency analysis:', parseError)
-            return { dependencies: [], error: 'Failed to parse AI response' }
+            return { dependencies: buildRuleBasedDependencies(tasks) }
         }
     } catch (error: unknown) {
         console.error('Error in analyzeTaskDependencies:', error)

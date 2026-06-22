@@ -15,6 +15,9 @@ let _openai: OpenAI | null = null
 
 function getOpenAIInstance(): OpenAI {
     if (!_openai) {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OPENAI_API_KEY is not configured')
+        }
         _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     }
     return _openai
@@ -219,7 +222,16 @@ export async function generateChatCompletion(params: {
 
         return { content, usage }
     } catch (error: any) {
-        console.error('OpenAI API error:', error)
+        const status = Number(error?.status || error?.statusCode || 0)
+        const safeError = status === 401
+            ? 'AI provider authentication failed. Update OPENAI_API_KEY.'
+            : status === 429
+                ? 'AI provider rate limit reached. Please try again later.'
+                : error?.message === 'OPENAI_API_KEY is not configured'
+                    ? 'AI provider is not configured.'
+                    : 'AI provider request failed.'
+
+        console.error('OpenAI API error:', { status, code: error?.code || 'unknown' })
 
         // Track error
         await trackUsage({
@@ -233,13 +245,13 @@ export async function generateChatCompletion(params: {
             request_data: params.requestData,
             response_time_ms: Date.now() - startTime,
             status: 'error',
-            error_message: error.message || 'Unknown error',
+            error_message: safeError,
         })
 
         return {
             content: null,
             usage: undefined,
-            error: error.message || 'Failed to generate completion',
+            error: safeError,
         }
     }
 }

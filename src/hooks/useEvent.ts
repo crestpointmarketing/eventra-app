@@ -19,24 +19,34 @@ export function useEvent(eventId: string) {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('events')
-                .select(`
-          *,
-          leads (
-            id,
-            first_name,
-            last_name,
-            email,
-            company,
-            job_title,
-            priority,
-            stage,
-            last_contacted_at
-          )
-        `)
+                .select('*')
                 .eq('id', eventId)
                 .single()
 
             if (error) throw error
+
+            // Load related leads separately so a missing relationship or lead
+            // column cannot make an otherwise valid event appear not to exist.
+            const { data: leads, error: leadsError } = await supabase
+                .from('leads')
+                .select(`
+                    id,
+                    first_name,
+                    last_name,
+                    email,
+                    company,
+                    job_title,
+                    priority,
+                    stage,
+                    last_contacted_at
+                `)
+                .eq('event_id', eventId)
+
+            if (leadsError) {
+                console.warn('Failed to load event leads:', leadsError.message)
+            }
+
+            data.leads = leads ?? []
 
             if (data && data.owner_id) {
                 const { data: owner } = await supabase

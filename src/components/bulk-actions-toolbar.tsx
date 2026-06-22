@@ -16,10 +16,14 @@ interface BulkActionsToolbarProps {
     itemType: 'lead' | 'event' | 'task'
     onExport: () => void
     onUpdateStatus?: (status: string) => void
+    onUpdatePriority?: (priority: string) => void
+    onUpdateEngagement?: (engagement: string) => void
     onGenerateAI?: () => void
     onDelete?: () => void
     onClear: () => void
     statusOptions?: Array<{ value: string; label: string }>
+    priorityOptions?: Array<{ value: string; label: string }>
+    engagementOptions?: Array<{ value: string; label: string }>
 }
 
 export function BulkActionsToolbar({
@@ -27,10 +31,14 @@ export function BulkActionsToolbar({
     itemType,
     onExport,
     onUpdateStatus,
+    onUpdatePriority,
+    onUpdateEngagement,
     onGenerateAI,
     onDelete,
     onClear,
     statusOptions,
+    priorityOptions,
+    engagementOptions,
 }: BulkActionsToolbarProps) {
     if (count === 0) return null
 
@@ -76,11 +84,41 @@ export function BulkActionsToolbar({
 
                                     {onUpdateStatus && statusOptions && (
                                         <Select onValueChange={onUpdateStatus}>
-                                            <SelectTrigger className="w-[180px] border-white/20 bg-transparent hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10">
+                                            <SelectTrigger className="w-[150px] border-white/20 bg-transparent hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10">
                                                 <SelectValue placeholder="Update Status" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {statusOptions.map(option => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+
+                                    {onUpdatePriority && priorityOptions && (
+                                        <Select onValueChange={onUpdatePriority}>
+                                            <SelectTrigger className="w-[150px] border-white/20 bg-transparent hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10">
+                                                <SelectValue placeholder="Priority" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {priorityOptions.map(option => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+
+                                    {onUpdateEngagement && engagementOptions && (
+                                        <Select onValueChange={onUpdateEngagement}>
+                                            <SelectTrigger className="w-[160px] border-white/20 bg-transparent hover:bg-white/10 dark:border-zinc-900/20 dark:hover:bg-zinc-900/10">
+                                                <SelectValue placeholder="Engagement" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {engagementOptions.map(option => (
                                                     <SelectItem key={option.value} value={option.value}>
                                                         {option.label}
                                                     </SelectItem>

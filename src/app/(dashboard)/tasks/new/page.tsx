@@ -16,6 +16,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import Link from 'next/link'
+import { TASK_MODULES, encodeTaskModule, encodeTaskReminder, type TaskModuleId } from '@/lib/tasks/modules'
 
 export default function NewTaskPage() {
     const router = useRouter()
@@ -26,6 +27,8 @@ export default function NewTaskPage() {
     const [selectedEventId, setSelectedEventId] = useState<string>('')
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
     const [status, setStatus] = useState<'draft' | 'pending' | 'in_progress'>('pending')
+    const [module, setModule] = useState<TaskModuleId>('strategy')
+    const [reminderAt, setReminderAt] = useState('')
 
     // Fetch events for dropdown
     useEffect(() => {
@@ -65,7 +68,10 @@ export default function NewTaskPage() {
                     {
                         event_id: selectedEventId,
                         title: formData.get('title') as string,
-                        description: formData.get('description') as string || null,
+                        description: encodeTaskReminder(
+                            encodeTaskModule(formData.get('description') as string || null, module),
+                            reminderAt || null
+                        ),
                         status: status,
                         priority: priority,
                         due_date: formData.get('due_date') as string || null,
@@ -108,6 +114,22 @@ export default function NewTaskPage() {
                                 {events.map((event) => (
                                     <SelectItem key={event.id} value={event.id}>
                                         {event.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div>
+                        <Label htmlFor="module">Module *</Label>
+                        <Select value={module} onValueChange={(value) => setModule(value as TaskModuleId)}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {TASK_MODULES.map((taskModule) => (
+                                    <SelectItem key={taskModule.id} value={taskModule.id}>
+                                        {taskModule.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -193,6 +215,17 @@ export default function NewTaskPage() {
                                 className="mt-1"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <Label htmlFor="reminder_at">Reminder</Label>
+                        <Input
+                            id="reminder_at"
+                            type="datetime-local"
+                            value={reminderAt}
+                            onChange={(e) => setReminderAt(e.target.value)}
+                            className="mt-1"
+                        />
                     </div>
 
                     {/* Vendor Details */}

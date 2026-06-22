@@ -21,6 +21,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { UserSelect } from '@/components/users/user-select' // Ensure this path is correct based on previous steps
+import { TASK_MODULES, type TaskModuleId } from '@/lib/tasks/modules'
 
 interface CreateTaskDialogProps {
     eventId: string
@@ -37,7 +38,9 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
     const [status, setStatus] = useState<'pending' | 'in_progress' | 'review' | 'done'>('pending')
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
     const [dueDate, setDueDate] = useState('')
+    const [reminderAt, setReminderAt] = useState('')
     const [assignedTo, setAssignedTo] = useState<string>('')
+    const [module, setModule] = useState<TaskModuleId>('strategy')
 
     // Reset/Sync form when dialog opens
     useEffect(() => {
@@ -57,7 +60,9 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
             status,
             priority,
             due_date: dueDate || undefined,
+            reminder_at: reminderAt || null,
             assigned_to: assignedTo || undefined,
+            module,
         }, {
             onSuccess: () => {
                 onOpenChange(false)
@@ -67,7 +72,9 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
                 setStatus('pending')
                 setPriority('medium')
                 setDueDate('')
+                setReminderAt('')
                 setAssignedTo('')
+                setModule('strategy')
             }
         })
     }
@@ -100,6 +107,22 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
                             onChange={(e) => setDescription(e.target.value)}
                             rows={3}
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Module</Label>
+                        <Select value={module} onValueChange={(value) => setModule(value as TaskModuleId)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {TASK_MODULES.map((taskModule) => (
+                                    <SelectItem key={taskModule.id} value={taskModule.id}>
+                                        {taskModule.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -144,12 +167,22 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Assigned To</Label>
-                            <UserSelect
-                                value={assignedTo}
-                                onValueChange={setAssignedTo}
+                            <Label htmlFor="reminder_at">Reminder</Label>
+                            <Input
+                                id="reminder_at"
+                                type="datetime-local"
+                                value={reminderAt}
+                                onChange={(e) => setReminderAt(e.target.value)}
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Assigned To</Label>
+                        <UserSelect
+                            value={assignedTo}
+                            onValueChange={setAssignedTo}
+                        />
                     </div>
 
                     <DialogFooter>

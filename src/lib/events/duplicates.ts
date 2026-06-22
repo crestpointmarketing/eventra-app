@@ -22,7 +22,12 @@ interface ExistingEventRow {
     name: string | null
     start_date: string | null
     location: string | null
-    source: string | null
+    source?: string | null
+}
+
+export interface EventDuplicateGroup {
+    event: ExistingEventRow
+    match: EventDuplicateMatch
 }
 
 const STOP_WORDS = new Set([
@@ -58,16 +63,14 @@ function tokenOverlap(a: string[], b: string[]): number {
     return common / Math.max(a.length, b.length)
 }
 
-function datesClose(d1: string | null | undefined, d2: string | null | undefined, days = 21): boolean {
+function datesMatch(d1: string | null | undefined, d2: string | null | undefined): boolean {
     if (!d1 || !d2) return false
-    return Math.abs(dateOnlyTime(d1) - dateOnlyTime(d2)) <= days * 86_400_000
+    return dateOnlyTime(d1) === dateOnlyTime(d2)
 }
 
-function locationsOverlap(l1: string | null | undefined, l2: string | null | undefined): boolean {
+function locationsMatch(l1: string | null | undefined, l2: string | null | undefined): boolean {
     if (!l1 || !l2) return false
-    const words = normalize(l1).split(' ').filter(word => word.length > 3)
-    const normalizedOther = normalize(l2)
-    return words.some(word => normalizedOther.includes(word))
+    return normalize(l1) === normalize(l2)
 }
 
 export function evaluateEventDuplicate(
@@ -77,15 +80,15 @@ export function evaluateEventDuplicate(
     const incomingTokens = coreTokens(incoming.name ?? '')
     const existingTokens = coreTokens(existing.name ?? '')
     const nameOverlap = tokenOverlap(incomingTokens, existingTokens)
-    const dateClose = datesClose(incoming.start_date, existing.start_date)
-    const locationClose = locationsOverlap(incoming.location, existing.location)
+    const sameDate = datesMatch(incoming.start_date, existing.start_date)
+    const sameLocation = locationsMatch(incoming.location, existing.location)
 
-    if (!locationClose || !dateClose || nameOverlap < 0.5) return null
+    if (!sameDate || !sameLocation || nameOverlap < 0.5) return null
 
     const reasons = [
         `similar name (${Math.round(nameOverlap * 100)}% match)`,
+        'same start date',
         'same location',
-        'overlapping dates',
     ]
 
     return {
@@ -93,7 +96,7 @@ export function evaluateEventDuplicate(
         name: existing.name ?? 'Untitled Event',
         start_date: existing.start_date,
         location: existing.location,
-        source: existing.source,
+        source: existing.source ?? null,
         reason: reasons.join(', '),
         score: nameOverlap,
     }
@@ -116,4 +119,25 @@ export async function findEventDuplicate(
     }
 
     return null
+}
+
+export function findEventDuplicateGroups(events: ExistingEventRow[]): EventDuplicateGroup[] {
+    const groups: EventDuplicateGroup[] = []
+    const seenPairs = new Set<string>()
+
+    for (let i = 0; i < events.length; i += 1) {
+        for (let j = i + 1; j < events.length; j += 1) {
+            const event = events[i]
+            const existing = events[j]
+            const match = evaluateEventDuplicate(event, existing)
+            if (!match) continue
+
+            const pairKey = [event.id, existing.id].sort().join(':')
+            if (seenPairs.has(pairKey)) continue
+            seenPairs.add(pairKey)
+            groups.push({ event, match })
+        }
+    }
+
+    return groups.sort((a, b) => b.match.score - a.match.score)
 }

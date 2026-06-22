@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { Fragment, useState, useMemo, useEffect } from 'react'
 import { useTasks, useDeleteTask } from '@/hooks/useTasks'
 import { useEvents } from '@/hooks/useEvents'
 import { createClient } from '@/lib/supabase/client'
@@ -52,6 +52,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import { exportTasksToCSV } from '@/lib/export'
+import { TASK_MODULES } from '@/lib/tasks/modules'
 
 interface UserOption {
     id: string
@@ -63,6 +64,7 @@ export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<string>('all')
     const [ownerFilter, setOwnerFilter] = useState<string>('all')
+    const [moduleFilter, setModuleFilter] = useState<string>('all')
     const [eventFilter, setEventFilter] = useState<string>(() => {
         if (typeof window === 'undefined') return 'all'
         return new URLSearchParams(window.location.search).get('eventId') ?? 'all'
@@ -117,10 +119,18 @@ export default function TasksPage() {
 
             // Event filter
             const matchesEvent = eventFilter === 'all' || task.event_id === eventFilter
+            const matchesModule = moduleFilter === 'all' || task.module === moduleFilter
 
-            return matchesSearch && matchesStatus && matchesOwner && matchesEvent
+            return matchesSearch && matchesStatus && matchesOwner && matchesEvent && matchesModule
         })
-    }, [tasks, debouncedSearch, statusFilter, ownerFilter, eventFilter])
+    }, [tasks, debouncedSearch, statusFilter, ownerFilter, eventFilter, moduleFilter])
+
+    const groupedTasks = useMemo(() => TASK_MODULES
+        .map(module => ({
+            module,
+            tasks: filteredTasks.filter(task => task.module === module.id),
+        }))
+        .filter(group => group.tasks.length > 0), [filteredTasks])
 
     // Bulk selection
     const {
@@ -266,6 +276,20 @@ export default function TasksPage() {
                             </SelectContent>
                         </Select>
 
+                        <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                            <SelectTrigger className="w-[150px] h-9 text-xs border-zinc-200 bg-white dark:bg-zinc-800">
+                                <SelectValue placeholder="All Modules" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Modules</SelectItem>
+                                {TASK_MODULES.map(module => (
+                                    <SelectItem key={module.id} value={module.id}>
+                                        {module.shortLabel}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
                         <Select value={eventFilter} onValueChange={setEventFilter}>
                             <SelectTrigger className="w-[140px] h-9 text-xs border-zinc-200 bg-white dark:bg-zinc-800">
                                 <SelectValue placeholder="All Events" />
@@ -355,7 +379,28 @@ export default function TasksPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody className="bg-white dark:bg-zinc-900">
-                                    {filteredTasks.map((task) => (
+                                    {groupedTasks.map(({ module, tasks: moduleTasks }) => (
+                                        <Fragment key={module.id}>
+                                            <TableRow className="bg-zinc-50/80 hover:bg-zinc-50/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-800/60">
+                                                <TableCell colSpan={7} className="px-6 py-2.5">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
+                                                                {module.label}
+                                                            </span>
+                                                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700">
+                                                                {moduleTasks.length}
+                                                            </span>
+                                                        </div>
+                                                        {module.roiWeight !== null && (
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                                                                ROI emphasis {module.roiWeight}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                            {moduleTasks.map((task) => (
                                         <TableRow key={task.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-b border-zinc-50 dark:border-zinc-800/50">
                                             <TableCell className="pl-6 py-4">
                                                 <Checkbox
@@ -436,6 +481,8 @@ export default function TasksPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
+                                            ))}
+                                        </Fragment>
                                     ))}
                                 </TableBody>
                             </Table>

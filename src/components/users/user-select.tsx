@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
     Select,
@@ -33,7 +33,7 @@ export function UserSelect({
 }: UserSelectProps) {
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
         async function fetchUsers() {

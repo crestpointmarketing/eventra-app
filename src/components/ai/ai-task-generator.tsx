@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { addDays } from 'date-fns'
 import { dateOnlyToLocalDate, formatDateOnly } from '@/lib/date-only'
+import { getTaskModule } from '@/lib/tasks/modules'
 
 interface AITaskGeneratorProps {
     eventId: string
@@ -98,6 +99,7 @@ export function AITaskGenerator({ eventId, eventDate, onTasksCreated }: AITaskGe
                     priority: task.priority,
                     due_date: calculateDueDate(task.estimated_days_before_event),
                     estimated_cost: task.estimated_cost,
+                    module: task.category,
                     status: 'pending',
                 })
                 successCount++
@@ -241,7 +243,7 @@ export function AITaskGenerator({ eventId, eventDate, onTasksCreated }: AITaskGe
                                             <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 flex-wrap">
                                                 {task.category && (
                                                     <span className="flex items-center gap-1">
-                                                        📁 {task.category}
+                                                        {getTaskModule(task.category).label}
                                                     </span>
                                                 )}
                                                 <span>

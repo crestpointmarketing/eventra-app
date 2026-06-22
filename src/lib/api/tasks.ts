@@ -1,4 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
+import {
+    decodeTaskModule,
+    decodeTaskReminder,
+    encodeTaskModule,
+    encodeTaskReminder,
+    inferTaskModule,
+    type TaskModuleId,
+} from '@/lib/tasks/modules'
 
 let _supabase: ReturnType<typeof createClient> | null = null
 function getSupabase(): ReturnType<typeof createClient> {
@@ -27,6 +35,8 @@ export interface Task {
     updated_at: string
     completed_at: string | null
     archived_at: string | null
+    module: TaskModuleId
+    reminder_at: string | null
     // Joined data
     events?: { id: string; name: string }
     assigned_user?: { id: string; email: string; name?: string }
@@ -55,11 +65,36 @@ export interface CreateTaskData {
     payment_status?: Task['payment_status']
     vendor_company?: string
     contact_person?: string
+    module?: TaskModuleId
+    reminder_at?: string | null
 }
 
 export interface UpdateTaskData extends Partial<CreateTaskData> {
     completed_at?: string | null
     archived_at?: string | null
+}
+
+function normalizeTask<T extends { title: string; description?: string | null }>(task: T) {
+    const decodedModule = decodeTaskModule(task.description)
+    const decodedReminder = decodeTaskReminder(decodedModule.description)
+    return {
+        ...task,
+        description: decodedReminder.description,
+        module: decodedModule.module ?? inferTaskModule(task.title, decodedReminder.description),
+        reminder_at: decodedReminder.reminderAt,
+    }
+}
+
+function prepareTaskWrite<T extends { description?: string; module?: TaskModuleId; reminder_at?: string | null }>(task: T) {
+    const { module, reminder_at: reminderAt, ...data } = task
+    let description: string | null | undefined = task.description
+    if (module) description = encodeTaskModule(description, module)
+    if (reminderAt !== undefined) description = encodeTaskReminder(description, reminderAt)
+
+    return {
+        ...data,
+        ...(description !== undefined ? { description } : {}),
+    }
 }
 
 // ============================================
@@ -123,7 +158,7 @@ export async function fetchTasks(filters?: TaskFilters) {
     }
 
     console.log('🟢 fetchTasks success:', { count: data?.length, data })
-    return data as Task[]
+    return (data ?? []).map(normalizeTask) as Task[]
 }
 
 // ============================================
@@ -141,7 +176,7 @@ export async function fetchEventTasks(eventId: string) {
         .order('due_date', { ascending: true })
 
     if (error) throw error
-    return data as Task[]
+    return (data ?? []).map(normalizeTask) as Task[]
 }
 
 // ============================================
@@ -159,7 +194,7 @@ export async function fetchTask(taskId: string) {
         .single()
 
     if (error) throw error
-    return data as Task
+    return normalizeTask(data) as Task
 }
 
 // ============================================
@@ -168,23 +203,41 @@ export async function fetchTask(taskId: string) {
 export async function createTask(taskData: CreateTaskData) {
     const { data, error } = await getSupabase()
         .from('tasks')
-        .insert(taskData)
+        .insert(prepareTaskWrite(taskData))
         .select()
         .single()
 
     if (error) throw error
-    return data as Task
+    return normalizeTask(data) as Task
 }
 
 // ============================================
 // Update Task
 // ============================================
 export async function updateTask(taskId: string, updates: UpdateTaskData) {
+    let effectiveUpdates = updates
+    if (updates.description !== undefined || updates.module !== undefined || updates.reminder_at !== undefined) {
+        const { data: currentTask, error: currentTaskError } = await getSupabase()
+            .from('tasks')
+            .select('description')
+            .eq('id', taskId)
+            .single()
+        if (currentTaskError) throw currentTaskError
+        const decodedModule = decodeTaskModule(currentTask?.description)
+        const decodedReminder = decodeTaskReminder(decodedModule.description)
+        effectiveUpdates = {
+            ...updates,
+            description: updates.description ?? decodedReminder.description ?? '',
+            module: updates.module ?? decodedModule.module,
+            reminder_at: updates.reminder_at !== undefined ? updates.reminder_at : decodedReminder.reminderAt,
+        }
+    }
+
     console.log('🔵 API: Updating task in database:', { taskId, updates })
 
     const { data, error } = await getSupabase()
         .from('tasks')
-        .update(updates)
+        .update(prepareTaskWrite(effectiveUpdates))
         .eq('id', taskId)
         .select()
         .single()
@@ -200,7 +253,7 @@ export async function updateTask(taskId: string, updates: UpdateTaskData) {
     }
 
     console.log('🟢 API: Task updated successfully:', data)
-    return data as Task
+    return normalizeTask(data) as Task
 }
 
 // ============================================
@@ -230,7 +283,7 @@ export async function archiveTask(taskId: string) {
         .single()
 
     if (error) throw error
-    return data as Task
+    return normalizeTask(data) as Task
 }
 
 // ============================================
@@ -248,5 +301,5 @@ export async function markTaskAsDone(taskId: string) {
         .single()
 
     if (error) throw error
-    return data as Task
+    return normalizeTask(data) as Task
 }

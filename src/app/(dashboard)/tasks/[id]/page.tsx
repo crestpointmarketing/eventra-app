@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTask, useUpdateTask, useMarkTaskAsDone } from '@/hooks/useTasks'
 import { useTaskChecklist, useCreateChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useTaskChecklist'
@@ -25,12 +25,13 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TableLoadingSkeleton } from '@/components/ui/loading-skeletons'
-import { ArrowLeft, Calendar, Check, Plus, Trash2, Users, FileText, DollarSign, Paperclip, Upload, File, Image as ImageIcon, Video } from 'lucide-react'
+import { ArrowLeft, Bell, Calendar, Check, Plus, Trash2, Users, FileText, DollarSign, Paperclip, Upload, File, Image as ImageIcon, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { PageTransition } from '@/components/animations/page-transition'
 import type { Task } from '@/lib/api/tasks'
+import { TASK_MODULES, type TaskModuleId } from '@/lib/tasks/modules'
 
 export default function TaskDetailPage() {
     const params = useParams()
@@ -61,6 +62,7 @@ export default function TaskDetailPage() {
     const [editedTitle, setEditedTitle] = useState('')
     const [editedDescription, setEditedDescription] = useState('')
     const [editedDueDate, setEditedDueDate] = useState('')
+    const [editedReminderAt, setEditedReminderAt] = useState('')
     const [editedPriority, setEditedPriority] = useState<Task['priority']>('medium')
     const [editedEventId, setEditedEventId] = useState('')
     const [editedVendor, setEditedVendor] = useState('')
@@ -74,7 +76,7 @@ export default function TaskDetailPage() {
     const [isDragging, setIsDragging] = useState(false)
 
     // Initialize local state when task loads
-    useState(() => {
+    useEffect(() => {
         if (task) {
             setEditedTitle(task.title)
             setEditedDescription(task.description || '')
@@ -86,8 +88,9 @@ export default function TaskDetailPage() {
             setEditedEstimatedCost(task.estimated_cost?.toString() || '')
             setEditedActualCost(task.actual_cost?.toString() || '')
             setEditedPaymentStatus(task.payment_status)
+            setEditedReminderAt(task.reminder_at?.slice(0, 16) || '')
         }
-    })
+    }, [task])
 
     // Auto-save when fields change
     const handleFieldUpdate = (field: keyof Task, value: any) => {
@@ -269,7 +272,7 @@ export default function TaskDetailPage() {
                             <TabsContent value="overview" className="space-y-6">
                                 {/* Basic Info Card */}
                                 <Card className="p-6 space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {/* Event Selection */}
                                         <div>
                                             <Label>Related Event</Label>
@@ -304,12 +307,27 @@ export default function TaskDetailPage() {
                                                 className="mt-1"
                                             />
                                         </div>
+
+                                        <div>
+                                            <Label className="flex items-center gap-1.5">
+                                                <Bell className="h-3.5 w-3.5" />
+                                                Reminder
+                                            </Label>
+                                            <Input
+                                                type="datetime-local"
+                                                value={editedReminderAt}
+                                                onChange={(e) => setEditedReminderAt(e.target.value)}
+                                                onBlur={() => handleFieldUpdate('reminder_at', editedReminderAt || null)}
+                                                className="mt-1"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Priority Selection */}
-                                    <div>
-                                        <Label>Priority</Label>
-                                        <div className="flex gap-2 mt-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label>Priority</Label>
+                                            <div className="flex flex-wrap gap-2 mt-2">
                                             {(['low', 'medium', 'high', 'urgent'] as const).map(priority => (
                                                 <Button
                                                     key={priority}
@@ -323,6 +341,25 @@ export default function TaskDetailPage() {
                                                     {priority.charAt(0).toUpperCase() + priority.slice(1)}
                                                 </Button>
                                             ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label>Module</Label>
+                                            <Select
+                                                value={task.module}
+                                                onValueChange={(value) => handleFieldUpdate('module', value as TaskModuleId)}
+                                            >
+                                                <SelectTrigger className="mt-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {TASK_MODULES.map(taskModule => (
+                                                        <SelectItem key={taskModule.id} value={taskModule.id}>
+                                                            {taskModule.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
 

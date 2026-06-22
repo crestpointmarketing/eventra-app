@@ -1,6 +1,7 @@
 // React Hooks for AI Features
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { TaskModuleId } from '@/lib/tasks/modules'
 
 // ============================================
 // Types
@@ -34,7 +35,7 @@ export interface SuggestedTask {
     description: string
     priority: 'low' | 'medium' | 'high' | 'urgent'
     estimated_days_before_event: number
-    category?: string
+    category: TaskModuleId
     estimated_cost?: number
 }
 
