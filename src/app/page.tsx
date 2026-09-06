@@ -28,7 +28,7 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="mx-auto max-w-5xl px-6 pt-2 pb-16 text-center">
-        <h1 className="text-5xl font-bold text-zinc-900 dark:text-white mb-6 leading-tight">
+        <h1 className="text-5xl font-semibold text-zinc-900 dark:text-white mb-6 leading-tight">
           Turn Events Into Revenue
         </h1>
         <p className="text-xl text-zinc-600 dark:text-zinc-400 mb-10 max-w-2xl mx-auto">
@@ -66,19 +66,19 @@ export default function LandingPage() {
       <section className="mx-auto max-w-5xl px-6 py-16">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
           <div>
-            <p className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">100+</p>
+            <p className="text-4xl font-semibold text-zinc-900 dark:text-white mb-2">100+</p>
             <p className="text-sm text-zinc-600 dark:text-white">Events Managed</p>
           </div>
           <div>
-            <p className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">10,000+</p>
+            <p className="text-4xl font-semibold text-zinc-900 dark:text-white mb-2">10,000+</p>
             <p className="text-sm text-zinc-600 dark:text-white">Leads Captured</p>
           </div>
           <div>
-            <p className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">1,500+</p>
+            <p className="text-4xl font-semibold text-zinc-900 dark:text-white mb-2">1,500+</p>
             <p className="text-sm text-zinc-600 dark:text-white">Hours Saved</p>
           </div>
           <div>
-            <p className="text-4xl font-bold text-zinc-900 dark:text-white mb-2">50+</p>
+            <p className="text-4xl font-semibold text-zinc-900 dark:text-white mb-2">50+</p>
             <p className="text-sm text-zinc-600 dark:text-white">Teams Using Eventra</p>
           </div>
         </div>

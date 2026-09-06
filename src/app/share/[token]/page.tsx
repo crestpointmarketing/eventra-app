@@ -27,7 +27,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
             {/* Header bar */}
             <div className="bg-white border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-zinc-900">Eventra</span>
+                    <span className="text-lg font-semibold text-zinc-900">Eventra</span>
                     <span className="text-zinc-300">·</span>
                     <span className="text-sm text-zinc-500">Shared Event View</span>
                 </div>
@@ -42,7 +42,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
                             {event.status}
                         </span>
                     )}
-                    <h1 className="text-4xl font-bold text-zinc-900 mb-4">{event.name}</h1>
+                    <h1 className="text-4xl font-semibold text-zinc-900 mb-4">{event.name}</h1>
 
                     <div className="flex flex-wrap gap-4 text-sm text-zinc-600">
                         <span className="flex items-center gap-1.5">

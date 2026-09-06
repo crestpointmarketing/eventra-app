@@ -107,7 +107,7 @@ export function RiskAnalysisDashboard({ eventId }: RiskAnalysisDashboardProps) {
                                             style={{ width: `${analysis.overallRiskScore}%` }}
                                         />
                                     </div>
-                                    <span className={`text-2xl font-bold ${getRiskScoreColor(analysis.overallRiskScore)}`}>
+                                    <span className={`text-2xl font-semibold ${getRiskScoreColor(analysis.overallRiskScore)}`}>
                                         {analysis.overallRiskScore}
                                     </span>
                                 </div>

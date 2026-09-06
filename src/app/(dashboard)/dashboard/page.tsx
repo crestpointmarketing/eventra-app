@@ -45,7 +45,7 @@ function StatCard({ icon: Icon, label, value, sub }: {
                 <Icon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                 <span className="text-xs uppercase text-zinc-500 dark:text-zinc-400 tracking-wide">{label}</span>
             </div>
-            <div className="text-3xl font-bold text-zinc-900 dark:text-white">{value}</div>
+            <div className="text-3xl font-semibold text-zinc-900 dark:text-white">{value}</div>
             {sub && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{sub}</div>}
         </div>
     )
@@ -140,7 +140,7 @@ export default function DashboardPage() {
 
                 {/* Page Header */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Dashboard</h1>
+                    <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-2">Dashboard</h1>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         Overview of active events and follow-up progress.
                     </p>

@@ -501,13 +501,13 @@ export function ReviewQueueView() {
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3">
-                                    <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-1.5">Queue Item</p>
+                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1.5">Queue Item</p>
                                     <p className="font-semibold text-zinc-900 dark:text-white leading-snug">{duplicateApproval.item.event_data?.name ?? 'Untitled Event'}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{duplicateApproval.item.event_data?.start_date ? formatDateOnly(duplicateApproval.item.event_data.start_date) : 'No date'}</p>
                                     <p className="text-xs text-zinc-500">{duplicateApproval.item.event_data?.location ?? 'No location'}</p>
                                 </div>
                                 <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
-                                    <p className="text-[10px] uppercase font-bold text-amber-500 tracking-widest mb-1.5">Existing</p>
+                                    <p className="text-[10px] uppercase font-semibold text-amber-500 tracking-widest mb-1.5">Existing</p>
                                     <p className="font-semibold text-zinc-900 dark:text-white leading-snug">{duplicateApproval.match.name}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{duplicateApproval.match.start_date ? formatDateOnly(duplicateApproval.match.start_date) : 'No date'}</p>
                                     <p className="text-xs text-zinc-500">{duplicateApproval.match.location ?? 'No location'}</p>

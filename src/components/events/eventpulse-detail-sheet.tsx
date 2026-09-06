@@ -101,7 +101,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
             <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto p-0 bg-[#f8f7ff] border-l border-violet-100" side="right">
                 {/* Header */}
                 <SheetHeader className="px-6 py-5 border-b border-violet-100 sticky top-0 bg-[#f8f7ff] z-10">
-                    <SheetTitle className="text-lg font-bold text-zinc-900 pr-6">
+                    <SheetTitle className="text-lg font-semibold text-zinc-900 pr-6">
                         {form.name}
                     </SheetTitle>
                     {dirty && (
@@ -119,7 +119,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
                 <div className="px-6 py-6 space-y-8">
                     {/* Intel Foundation */}
                     <section>
-                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-4">Intel Foundation</p>
+                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-4">Intel Foundation</p>
                         <div className="space-y-4">
                             <Field label="Official URL">
                                 <div className="flex gap-2 items-center">
@@ -140,7 +140,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
 
                     {/* Taxonomy */}
                     <section>
-                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-4">Taxonomy</p>
+                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-4">Taxonomy</p>
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Sector Category">
                                 <select
@@ -189,7 +189,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
 
                     {/* Demographics */}
                     <section>
-                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-4">Demographics & Scope</p>
+                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-4">Demographics & Scope</p>
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Audience Size">
                                 <TextInput value={form.expected_attendees ?? ''} onChange={v => set('expected_attendees', v)} placeholder="e.g. 5000" />
@@ -203,7 +203,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
                     {/* Chronology */}
                     <section>
                         <div className="flex items-center gap-3 mb-4">
-                            <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Chronology & Logistics</p>
+                            <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest">Chronology & Logistics</p>
                             {form.source === 'ai_discovered' && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-600">
                                     Dates may be estimated — verify before use
@@ -227,7 +227,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
 
                     {/* Technical Intel Brief */}
                     <section>
-                        <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-4">Technical Intel Brief</p>
+                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-4">Technical Intel Brief</p>
                         <textarea
                             value={form.description ?? ''}
                             onChange={e => set('description', e.target.value)}
@@ -239,7 +239,7 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
                     {/* Team Internal Notes */}
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <p className="text-[10px] uppercase font-bold text-[#6366f1] tracking-widest">Team Internal Notes</p>
+                            <p className="text-[10px] uppercase font-semibold text-[#6366f1] tracking-widest">Team Internal Notes</p>
                         </div>
                         <EventComments eventId={form.id} />
                     </section>

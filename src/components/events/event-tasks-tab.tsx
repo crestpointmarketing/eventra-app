@@ -213,7 +213,7 @@ export function EventTasksTab({ eventId }: EventTasksTabProps) {
 
                                     {task.assigned_user ? (
                                         <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400" title={task.assigned_user.email}>
-                                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] font-bold">
+                                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] font-semibold">
                                                 {(task.assigned_user.email[0] || '?').toUpperCase()}
                                             </div>
                                             <span className="max-w-[100px] truncate">{task.assigned_user.email}</span>

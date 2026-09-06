@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
@@ -381,7 +381,7 @@ export default function EventPulsePage() {
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-1">EventPulse</h1>
+                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-1">EventPulse</h1>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                             Discover, review, and manage your event portfolio from one workspace.
                         </p>
@@ -783,14 +783,14 @@ export default function EventPulsePage() {
                                                 onValueChange={(priority) => updatePriority({ id: event.id, priority })}
                                             >
                                                 <SelectTrigger
-                                                    className={`h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-bold uppercase tracking-wide shadow-none focus:ring-0 ${EVENT_PRIORITY_BADGE[normalizeEventPriority(event.discovery_priority)]}`}
+                                                    className={`h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 ${EVENT_PRIORITY_BADGE[normalizeEventPriority(event.discovery_priority)]}`}
                                                 >
                                                     <span>{normalizeEventPriority(event.discovery_priority)}</span>
                                                 </SelectTrigger>
                                                 <SelectContent className="min-w-32">
                                                     {EVENT_PRIORITIES.map((priority) => (
                                                         <SelectItem key={priority} value={priority}>
-                                                            <span className={`text-xs font-bold uppercase tracking-wide ${EVENT_PRIORITY_BADGE[priority]}`}>
+                                                            <span className={`text-xs font-semibold uppercase tracking-wide ${EVENT_PRIORITY_BADGE[priority]}`}>
                                                                 {priority}
                                                             </span>
                                                         </SelectItem>
