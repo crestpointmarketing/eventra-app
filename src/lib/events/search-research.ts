@@ -165,6 +165,14 @@ const extractionSchema = z.object({
         .max(12),
 })
 function valueSupported(field: SearchField, value: string, quote: string) {
+    if (field === 'organizer') {
+        return (
+            hasPhrase(quote, value) &&
+            /organizer|organiser|organi[sz]ed by|produced by|presented by|hosted by|主办|承办/i.test(
+                quote,
+            )
+        )
+    }
     if (field === 'start_date' || field === 'end_date') {
         if (!isDate(value)) return false
         if (quote.includes(value)) return true
