@@ -76,7 +76,7 @@ export function FieldEvidenceSheet({
         (field) =>
             group === 'all' ||
             (group === 'dates'
-                ? field.includes('date')
+                ? field.includes('date') || field.endsWith('_deadline')
                 : group === 'budget'
                   ? /price|currency/.test(field)
                   : group === 'identity'
