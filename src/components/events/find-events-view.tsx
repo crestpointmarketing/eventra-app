@@ -18,10 +18,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { buildDefaultEventTasks } from '@/lib/events/default-tasks'
+import { FieldEvidenceSheet } from '@/components/events/field-evidence-sheet'
 import { SearchFilters } from '@/components/events/search-filters'
 import {
-    SEARCH_FIELDS,
     searchCriteriaSchema,
     type SearchCriteria,
     type SearchJob,
@@ -29,20 +28,13 @@ import {
 } from '@/lib/events/search-contract'
 import { compareSearchPreferences } from '@/lib/events/search-advanced'
 import { normalized } from '@/lib/events/search-evaluation'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { SearchImportDialog } from '@/components/events/search-import-dialog'
 
 const control =
     'w-full min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm'
 const button =
     'rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50'
 const initial = () => searchCriteriaSchema.parse({ mode: 'discover' })
-const taskCount = buildDefaultEventTasks('').length
 interface PortfolioItem {
     id: string
     name: string
@@ -1162,195 +1154,22 @@ export function FindEventsView() {
                     )}
                 </main>
             </div>
-            <Dialog
-                open={!!details}
-                onOpenChange={(open) => !open && setDetails(null)}
-            >
-                <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{details?.name}</DialogTitle>
-                        <DialogDescription>
-                            Field values, exact supporting excerpts and
-                            unresolved conflicts.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {details && (
-                        <>
-                            {details.warnings.map((warning) => (
-                                <p
-                                    key={warning}
-                                    className="text-sm text-amber-700"
-                                >
-                                    {warning}
-                                </p>
-                            ))}
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
-                                    <thead>
-                                        <tr>
-                                            <th className="p-2">Field</th>
-                                            <th className="p-2">
-                                                Current value
-                                            </th>
-                                            <th className="p-2">Evidence</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {SEARCH_FIELDS.map((field) => (
-                                            <tr
-                                                key={field}
-                                                className="border-t align-top"
-                                            >
-                                                <th className="p-2 font-medium">
-                                                    {field.replaceAll('_', ' ')}
-                                                </th>
-                                                <td className="p-2">
-                                                    {details.resolved[field]
-                                                        .value ?? 'Unknown'}
-                                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                        {
-                                                            details.resolved[
-                                                                field
-                                                            ].status
-                                                        }
-                                                    </div>
-                                                </td>
-                                                <td className="p-2 space-y-2">
-                                                    {details.resolved[
-                                                        field
-                                                    ].evidence.map(
-                                                        (e, index) => (
-                                                            <div key={index}>
-                                                                <p>
-                                                                    {e.value} ·{' '}
-                                                                    {e.status}
-                                                                </p>
-                                                                <blockquote className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                                    {e.quote}
-                                                                </blockquote>
-                                                                {/^https?:\/\//i.test(
-                                                                    e.sourceUrl,
-                                                                ) && (
-                                                                    <a
-                                                                        className="underline text-xs"
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        href={
-                                                                            e.sourceUrl
-                                                                        }
-                                                                    >
-                                                                        Source ·{' '}
-                                                                        {new Date(
-                                                                            e.checkedAt,
-                                                                        ).toLocaleString()}
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <h3 className="font-medium">Required conditions</h3>
-                            {details.criteria.map((c) => (
-                                <p key={c.key} className="text-sm">
-                                    {c.status} — {c.label}
-                                </p>
-                            ))}
-                            <h3 className="font-medium">Source ownership</h3>
-                            {details.sources.map((s, i) => (
-                                <p key={i} className="text-sm break-words">
-                                    {s.kind} ·{' '}
-                                    {s.accessible
-                                        ? 'Page accessible'
-                                        : 'Page unavailable'}{' '}
-                                    · {s.identityReason}
-                                </p>
-                            ))}
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
-            <Dialog
-                open={confirmImport}
-                onOpenChange={(open) => !importing && setConfirmImport(open)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Review Portfolio import</DialogTitle>
-                        <DialogDescription>
-                            Adding {chosen.length} event(s) with starter tasks
-                            will create up to {chosen.length * taskCount} tasks
-                            ({taskCount} per new event), based on confirmed
-                            event dates. Search alone creates no events or
-                            tasks.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="max-h-56 overflow-y-auto space-y-2">
-                        {chosen.map((r) => (
-                            <p key={r.id} className="text-sm">
-                                {r.name} —{' '}
-                                {portfolio.some((p) => sameEdition(r, p))
-                                    ? 'Possible duplicate — review existing event'
-                                    : 'New candidate'}{' '}
-                                · {r.evidenceStatus}
-                            </p>
-                        ))}
-                    </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Exact known duplicates are skipped. Unconfirmed names or
-                        types must go through Review Queue. Unknown fields stay
-                        unknown. Batch selections go to Review Queue first.
-                    </p>
-                    <button
-                        className={button}
-                        disabled={importing}
-                        onClick={() => importResults('queue', false)}
-                    >
-                        Add to Review Queue — no tasks
-                    </button>
-                    {chosen.length === 1 && (
-                        <>
-                            <button
-                                className={button}
-                                disabled={
-                                    importing ||
-                                    chosen[0]?.resolved.name.status !==
-                                        'verified' ||
-                                    !chosen[0]?.resolved.event_type.value
-                                }
-                                onClick={() =>
-                                    importResults('portfolio', false)
-                                }
-                            >
-                                Add event without tasks
-                            </button>
-                            <button
-                                className={button}
-                                disabled={
-                                    importing ||
-                                    chosen[0]?.resolved.name.status !==
-                                        'verified' ||
-                                    !chosen[0]?.resolved.event_type.value
-                                }
-                                onClick={() => importResults('portfolio', true)}
-                            >
-                                Add event and create {taskCount} tasks
-                            </button>
-                        </>
-                    )}
-                    <button
-                        className={button}
-                        disabled={importing}
-                        onClick={() => setConfirmImport(false)}
-                    >
-                        Cancel
-                    </button>
-                </DialogContent>
-            </Dialog>
+            <FieldEvidenceSheet
+                key={details?.id || 'closed'}
+                result={details}
+                onClose={() => setDetails(null)}
+            />
+            {confirmImport && (
+                <SearchImportDialog
+                    open={confirmImport}
+                    onClose={() => setConfirmImport(false)}
+                    results={chosen}
+                    portfolio={portfolio}
+                    importing={importing}
+                    onImport={importResults}
+                    sameEdition={sameEdition}
+                />
+            )}
         </div>
     )
 }
