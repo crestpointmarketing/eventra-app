@@ -85,7 +85,12 @@ async function request(path, body, status = 200, auth = true) {
         for (const [k, v] of Object.entries(headers))
             args.push('-H', `${k}: ${v}`)
         if (body) args.push('-X', 'POST', '--data', JSON.stringify(body))
-        const out = run(args)
+        let out
+        try {
+            out = run(args)
+        } catch {
+            throw new Error('Deployment request failed')
+        }
         const marker = out.lastIndexOf('__STATUS__')
         code = Number(out.slice(marker + 10).trim())
         text = out.slice(0, marker).replace(/\\n$/, '').trim()
