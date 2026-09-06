@@ -750,7 +750,7 @@ export function FindEventsView() {
                             )}
                             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                                 <span>{visibleResults.length} events</span>
-                                <label className="flex items-center gap-2 text-zinc-500">
+                                <label className="flex shrink-0 items-center gap-2 whitespace-nowrap text-zinc-500">
                                     Sort by{' '}
                                     <select
                                         className={`${control} w-auto`}
