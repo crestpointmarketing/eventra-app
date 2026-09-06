@@ -32,4 +32,15 @@ Node tests exercise cross-year intervals, impossible/past dates, location/attend
 
 ## Deferred
 
-Personalized recommendations, vector search, business-goal scoring, subscriptions, automatic event updates, price/budget/scale filters, deadline monitoring and ROI forecasts remain later phases. No automatic Portfolio synchronization or inferred opportunity availability is introduced.
+Personalized recommendations, vector search, subscriptions, automatic event updates, deadline monitoring and ROI forecasts remain later phases. No automatic Portfolio synchronization or inferred opportunity availability is introduced.
+
+
+## Advanced filters (September 6 follow-up)
+
+The right drawer edits a draft. Closing or pressing Escape discards unapplied edits; Apply validates ranges and updates the search criteria without starting an API job. Footer controls remain visible on small screens. Organizer/audience, size/language, budget and deadline checks independently support prefer or require; bulk buttons set those strengths. Business objectives remain preferences only.
+
+Required verified mismatches exclude an event; required unknown, conflicting or different-currency budget evidence needs verification. Preferred mismatches and unknowns do not exclude or prevent strict matching. Preference sorting uses counts of supported matches, with required matches as a tie-breaker; both counts are displayed separately. Inferred audience can contribute only to a preference when explicitly allowed, never to a required match or Verified status.
+
+Price filters use the lowest published standard general-admission ticket and the published starting sponsorship package for the requested edition, in an explicit selected ISO currency. No FX conversion, dollar-sign currency guessing, price estimation or opportunity availability inference occurs. Counts must be published for the edition. Language is explicitly stated, not inferred from the website's language. CFP, speaker, exhibitor, sponsor and registration deadlines are independently evidenced and compared inclusively against the chosen date (today when blank). Each selected type is checked; event dates cannot substitute for deadlines.
+
+These fields persist in existing job criteria/results JSON and imported evidence metadata; no schema migration or business-data rewrite is needed. Old search jobs are hydrated with default advanced settings and unknown new evidence fields on read. Verification follows at most two relevant linked pages on the verified event domain, retaining source attempts and provenance checks; inaccessible, unsupported or ambiguous pages remain unverified. This expands coverage but does not guarantee that an organizer publishes all requested data.

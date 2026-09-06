@@ -13,8 +13,24 @@ import {
     X,
     Plus,
 } from 'lucide-react'
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetTrigger,
+} from '@/components/ui/sheet'
 import { EVENT_TYPES } from '@/lib/events/taxonomy'
-import type { SearchCriteria } from '@/lib/events/search-contract'
+import {
+    advancedSearchSchema,
+    searchCriteriaSchema,
+    type SearchCriteria,
+} from '@/lib/events/search-contract'
+import {
+    AdvancedSearchControls,
+    countAdvancedValues,
+} from './advanced-search-controls'
 
 const input =
     'w-full min-w-0 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-lime-500 dark:border-zinc-700 dark:bg-zinc-900'
@@ -202,6 +218,34 @@ export function SearchFilters({
     onSearch: () => void
     disabled: boolean
 }) {
+    const [advancedError, setAdvancedError] = useState('')
+    const [advancedOpen, setAdvancedOpen] = useState(false)
+    const [draft, setDraft] = useState(criteria)
+    const advancedKeys = [
+        'organizer',
+        'audience',
+        'topicOperator',
+        'includeAny',
+        'includeAll',
+        'exclude',
+        'pageUrl',
+        'includePast',
+        'advanced',
+    ] as const
+    const advancedCount = (value: SearchCriteria) =>
+        advancedKeys.filter((key) =>
+            key === 'advanced'
+                ? false
+                : Array.isArray(value[key])
+                  ? value[key].length > 0
+                  : key === 'topicOperator'
+                    ? value[key] === 'AND'
+                    : Boolean(value[key]),
+        ).length + countAdvancedValues(value.advanced)
+    const updateDraft = <K extends keyof SearchCriteria>(
+        key: K,
+        value: SearchCriteria[K],
+    ) => setDraft((previous) => ({ ...previous, [key]: value }))
     const [expanded, setExpanded] = useState(false)
     const [customDates, setCustomDates] = useState(false)
     const set = <K extends keyof SearchCriteria>(
@@ -267,6 +311,7 @@ export function SearchFilters({
                             includePast: false,
                             topicOperator: 'OR',
                             pageUrl: '',
+                            advanced: advancedSearchSchema.parse({}),
                         })
                         setCustomDates(false)
                     }}
@@ -421,84 +466,226 @@ export function SearchFilters({
                         onChange={(e) => set('audience', e.target.value)}
                     />
                 </Section>
-                <Section
-                    title="Advanced filters"
-                    icon={<SlidersHorizontal size={17} />}
-                    open={false}
+                <Sheet
+                    open={advancedOpen}
+                    onOpenChange={(open) => {
+                        if (open) {
+                            setDraft({ ...criteria })
+                            setAdvancedError('')
+                        }
+                        setAdvancedOpen(open)
+                    }}
                 >
-                    {textField('organizer', 'Organizer', 'Any organizer')}
-                    <label className="block space-y-1 text-sm">
-                        <span>Topic matching</span>
-                        <select
-                            className={input}
-                            value={criteria.topicOperator}
-                            onChange={(e) =>
-                                set(
-                                    'topicOperator',
-                                    e.target.value as 'AND' | 'OR',
-                                )
-                            }
+                    <SheetTrigger asChild>
+                        <button
+                            type="button"
+                            className="flex w-full items-center gap-3 border-t border-zinc-200 py-4 text-sm font-semibold dark:border-zinc-700"
                         >
-                            <option value="OR">
-                                Match any industry or technology
-                            </option>
-                            <option value="AND">
-                                Match every industry and technology
-                            </option>
-                        </select>
-                    </label>
-                    {(['includeAny', 'includeAll', 'exclude'] as const).map(
-                        (key) => (
-                            <div key={key} className="space-y-1">
-                                <p className="text-sm">
-                                    {key === 'includeAny'
-                                        ? 'Include any keyword'
-                                        : key === 'includeAll'
-                                          ? 'Include all keywords'
-                                          : 'Exclude keywords'}
-                                </p>
-                                <TopicPicker
-                                    label={
-                                        key === 'includeAny'
-                                            ? 'Any keyword'
-                                            : key === 'includeAll'
-                                              ? 'Required keyword'
-                                              : 'Excluded keyword'
+                            <SlidersHorizontal size={17} />
+                            <span className="flex-1 text-left">
+                                Advanced filters
+                            </span>
+                            {advancedCount(criteria) > 0 && (
+                                <span className="rounded-full bg-lime-100 px-2 py-0.5 text-xs text-zinc-900">
+                                    {advancedCount(criteria)}
+                                </span>
+                            )}
+                            <ChevronDown size={14} className="-rotate-90" />
+                        </button>
+                    </SheetTrigger>
+                    <SheetContent className="flex h-dvh w-full flex-col gap-0 bg-white p-0 dark:bg-zinc-900 sm:max-w-lg">
+                        <SheetHeader className="shrink-0 border-b border-zinc-200 px-5 py-5 text-left dark:border-zinc-700">
+                            <SheetTitle>Advanced filters</SheetTitle>
+                            <SheetDescription className="text-zinc-500">
+                                Refine your search. Changes are applied only
+                                when you choose Apply filters.
+                            </SheetDescription>
+                        </SheetHeader>
+                        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+                            <AdvancedSearchControls
+                                criteria={draft}
+                                onChange={setDraft}
+                            />
+                            <section className="space-y-3 border-t border-zinc-200 pt-5 dark:border-zinc-700">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                                    <Cpu size={16} /> Topic matching
+                                </h3>
+                                <select
+                                    aria-label="Topic matching"
+                                    className={input}
+                                    value={draft.topicOperator}
+                                    onChange={(e) =>
+                                        updateDraft(
+                                            'topicOperator',
+                                            e.target.value as 'AND' | 'OR',
+                                        )
                                     }
-                                    values={criteria[key]}
-                                    onChange={(v) => set(key, v)}
-                                />
+                                >
+                                    <option value="OR">
+                                        Match any industry or technology
+                                    </option>
+                                    <option value="AND">
+                                        Match every industry and technology
+                                    </option>
+                                </select>
+                            </section>
+                            <section className="space-y-3 border-t border-zinc-200 pt-5 dark:border-zinc-700">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                                    <Tags size={16} /> Keywords & exclusions
+                                </h3>
+                                {(
+                                    [
+                                        'includeAny',
+                                        'includeAll',
+                                        'exclude',
+                                    ] as const
+                                ).map((key) => (
+                                    <div key={key} className="space-y-1">
+                                        <p className="text-sm">
+                                            {key === 'includeAny'
+                                                ? 'Include any keyword'
+                                                : key === 'includeAll'
+                                                  ? 'Include all keywords'
+                                                  : 'Exclude keywords'}
+                                        </p>
+                                        <TopicPicker
+                                            label={
+                                                key === 'includeAny'
+                                                    ? 'Any keyword'
+                                                    : key === 'includeAll'
+                                                      ? 'Required keyword'
+                                                      : 'Excluded keyword'
+                                            }
+                                            values={draft[key]}
+                                            onChange={(values) =>
+                                                updateDraft(key, values)
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                                <p className="text-xs text-zinc-500">
+                                    Keywords check the title, description and
+                                    organizer.
+                                </p>
+                            </section>
+                            <section className="space-y-3 border-t border-zinc-200 pt-5 dark:border-zinc-700">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                                    <Building2 size={16} /> Source verification
+                                </h3>
+                                <label className="block space-y-1 text-sm">
+                                    <span>Verify from this page</span>
+                                    <input
+                                        type="url"
+                                        className={input}
+                                        placeholder="https://…"
+                                        value={draft.pageUrl}
+                                        onChange={(e) =>
+                                            updateDraft(
+                                                'pageUrl',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <p className="text-xs text-zinc-500">
+                                    Official ownership is checked before
+                                    trusting a URL.
+                                </p>
+                            </section>
+                            <section className="space-y-3 border-t border-zinc-200 pt-5 dark:border-zinc-700">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                                    <CalendarDays size={16} /> Past editions
+                                </h3>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        className="size-4 accent-lime-600"
+                                        checked={draft.includePast}
+                                        onChange={(e) =>
+                                            updateDraft(
+                                                'includePast',
+                                                e.target.checked,
+                                            )
+                                        }
+                                    />{' '}
+                                    Include past editions
+                                </label>
+                            </section>
+                        </div>
+                        <footer className="shrink-0 border-t border-zinc-200 bg-white px-5 py-4 dark:border-zinc-700 dark:bg-zinc-900">
+                            {advancedError && (
+                                <p
+                                    role="alert"
+                                    className="mb-3 text-sm text-red-600"
+                                >
+                                    {advancedError}
+                                </p>
+                            )}
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                                    {advancedCount(draft)} advanced filters
+                                    active
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium dark:border-zinc-700"
+                                        onClick={() =>
+                                            setDraft({
+                                                ...draft,
+                                                advanced:
+                                                    advancedSearchSchema.parse(
+                                                        {},
+                                                    ),
+                                                organizer: '',
+                                                audience: '',
+                                                topicOperator: 'OR',
+                                                includeAny: [],
+                                                includeAll: [],
+                                                exclude: [],
+                                                pageUrl: '',
+                                                includePast: false,
+                                            })
+                                        }
+                                    >
+                                        Reset
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-zinc-900"
+                                        onClick={() => {
+                                            const next = { ...criteria }
+                                            for (const key of advancedKeys)
+                                                Object.assign(next, {
+                                                    [key]: draft[key],
+                                                })
+                                            const valid =
+                                                searchCriteriaSchema.safeParse(
+                                                    next,
+                                                )
+                                            if (!valid.success) {
+                                                setAdvancedError(
+                                                    valid.error.issues[0]
+                                                        ?.message ||
+                                                        'Review your filters',
+                                                )
+                                                return
+                                            }
+                                            onChange(valid.data)
+                                            setAdvancedOpen(false)
+                                        }}
+                                    >
+                                        Apply filters
+                                    </button>
+                                </div>
                             </div>
-                        ),
-                    )}
-                    <p className="text-xs text-zinc-500">
-                        Keywords check the title, description and organizer.
-                    </p>
-                    <label className="block space-y-1 text-sm">
-                        <span>Verify from this page</span>
-                        <input
-                            type="url"
-                            className={input}
-                            placeholder="https://…"
-                            value={criteria.pageUrl}
-                            onChange={(e) => set('pageUrl', e.target.value)}
-                        />
-                        <span className="block text-xs text-zinc-500">
-                            Official ownership is checked before trusting a URL.
-                        </span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            className="size-4 accent-lime-600"
-                            checked={criteria.includePast}
-                            onChange={(e) =>
-                                set('includePast', e.target.checked)
-                            }
-                        />{' '}
-                        Include past editions
-                    </label>
-                </Section>
+                            <p className="mt-2 text-xs text-zinc-500">
+                                Then choose Search events to run with these
+                                conditions.
+                            </p>
+                        </footer>
+                    </SheetContent>
+                </Sheet>
                 <div className="border-t border-zinc-200 py-4 dark:border-zinc-700">
                     <button
                         type="button"

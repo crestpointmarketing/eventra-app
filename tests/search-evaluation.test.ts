@@ -252,3 +252,254 @@ test('specific name plus edition year is evaluated independently of title word o
         'excluded',
     )
 })
+
+test('advanced ranges validate and old criteria get conservative defaults', () => {
+    assert.equal(criteria().advanced.budgetRule, 'prefer')
+    assert.equal(criteria().advanced.organizerRule, 'require')
+    for (const advanced of [
+        { attendeeMin: 20, attendeeMax: 10 },
+        { ticketMin: 20, ticketMax: 10 },
+        { sponsorshipMin: 20, sponsorshipMax: 10 },
+        { attendeeMin: 1.5 },
+        { ticketMin: -1 },
+        { currency: 'FAKE' },
+        { deadlineAfter: '2026-02-30', deadlineTypes: ['cfp'] },
+        { deadlineAfter: '2026-12-01' },
+    ])
+        assert.equal(
+            searchCriteriaSchema.safeParse({ mode: 'discover', advanced })
+                .success,
+            false,
+        )
+})
+test('budget requirements distinguish verified, missing, different currency and out-of-range prices', () => {
+    const required = criteria({
+        advanced: {
+            budgetRule: 'require',
+            ticketMin: 0,
+            ticketMax: 500,
+            currency: 'USD',
+        },
+    })
+    assert.equal(
+        evaluateCandidate(
+            candidate({ ticket_price: '500', ticket_currency: 'USD' }),
+            required,
+        ).category,
+        'strict',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate({ ticket_price: '0', ticket_currency: 'USD' }),
+            required,
+        ).category,
+        'strict',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate({ ticket_price: '501', ticket_currency: 'USD' }),
+            required,
+        ).category,
+        'excluded',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate({ ticket_price: '400', ticket_currency: 'CAD' }),
+            required,
+        ).category,
+        'verification',
+    )
+    assert.equal(
+        evaluateCandidate(candidate(), required).category,
+        'verification',
+    )
+    const preferred = criteria({ advanced: { ticketMax: 500 } })
+    assert.equal(evaluateCandidate(candidate(), preferred).category, 'strict')
+    assert.equal(
+        evaluateCandidate(
+            candidate({ ticket_price: '501', ticket_currency: 'USD' }),
+            preferred,
+        ).category,
+        'strict',
+    )
+})
+test('size, language and sponsorship retain independent evidence and inclusive bounds', () => {
+    const required = criteria({
+        advanced: {
+            sizeRule: 'require',
+            attendeeMin: 100,
+            attendeeMax: 1000,
+            language: 'English',
+            budgetRule: 'require',
+            sponsorshipMax: 10000,
+        },
+    })
+    const good = candidate({
+        attendee_count: '100',
+        language: 'English, French',
+        sponsorship_price: '10000',
+        sponsorship_currency: 'USD',
+    })
+    assert.equal(evaluateCandidate(good, required).category, 'strict')
+    assert.equal(
+        evaluateCandidate(candidate({ attendee_count: '99' }), required)
+            .category,
+        'excluded',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate({ attendee_count: '100.5' }),
+            required,
+        ).criteria.find((c) => c.key === 'attendee_count')?.status,
+        'unknown',
+    )
+})
+test('deadline types are independent and never inferred from event dates', () => {
+    const required = criteria({
+        advanced: {
+            deadlineTypes: ['speaker', 'exhibitor'],
+            deadlineAfter: '2026-10-01',
+            deadlineRule: 'require',
+        },
+    })
+    assert.equal(
+        evaluateCandidate(
+            candidate({
+                speaker_deadline: '2026-10-01',
+                exhibitor_deadline: '2026-10-02',
+            }),
+            required,
+        ).category,
+        'strict',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate({
+                speaker_deadline: '2026-09-30',
+                exhibitor_deadline: '2026-10-02',
+            }),
+            required,
+        ).category,
+        'excluded',
+    )
+    assert.equal(
+        evaluateCandidate(candidate({ cfp_deadline: '2026-10-02' }), required)
+            .category,
+        'verification',
+    )
+    const defaultToday = criteria({
+        advanced: { deadlineTypes: ['registration'], deadlineRule: 'require' },
+    })
+    assert.equal(
+        evaluateCandidate(
+            candidate({ registration_deadline: '2026-09-05' }),
+            defaultToday,
+            '2026-09-06',
+        ).category,
+        'excluded',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate(),
+            criteria({ advanced: { deadlineTypes: ['cfp'] } }),
+        ).category,
+        'strict',
+    )
+})
+test('organizer and audience preferences cannot exclude an otherwise matching edition', () => {
+    assert.equal(
+        evaluateCandidate(
+            candidate(),
+            criteria({
+                organizer: 'Different organizer',
+                advanced: { organizerRule: 'prefer' },
+            }),
+        ).category,
+        'strict',
+    )
+    assert.equal(
+        evaluateCandidate(
+            candidate(),
+            criteria({ organizer: 'Different organizer' }),
+        ).category,
+        'excluded',
+    )
+    const inferred = candidate({ audience: 'Hospital CIOs' })
+    inferred.fields.audience![0].status = 'inferred'
+    const preference = evaluateCandidate(
+        inferred,
+        criteria({
+            audience: 'Hospital CIOs',
+            advanced: {
+                audienceRule: 'prefer',
+                officiallyStatedAudience: false,
+            },
+        }),
+    )
+    assert.equal(
+        preference.criteria.find((c) => c.key === 'audience')?.status,
+        'matched',
+    )
+    assert.notEqual(preference.evidenceStatus, 'Verified')
+    assert.equal(
+        evaluateCandidate(inferred, criteria({ audience: 'Hospital CIOs' }))
+            .category,
+        'verification',
+    )
+})
+test('preferences rank by supported matches without inventing availability', async () => {
+    const { compareSearchPreferences } =
+        await import('../src/lib/events/search-advanced')
+    const prefs = criteria({
+        advanced: { objectives: ['sponsor'], ticketMax: 500 },
+    })
+    const unknown = evaluateCandidate(candidate(), prefs)
+    const supported = evaluateCandidate(
+        candidate({
+            participation_options: 'sponsor',
+            ticket_price: '100',
+            ticket_currency: 'USD',
+        }),
+        prefs,
+    )
+    assert.equal(unknown.category, 'strict')
+    assert.ok(compareSearchPreferences(supported, unknown) < 0)
+    assert.ok(
+        supported.criteria
+            .find((c) => c.key === 'objective:sponsor')
+            ?.label.includes('availability not inferred'),
+    )
+})
+test('advanced field extraction requires typed context and explicit evidence', async () => {
+    const { valueSupported } = await import('../src/lib/events/search-research')
+    assert.equal(valueSupported('ticket_price', '100', '100 attendees'), false)
+    assert.equal(
+        valueSupported('attendee_count', '1000', '1,000 attendees'),
+        true,
+    )
+    assert.equal(
+        valueSupported(
+            'speaker_deadline',
+            '2026-10-01',
+            'Conference starts October 1, 2026',
+        ),
+        false,
+    )
+    assert.equal(
+        valueSupported(
+            'speaker_deadline',
+            '2026-10-01',
+            'Speaker submission deadline October 1, 2026',
+        ),
+        true,
+    )
+    assert.equal(valueSupported('ticket_currency', 'USD', '$100 ticket'), false)
+    assert.equal(
+        valueSupported(
+            'participation_options',
+            'sponsor',
+            'Sponsorship packages',
+        ),
+        true,
+    )
+})

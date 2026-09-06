@@ -9,6 +9,84 @@ const date = z
             !Number.isNaN(Date.parse(v)) &&
             new Date(v).toISOString().slice(0, 10) === v,
     )
+const strength = z.enum(['prefer', 'require'])
+const amount = z.number().finite().min(0).max(1e12).nullable().default(null)
+export const advancedSearchSchema = z
+    .object({
+        objectives: z
+            .array(z.enum(['attend', 'exhibit', 'sponsor', 'speak']))
+            .max(4)
+            .default([]),
+        organizerRule: strength.default('require'),
+        audienceRule: strength.default('require'),
+        officiallyStatedAudience: z.boolean().default(true),
+        sizeRule: strength.default('prefer'),
+        attendeeMin: z.number().int().min(0).max(1e9).nullable().default(null),
+        attendeeMax: z.number().int().min(0).max(1e9).nullable().default(null),
+        language: z.string().trim().max(80).default(''),
+        budgetRule: strength.default('prefer'),
+        currency: z
+            .enum(['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'JPY', 'SGD', 'AED'])
+            .default('USD'),
+        ticketMin: amount,
+        ticketMax: amount,
+        sponsorshipMin: amount,
+        sponsorshipMax: amount,
+        deadlineRule: strength.default('prefer'),
+        deadlineTypes: z
+            .array(
+                z.enum([
+                    'cfp',
+                    'speaker',
+                    'exhibitor',
+                    'sponsor',
+                    'registration',
+                ]),
+            )
+            .max(5)
+            .default([]),
+        deadlineAfter: date.nullable().default(null),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+        for (const [min, max] of [
+            ['attendeeMin', 'attendeeMax'],
+            ['ticketMin', 'ticketMax'],
+            ['sponsorshipMin', 'sponsorshipMax'],
+        ] as const) {
+            if (
+                value[min] !== null &&
+                value[max] !== null &&
+                value[min]! > value[max]!
+            )
+                ctx.addIssue({
+                    code: 'custom',
+                    path: [max],
+                    message: 'Maximum must be greater than or equal to minimum',
+                })
+        }
+        if (value.deadlineAfter && !value.deadlineTypes.length)
+            ctx.addIssue({
+                code: 'custom',
+                path: ['deadlineTypes'],
+                message: 'Choose at least one deadline type',
+            })
+    })
+export type AdvancedSearch = z.infer<typeof advancedSearchSchema>
+export const ADVANCED_SEARCH_FIELDS = [
+    'attendee_count',
+    'language',
+    'ticket_price',
+    'ticket_currency',
+    'sponsorship_price',
+    'sponsorship_currency',
+    'cfp_deadline',
+    'speaker_deadline',
+    'exhibitor_deadline',
+    'sponsor_deadline',
+    'registration_deadline',
+    'participation_options',
+] as const
 export const searchCriteriaSchema = z
     .object({
         mode: z.enum(['discover', 'specific']),
@@ -40,6 +118,7 @@ export const searchCriteriaSchema = z
         organizer: z.string().trim().max(160).default(''),
         audience: z.string().trim().max(160).default(''),
         includePast: z.boolean().default(false),
+        advanced: advancedSearchSchema.default(advancedSearchSchema.parse({})),
     })
     .strict()
     .refine((v) => !v.startDate || !v.endDate || v.startDate <= v.endDate, {
@@ -61,6 +140,7 @@ export const SEARCH_FIELDS = [
     'audience',
     'series',
     'edition',
+    ...ADVANCED_SEARCH_FIELDS,
 ] as const
 export type SearchField = (typeof SEARCH_FIELDS)[number]
 export type SourceKind =
@@ -105,6 +185,7 @@ export interface SearchCandidate {
     warnings: string[]
 }
 export interface CriterionResult {
+    required?: boolean
     key: string
     label: string
     status: 'matched' | 'unknown' | 'failed'
@@ -149,4 +230,24 @@ export interface SearchJob {
     created_at: string
     updated_at: string
     error: string | null
+}
+
+export function hydrateSearchJob(job: SearchJob): SearchJob {
+    return {
+        ...job,
+        criteria: searchCriteriaSchema.parse(job.criteria),
+        results: job.results.map((result) => ({
+            ...result,
+            resolved: Object.fromEntries(
+                SEARCH_FIELDS.map((field) => [
+                    field,
+                    result.resolved[field] ?? {
+                        value: null,
+                        status: 'unknown',
+                        evidence: [],
+                    },
+                ]),
+            ) as Record<SearchField, ResolvedField>,
+        })),
+    }
 }

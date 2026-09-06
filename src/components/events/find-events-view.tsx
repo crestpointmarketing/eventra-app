@@ -27,6 +27,7 @@ import {
     type SearchJob,
     type SearchResult,
 } from '@/lib/events/search-contract'
+import { compareSearchPreferences } from '@/lib/events/search-advanced'
 import { normalized } from '@/lib/events/search-evaluation'
 import {
     Dialog,
@@ -299,6 +300,51 @@ export function FindEventsView() {
             label: 'Match all topics',
             remove: () => set('topicOperator', 'OR'),
         })
+    const advanced = criteria.advanced
+    const updateAdvanced = (patch: Partial<SearchCriteria['advanced']>) =>
+        setCriteria((c) => ({ ...c, advanced: { ...c.advanced, ...patch } }))
+    for (const [id, label, min, max, rule] of [
+        ['size', 'Attendees', 'attendeeMin', 'attendeeMax', 'sizeRule'],
+        ['ticket', 'Ticket', 'ticketMin', 'ticketMax', 'budgetRule'],
+        [
+            'sponsorBudget',
+            'Sponsorship',
+            'sponsorshipMin',
+            'sponsorshipMax',
+            'budgetRule',
+        ],
+    ] as const) {
+        if (advanced[min] !== null || advanced[max] !== null)
+            conditionChips.push({
+                id,
+                label: `${advanced[rule] === 'require' ? 'Required' : 'Prefer'} ${label}: ${advanced[min] ?? 'Any'}–${advanced[max] ?? 'Any'}${id === 'size' ? '' : ' ' + advanced.currency}`,
+                remove: () => updateAdvanced({ [min]: null, [max]: null }),
+            })
+    }
+    if (advanced.language)
+        conditionChips.push({
+            id: 'language',
+            label: `${advanced.sizeRule}: ${advanced.language}`,
+            remove: () => updateAdvanced({ language: '' }),
+        })
+    for (const objective of advanced.objectives)
+        conditionChips.push({
+            id: `goal:${objective}`,
+            label: `Prefer: ${objective}`,
+            remove: () =>
+                updateAdvanced({
+                    objectives: advanced.objectives.filter(
+                        (v) => v !== objective,
+                    ),
+                }),
+        })
+    if (advanced.deadlineTypes.length)
+        conditionChips.push({
+            id: 'deadlines',
+            label: `${advanced.deadlineRule}: ${advanced.deadlineTypes.join(', ')} deadlines ${advanced.deadlineAfter || 'from today'}`,
+            remove: () =>
+                updateAdvanced({ deadlineTypes: [], deadlineAfter: null }),
+        })
     const visibleResults = (
         job?.results.filter((r) => r.category === category) ?? []
     )
@@ -309,10 +355,7 @@ export function FindEventsView() {
                     b.resolved.start_date.value || '9999',
                 )
             if (sort === 'name') return a.name.localeCompare(b.name)
-            return (
-                b.criteria.filter((c) => c.status === 'matched').length -
-                a.criteria.filter((c) => c.status === 'matched').length
-            )
+            return compareSearchPreferences(a, b)
         })
     const stages = [
         'Building search queries',
@@ -717,7 +760,7 @@ export function FindEventsView() {
                                         }
                                     >
                                         <option value="matches">
-                                            Criteria matched
+                                            Preferences matched
                                         </option>
                                         <option value="date">Start date</option>
                                         <option value="name">Event name</option>
@@ -888,17 +931,50 @@ export function FindEventsView() {
                                                         {
                                                             result.criteria.filter(
                                                                 (c) =>
+                                                                    c.required !==
+                                                                        false &&
                                                                     c.status ===
-                                                                    'matched',
+                                                                        'matched',
                                                             ).length
                                                         }
                                                         /
-                                                        {result.criteria.length}
+                                                        {
+                                                            result.criteria.filter(
+                                                                (c) =>
+                                                                    c.required !==
+                                                                    false,
+                                                            ).length
+                                                        }
                                                     </strong>{' '}
                                                     required checks ·{' '}
                                                     {result.unknownCount}{' '}
                                                     unconfirmed fields
                                                 </p>
+                                                {result.criteria.some(
+                                                    (c) => c.required === false,
+                                                ) && (
+                                                    <p>
+                                                        Preferences:{' '}
+                                                        {
+                                                            result.criteria.filter(
+                                                                (c) =>
+                                                                    c.required ===
+                                                                        false &&
+                                                                    c.status ===
+                                                                        'matched',
+                                                            ).length
+                                                        }
+                                                        /
+                                                        {
+                                                            result.criteria.filter(
+                                                                (c) =>
+                                                                    c.required ===
+                                                                    false,
+                                                            ).length
+                                                        }{' '}
+                                                        matched
+                                                    </p>
+                                                )}
                                                 <p className="text-zinc-500">
                                                     {result.reasons
                                                         .slice(0, 2)

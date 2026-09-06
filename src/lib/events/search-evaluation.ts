@@ -1,3 +1,5 @@
+import { advancedChecks } from './search-advanced'
+import { advancedSearchSchema, ADVANCED_SEARCH_FIELDS } from './search-contract'
 import {
     SEARCH_FIELDS,
     SOURCE_PRIORITY,
@@ -296,6 +298,23 @@ export function evaluateCandidate(
                   ? 'matched'
                   : 'failed',
         )
+    const advanced = criteria.advanced ?? advancedSearchSchema.parse({})
+    for (const check of checks) {
+        if (check.key === 'organizer')
+            check.required = advanced.organizerRule === 'require'
+        if (check.key === 'audience') {
+            check.required = advanced.audienceRule === 'require'
+            if (
+                !check.required &&
+                !advanced.officiallyStatedAudience &&
+                resolved.audience.status === 'inferred' &&
+                hasPhrase(resolved.audience.value || '', criteria.audience)
+            )
+                check.status = 'matched'
+        }
+    }
+    checks.push(...advancedChecks(criteria, resolved, today))
+    const hardChecks = checks.filter((c) => c.required !== false)
     const conflicts = SEARCH_FIELDS.filter(
         (f) => resolved[f].status === 'conflict',
     ).map((f) => `Conflicting ${f.replaceAll('_', ' ')}`)
@@ -304,15 +323,23 @@ export function evaluateCandidate(
             .filter((c) => c.status !== 'matched')
             .map(
                 (c) =>
-                    `${c.status === 'failed' ? 'Excluded' : 'Needs verification'}: ${c.label}`,
+                    `${c.required === false ? 'Preference ' + (c.status === 'failed' ? 'not met' : 'unconfirmed') : c.status === 'failed' ? 'Excluded' : 'Needs verification'}: ${c.label}`,
             ),
         ...conflicts,
         ...candidate.warnings,
     ]
-    const category = checks.some((c) => c.status === 'failed')
+    const category = hardChecks.some((c) => c.status === 'failed')
         ? 'excluded'
-        : checks.some((c) => c.status === 'unknown') ||
-            conflicts.length ||
+        : hardChecks.some((c) => c.status === 'unknown') ||
+            SEARCH_FIELDS.some(
+                (f) =>
+                    !(ADVANCED_SEARCH_FIELDS as readonly string[]).includes(
+                        f,
+                    ) &&
+                    f !== 'organizer' &&
+                    f !== 'audience' &&
+                    resolved[f].status === 'conflict',
+            ) ||
             candidate.warnings.length
           ? 'verification'
           : 'strict'
@@ -346,12 +373,13 @@ export function evaluateCandidate(
         criteria: checks,
         seriesKey,
         editionKey,
-        evidenceStatus:
-            SEARCH_FIELDS.every((field) => resolved[field].status === 'verified')
-                ? 'Verified'
-                : SEARCH_FIELDS.some((f) => resolved[f].status === 'verified')
-                  ? 'Partial'
-                  : 'Unverified',
+        evidenceStatus: SEARCH_FIELDS.every(
+            (field) => resolved[field].status === 'verified',
+        )
+            ? 'Verified'
+            : SEARCH_FIELDS.some((f) => resolved[f].status === 'verified')
+              ? 'Partial'
+              : 'Unverified',
         unknownCount: SEARCH_FIELDS.filter(
             (f) => resolved[f].status !== 'verified',
         ).length,
