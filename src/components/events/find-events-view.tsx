@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
     Search,
     Loader2,
     ExternalLink,
     SlidersHorizontal,
+    ChevronDown,
     CheckCircle2,
     AlertTriangle,
     XCircle,
@@ -97,6 +98,38 @@ function DelimitedInput({
             }
             placeholder="Separate with commas"
         />
+    )
+}
+function FilterSection({
+    title,
+    summary,
+    children,
+    defaultOpen = false,
+}: {
+    title: string
+    summary: string
+    children: ReactNode
+    defaultOpen?: boolean
+}) {
+    return (
+        <details
+            open={defaultOpen}
+            className="group border-t border-zinc-200 dark:border-zinc-700"
+        >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-4 [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-lime-500">
+                <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-1 block break-words text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                        {summary}
+                    </span>
+                </span>
+                <ChevronDown
+                    size={16}
+                    className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+                />
+            </summary>
+            <div className="space-y-4 pb-5">{children}</div>
+        </details>
     )
 }
 export function FindEventsView() {
@@ -303,8 +336,22 @@ export function FindEventsView() {
                     </button>
                 </div>
             </header>
-            <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-                <aside className="min-w-0 self-start xl:sticky xl:top-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
+            <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+                <aside className="min-w-0 self-start rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h2 className="flex items-center gap-2 text-base font-semibold">
+                            <SlidersHorizontal size={17} /> Search filters
+                        </h2>
+                        <button
+                            className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-900 dark:hover:text-white"
+                            onClick={() => {
+                                setCriteria(initial())
+                                setNaturalText('')
+                            }}
+                        >
+                            Reset all
+                        </button>
+                    </div>
                     <button
                         className={`${button} mb-3 xl:hidden`}
                         onClick={() => setFiltersOpen((v) => !v)}
@@ -312,7 +359,7 @@ export function FindEventsView() {
                         {filtersOpen ? 'Hide filters' : 'Edit search filters'}
                     </button>
                     <div
-                        className={`${filtersOpen ? 'block' : 'hidden'} xl:block xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto space-y-5`}
+                        className={`${filtersOpen ? 'block' : 'hidden'} xl:block space-y-4`}
                     >
                         <div
                             className="grid grid-cols-2 gap-2"
@@ -333,30 +380,6 @@ export function FindEventsView() {
                             ))}
                         </div>
                         <label className="block space-y-1 text-sm">
-                            <span>Describe your search</span>
-                            <textarea
-                                className={control}
-                                rows={3}
-                                value={naturalText}
-                                onChange={(e) => setNaturalText(e.target.value)}
-                                placeholder="Healthcare AI conferences in Toronto, October–December 2026, excluding webinars"
-                            />
-                        </label>
-                        <button
-                            className={button}
-                            disabled={busy || !naturalText.trim()}
-                            onClick={parse}
-                        >
-                            Parse into editable conditions
-                        </button>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Parsing never changes your search mode or starts a
-                            search.
-                        </p>
-                        <div className="flex items-center gap-2 font-medium">
-                            <SlidersHorizontal size={16} /> Search conditions
-                        </div>
-                        <label className="block space-y-1 text-sm">
                             <span>
                                 {criteria.mode === 'specific'
                                     ? 'Event name / exact phrase'
@@ -365,169 +388,299 @@ export function FindEventsView() {
                             <input
                                 className={control}
                                 value={criteria.query}
+                                placeholder={
+                                    criteria.mode === 'specific'
+                                        ? 'e.g. HIMSS 2027'
+                                        : 'e.g. Healthcare AI conferences'
+                                }
                                 onChange={(e) => set('query', e.target.value)}
                             />
                         </label>
-                        <label className="block space-y-1 text-sm">
-                            <span>Verify from this page</span>
-                            <input
-                                type="url"
-                                className={control}
-                                value={criteria.pageUrl}
-                                onChange={(e) => set('pageUrl', e.target.value)}
-                                placeholder="https://…"
-                            />
-                            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                                A submitted URL is checked for official
-                                ownership.
-                            </span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                            {(['startDate', 'endDate'] as const).map((key) => (
-                                <label key={key} className="text-sm space-y-1">
+                        <FilterSection
+                            title="Dates & location"
+                            summary={
+                                [
+                                    criteria.startDate &&
+                                        `From ${criteria.startDate}`,
+                                    criteria.endDate &&
+                                        `Through ${criteria.endDate}`,
+                                    criteria.city,
+                                    criteria.state,
+                                    criteria.country,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ') ||
+                                (criteria.includePast
+                                    ? 'Any dates · Anywhere'
+                                    : 'Upcoming events · Anywhere')
+                            }
+                            defaultOpen
+                        >
+                            <div className="grid grid-cols-2 gap-3">
+                                {(['startDate', 'endDate'] as const).map(
+                                    (key) => (
+                                        <label
+                                            key={key}
+                                            className="text-sm space-y-1"
+                                        >
+                                            <span>
+                                                {key === 'startDate'
+                                                    ? 'From'
+                                                    : 'Through'}
+                                            </span>
+                                            <input
+                                                type="date"
+                                                className={control}
+                                                value={criteria[key] ?? ''}
+                                                onChange={(e) =>
+                                                    set(
+                                                        key,
+                                                        e.target.value || null,
+                                                    )
+                                                }
+                                            />
+                                        </label>
+                                    ),
+                                )}
+                            </div>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Events must overlap this date range. Both event
+                                dates are checked.
+                            </p>
+                            {(['country', 'state', 'city'] as const).map(
+                                (key) => (
+                                    <label
+                                        key={key}
+                                        className="block space-y-1 text-sm"
+                                    >
+                                        <span>
+                                            {
+                                                {
+                                                    country: 'Country',
+                                                    state: 'State / province',
+                                                    city: 'City',
+                                                    organizer: 'Organizer',
+                                                    audience:
+                                                        'Officially stated audience',
+                                                }[key]
+                                            }
+                                        </span>
+                                        <input
+                                            className={control}
+                                            value={criteria[key]}
+                                            onChange={(e) =>
+                                                set(key, e.target.value)
+                                            }
+                                        />
+                                    </label>
+                                ),
+                            )}
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="size-4 accent-lime-600"
+                                    checked={criteria.includePast}
+                                    onChange={(e) =>
+                                        set('includePast', e.target.checked)
+                                    }
+                                />{' '}
+                                Include past editions
+                            </label>
+                        </FilterSection>
+                        <FilterSection
+                            title="Format & event type"
+                            summary={[
+                                criteria.attendance === 'any'
+                                    ? 'Any format'
+                                    : criteria.attendance.replace('_', ' '),
+                                criteria.eventTypes.join(', ') ||
+                                    'Any event type',
+                            ].join(' · ')}
+                        >
+                            <label className="block space-y-1 text-sm">
+                                <span>Attendance</span>
+                                <select
+                                    className={control}
+                                    value={criteria.attendance}
+                                    onChange={(e) =>
+                                        set(
+                                            'attendance',
+                                            e.target
+                                                .value as SearchCriteria['attendance'],
+                                        )
+                                    }
+                                >
+                                    <option value="any">Any</option>
+                                    <option value="in_person">In person</option>
+                                    <option value="online">Online</option>
+                                    <option value="hybrid">Hybrid</option>
+                                </select>
+                            </label>
+                            <fieldset className="space-y-2">
+                                <legend className="text-sm">
+                                    Event types · match any
+                                </legend>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {EVENT_TYPES.map((type) => (
+                                        <button
+                                            key={type}
+                                            className={`${button} text-xs ${criteria.eventTypes.includes(type) ? 'border-lime-500 bg-lime-50 text-zinc-900 dark:bg-lime-950 dark:text-lime-100' : ''} text-left`}
+                                            aria-pressed={criteria.eventTypes.includes(
+                                                type,
+                                            )}
+                                            onClick={() =>
+                                                set(
+                                                    'eventTypes',
+                                                    criteria.eventTypes.includes(
+                                                        type,
+                                                    )
+                                                        ? criteria.eventTypes.filter(
+                                                              (t) => t !== type,
+                                                          )
+                                                        : [
+                                                              ...criteria.eventTypes,
+                                                              type,
+                                                          ],
+                                                )
+                                            }
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        </FilterSection>
+                        <FilterSection
+                            title="Industries & technologies"
+                            summary={
+                                [
+                                    ...criteria.industries,
+                                    ...criteria.technologies,
+                                ].join(` ${criteria.topicOperator} `) ||
+                                'All topics'
+                            }
+                        >
+                            {listInput('industries', 'Industries')}
+                            {listInput('technologies', 'Technologies')}
+                            <label className="block text-sm space-y-1">
+                                <span>Industry / technology relationship</span>
+                                <select
+                                    className={control}
+                                    value={criteria.topicOperator}
+                                    onChange={(e) =>
+                                        set(
+                                            'topicOperator',
+                                            e.target.value as 'AND' | 'OR',
+                                        )
+                                    }
+                                >
+                                    <option value="OR">
+                                        OR — match any selected topic
+                                    </option>
+                                    <option value="AND">
+                                        AND — match all selected topics
+                                    </option>
+                                </select>
+                            </label>
+                        </FilterSection>
+                        <FilterSection
+                            title="Keywords & exclusions"
+                            summary={`${criteria.includeAny.length + criteria.includeAll.length} included · ${criteria.exclude.length} excluded`}
+                        >
+                            {listInput('includeAny', 'Include any keyword')}
+                            {listInput('includeAll', 'Include all keywords')}
+                            {listInput('exclude', 'Exclude keywords')}
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Keywords apply to title, description and
+                                organizer. Unknown facts stay unconfirmed.
+                            </p>
+                        </FilterSection>
+                        <FilterSection
+                            title="Organizer & audience"
+                            summary={
+                                [criteria.organizer, criteria.audience]
+                                    .filter(Boolean)
+                                    .join(' · ') ||
+                                'Any organizer · Any audience'
+                            }
+                        >
+                            {(['organizer', 'audience'] as const).map((key) => (
+                                <label
+                                    key={key}
+                                    className="block space-y-1 text-sm"
+                                >
                                     <span>
-                                        {key === 'startDate'
-                                            ? 'From'
-                                            : 'Through'}
+                                        {key === 'organizer'
+                                            ? 'Organizer'
+                                            : 'Officially stated audience'}
                                     </span>
                                     <input
-                                        type="date"
                                         className={control}
-                                        value={criteria[key] ?? ''}
+                                        value={criteria[key]}
+                                        placeholder={
+                                            key === 'organizer'
+                                                ? 'e.g. HIMSS'
+                                                : 'e.g. Hospital CIOs'
+                                        }
                                         onChange={(e) =>
-                                            set(key, e.target.value || null)
+                                            set(key, e.target.value)
                                         }
                                     />
                                 </label>
                             ))}
-                        </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Events must overlap this date range. Both event
-                            dates are checked.
-                        </p>
-                        {(
-                            [
-                                'country',
-                                'state',
-                                'city',
-                                'organizer',
-                                'audience',
-                            ] as const
-                        ).map((key) => (
-                            <label
-                                key={key}
-                                className="block space-y-1 text-sm"
-                            >
-                                <span>
-                                    {
-                                        {
-                                            country: 'Country',
-                                            state: 'State / province',
-                                            city: 'City',
-                                            organizer: 'Organizer',
-                                            audience:
-                                                'Officially stated audience',
-                                        }[key]
-                                    }
-                                </span>
+                        </FilterSection>
+                        <FilterSection
+                            title="Verify a page"
+                            summary={
+                                criteria.pageUrl ||
+                                'Optional · Check a source URL'
+                            }
+                        >
+                            <label className="block space-y-1 text-sm">
+                                <span>Verify from this page</span>
                                 <input
+                                    type="url"
                                     className={control}
-                                    value={criteria[key]}
-                                    onChange={(e) => set(key, e.target.value)}
+                                    value={criteria.pageUrl}
+                                    onChange={(e) =>
+                                        set('pageUrl', e.target.value)
+                                    }
+                                    placeholder="https://…"
+                                />
+                                <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                                    A submitted URL is checked for official
+                                    ownership.
+                                </span>
+                            </label>
+                        </FilterSection>
+                        <FilterSection
+                            title="Describe your search with AI"
+                            summary="Optional · Turn a sentence into editable filters"
+                        >
+                            <label className="block space-y-1 text-sm">
+                                <span>Describe your search</span>
+                                <textarea
+                                    className={control}
+                                    rows={3}
+                                    value={naturalText}
+                                    onChange={(e) =>
+                                        setNaturalText(e.target.value)
+                                    }
+                                    placeholder="Healthcare AI conferences in Toronto, October–December 2026, excluding webinars"
                                 />
                             </label>
-                        ))}
-                        <label className="block space-y-1 text-sm">
-                            <span>Attendance</span>
-                            <select
-                                className={control}
-                                value={criteria.attendance}
-                                onChange={(e) =>
-                                    set(
-                                        'attendance',
-                                        e.target
-                                            .value as SearchCriteria['attendance'],
-                                    )
-                                }
+                            <button
+                                className={button}
+                                disabled={busy || !naturalText.trim()}
+                                onClick={parse}
                             >
-                                <option value="any">Any</option>
-                                <option value="in_person">In person</option>
-                                <option value="online">Online</option>
-                                <option value="hybrid">Hybrid</option>
-                            </select>
-                        </label>
-                        <fieldset className="space-y-2">
-                            <legend className="text-sm">
-                                Event types — OR
-                            </legend>
-                            <div className="flex flex-wrap gap-2">
-                                {EVENT_TYPES.map((type) => (
-                                    <button
-                                        key={type}
-                                        className={`${button} text-xs ${criteria.eventTypes.includes(type) ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : ''}`}
-                                        aria-pressed={criteria.eventTypes.includes(
-                                            type,
-                                        )}
-                                        onClick={() =>
-                                            set(
-                                                'eventTypes',
-                                                criteria.eventTypes.includes(
-                                                    type,
-                                                )
-                                                    ? criteria.eventTypes.filter(
-                                                          (t) => t !== type,
-                                                      )
-                                                    : [
-                                                          ...criteria.eventTypes,
-                                                          type,
-                                                      ],
-                                            )
-                                        }
-                                    >
-                                        {type}
-                                    </button>
-                                ))}
-                            </div>
-                        </fieldset>
-                        {listInput('industries', 'Industries')}
-                        {listInput('technologies', 'Technologies')}
-                        <label className="block text-sm space-y-1">
-                            <span>Industry / technology relationship</span>
-                            <select
-                                className={control}
-                                value={criteria.topicOperator}
-                                onChange={(e) =>
-                                    set(
-                                        'topicOperator',
-                                        e.target.value as 'AND' | 'OR',
-                                    )
-                                }
-                            >
-                                <option value="OR">
-                                    OR — match any selected topic
-                                </option>
-                                <option value="AND">
-                                    AND — match all selected topics
-                                </option>
-                            </select>
-                        </label>
-                        {listInput('includeAny', 'Include any keyword')}
-                        {listInput('includeAll', 'Include all keywords')}
-                        {listInput('exclude', 'Exclude keywords')}
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Keywords apply to title, description and organizer.
-                            Unknown facts stay unconfirmed.
-                        </p>
-                        <label className="flex gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={criteria.includePast}
-                                onChange={(e) =>
-                                    set('includePast', e.target.checked)
-                                }
-                            />{' '}
-                            Include past editions
-                        </label>
+                                Parse into editable conditions
+                            </button>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Parsing never changes your search mode or starts
+                                a search.
+                            </p>
+                        </FilterSection>
                         <button
                             className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 dark:bg-white px-4 py-3 font-medium text-white dark:text-zinc-900 disabled:opacity-50"
                             disabled={busy || running}
@@ -539,12 +692,6 @@ export function FindEventsView() {
                                 <Search size={16} />
                             )}{' '}
                             Start search
-                        </button>
-                        <button
-                            className={button}
-                            onClick={() => setCriteria(initial())}
-                        >
-                            Clear conditions
                         </button>
                     </div>
                 </aside>
