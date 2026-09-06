@@ -73,7 +73,7 @@ export function UserSelect({
                 {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold">
+                            <div className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-semibold">
                                 {user.name?.[0] || user.email[0]}
                             </div>
                             <span>{user.name || user.email}</span>

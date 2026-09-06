@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Trash2 } from 'lucide-react'
@@ -71,7 +71,7 @@ export function EventComments({ eventId }: { eventId: string }) {
                 ) : comments && comments.length > 0 ? (
                     comments.map((c) => (
                         <div key={c.id} className="flex gap-3 group">
-                            <div className={`h-8 w-8 rounded-full ${avatarColor(c.author_email)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                            <div className={`h-8 w-8 rounded-full ${avatarColor(c.author_email)} flex items-center justify-center text-xs font-semibold text-white flex-shrink-0`}>
                                 {avatarInitials(c.author_email)}
                             </div>
                             <div className="flex-1 min-w-0">

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -197,7 +197,7 @@ export default function EventLayout({
                                 <span className="w-2 h-2 bg-green-500 rounded-full inline-block mr-2"></span>
                                 ACTIVE
                             </Badge>
-                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white">
                                 {event.name}
                             </h1>
                         </div>

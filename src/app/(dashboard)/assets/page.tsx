@@ -201,7 +201,7 @@ export default function AssetsPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Asset Library</h1>
+                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight">Asset Library</h1>
                         <p className="text-zinc-500 dark:text-zinc-400 mt-1">
                             Centralized repository for all event materials and documentation.
                         </p>
@@ -344,7 +344,7 @@ export default function AssetsPage() {
                     <div className="space-y-12">
                         {/* Recently Added Section */}
                         <section>
-                            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-6">Recently Added</h2>
+                            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-6">Recently Added</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {filteredAssets.slice(0, 4).map((asset) => {
                                     const { label, color, icon: Icon } = getFileTypeDetails(asset)
@@ -362,7 +362,7 @@ export default function AssetsPage() {
                                                     </div>
                                                 )}
                                                 {isNew && (
-                                                    <span className="absolute top-3 right-3 bg-[#CBFB45] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                                    <span className="absolute top-3 right-3 bg-[#CBFB45] text-black text-[10px] font-semibold px-2 py-0.5 rounded shadow-sm">
                                                         NEW
                                                     </span>
                                                 )}
@@ -394,7 +394,7 @@ export default function AssetsPage() {
                         {/* All Materials Section */}
                         <section>
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">All Materials</h2>
+                                <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">All Materials</h2>
                                 <Button variant="link" className="text-[#8B5CF6] hover:text-[#7C3AED] p-0 h-auto font-medium text-xs uppercase" onClick={() => setViewMode('list')}>
                                     View All
                                 </Button>
@@ -404,11 +404,11 @@ export default function AssetsPage() {
                                 <Table>
                                     <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
                                         <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-transparent">
-                                            <TableHead className="w-[40%] pl-6 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500">File Name</TableHead>
-                                            <TableHead className="w-[15%] text-xs font-bold uppercase tracking-wider text-zinc-500">Type</TableHead>
-                                            <TableHead className="w-[20%] text-xs font-bold uppercase tracking-wider text-zinc-500">Related Event</TableHead>
-                                            <TableHead className="w-[15%] text-xs font-bold uppercase tracking-wider text-zinc-500">Date Added</TableHead>
-                                            <TableHead className="w-[10%] text-right pr-6 text-xs font-bold uppercase tracking-wider text-zinc-500">Action</TableHead>
+                                            <TableHead className="w-[40%] pl-6 py-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">File Name</TableHead>
+                                            <TableHead className="w-[15%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Type</TableHead>
+                                            <TableHead className="w-[20%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Related Event</TableHead>
+                                            <TableHead className="w-[15%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Date Added</TableHead>
+                                            <TableHead className="w-[10%] text-right pr-6 text-xs font-semibold uppercase tracking-wider text-zinc-500">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>

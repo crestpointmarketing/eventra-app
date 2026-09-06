@@ -47,7 +47,7 @@ export function ProgressInsightsWidget({ eventId }: ProgressInsightsWidgetProps)
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Completion</span>
-                        <span className="text-lg font-bold text-blue-700 dark:text-blue-300">{completionPercentage}%</span>
+                        <span className="text-lg font-semibold text-blue-700 dark:text-blue-300">{completionPercentage}%</span>
                     </div>
                     <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
@@ -64,7 +64,7 @@ export function ProgressInsightsWidget({ eventId }: ProgressInsightsWidgetProps)
                             <CheckCircle2 className="w-4 h-4" />
                             <span className="text-xs font-medium">Completed</span>
                         </div>
-                        <span className="text-2xl font-bold text-green-700 dark:text-green-300">
+                        <span className="text-2xl font-semibold text-green-700 dark:text-green-300">
                             {insights.completedTasks}
                         </span>
                     </div>
@@ -74,7 +74,7 @@ export function ProgressInsightsWidget({ eventId }: ProgressInsightsWidgetProps)
                             <TrendingUp className="w-4 h-4" />
                             <span className="text-xs font-medium">On Track</span>
                         </div>
-                        <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                        <span className="text-2xl font-semibold text-blue-700 dark:text-blue-300">
                             {insights.onTrackTasks}
                         </span>
                     </div>
@@ -84,7 +84,7 @@ export function ProgressInsightsWidget({ eventId }: ProgressInsightsWidgetProps)
                             <AlertCircle className="w-4 h-4" />
                             <span className="text-xs font-medium">At Risk</span>
                         </div>
-                        <span className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                        <span className="text-2xl font-semibold text-orange-700 dark:text-orange-300">
                             {insights.atRiskTasks}
                         </span>
                     </div>

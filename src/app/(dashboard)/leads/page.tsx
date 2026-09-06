@@ -343,7 +343,7 @@ export default function LeadsPage() {
                     {/* Page Header */}
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
+                            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-2">
                                 Leads
                             </h1>
                             <p className="text-sm text-zinc-600 dark:text-zinc-400">

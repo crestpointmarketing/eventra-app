@@ -44,7 +44,8 @@ try{
  const progress=await request(`/api/ai/progress-insights?eventId=${eid}`);
  results.push({check:'completed-task-progress',passed:progress?.completionRate===100 && progress?.atRiskTasks===0});
  for(const name of ['generate-email-draft','generate-subject-lines','recommend-email'])await request(`/api/ai/${name}`,{leadId:lid,templateId,count:3});
- await request('/api/discover-events',{knownDetails:'The AI Summit London 2026',years:[2026],topics:[],regions:[]});
+ const searchJob=await request('/api/discover-events',{mode:'specific',query:'HIMSS 2027'},true,202);
+ if(searchJob?.id)await request('/api/discover-events/cancel',{id:searchJob.id});
  must(await db.rpc('mark_lead_sent',{lead_id:lid,subject:'Synthetic smoke test'}));
  const contacted=must(await db.from('leads').select('last_contacted_at').eq('id',lid).single());
  const history=must(await db.from('lead_activities').select('activity_type,created_by').eq('lead_id',lid));

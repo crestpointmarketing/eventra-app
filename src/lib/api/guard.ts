@@ -14,7 +14,7 @@ const inputSchema = z.object({
 }).passthrough()
 
 /** Enforced in each AI route, even if the session-refresh proxy is bypassed. */
-export async function guardAI(request: NextRequest) {
+export async function guardAI(request: NextRequest, options: { consumeQuota?: boolean } = {}) {
     const db = await createClient()
     const { data: { user }, error } = await db.auth.getUser()
     if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,6 +36,7 @@ export async function guardAI(request: NextRequest) {
         try {
             if (!inputSchema.safeParse(JSON.parse(raw)).success) return NextResponse.json({ error: 'Invalid request fields' }, { status: 400 })
         } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+        if (options.consumeQuota === false) return null
         // Atomic, shared between instances. Fail closed if quota storage is unavailable.
         const { data: allowed, error: quotaError } = await db.rpc('consume_ai_request')
         if (quotaError) return NextResponse.json({ error: 'AI quota service unavailable' }, { status: 503 })

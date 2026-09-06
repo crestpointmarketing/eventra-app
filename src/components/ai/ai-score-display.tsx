@@ -100,7 +100,7 @@ export function AIInsightCard({
                 {/* Score Display */}
                 <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 rounded-lg">
                     <div className="text-center">
-                        <div className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-lime-400 bg-clip-text text-transparent">{score}</div>
+                        <div className="text-4xl font-semibold bg-gradient-to-r from-cyan-400 to-lime-400 bg-clip-text text-transparent">{score}</div>
                         <div className="text-xs text-zinc-600 dark:text-zinc-400">Conversion Score</div>
                     </div>
                     <div className="flex-1 text-sm text-zinc-700 dark:text-zinc-300">

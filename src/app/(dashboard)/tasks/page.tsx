@@ -236,7 +236,7 @@ export default function TasksPage() {
                 {/* Header */}
                 <div className="flex items-end justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">
+                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight mb-2">
                             Global Workviews
                         </h1>
                         <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl">
@@ -370,12 +370,12 @@ export default function TasksPage() {
                                                 aria-label="Select all"
                                             />
                                         </TableHead>
-                                        <TableHead className="w-[36%] text-xs font-bold uppercase tracking-wider text-zinc-500">Task Name</TableHead>
-                                        <TableHead className="w-[20%] text-xs font-bold uppercase tracking-wider text-zinc-500">Related Event</TableHead>
-                                        <TableHead className="w-[10%] text-xs font-bold uppercase tracking-wider text-zinc-500">Owner</TableHead>
-                                        <TableHead className="w-[10%] text-xs font-bold uppercase tracking-wider text-zinc-500">Due Date</TableHead>
-                                        <TableHead className="w-[15%] text-xs font-bold uppercase tracking-wider text-zinc-500">Status</TableHead>
-                                        <TableHead className="w-[5%] text-xs font-bold uppercase tracking-wider text-zinc-500 text-center">Action</TableHead>
+                                        <TableHead className="w-[36%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Task Name</TableHead>
+                                        <TableHead className="w-[20%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Related Event</TableHead>
+                                        <TableHead className="w-[10%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Owner</TableHead>
+                                        <TableHead className="w-[10%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Due Date</TableHead>
+                                        <TableHead className="w-[15%] text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</TableHead>
+                                        <TableHead className="w-[5%] text-xs font-semibold uppercase tracking-wider text-zinc-500 text-center">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody className="bg-white dark:bg-zinc-900">
@@ -385,7 +385,7 @@ export default function TasksPage() {
                                                 <TableCell colSpan={7} className="px-6 py-2.5">
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
+                                                            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
                                                                 {module.label}
                                                             </span>
                                                             <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700">
@@ -418,7 +418,7 @@ export default function TasksPage() {
                                                         {task.title}
                                                     </Link>
                                                     {(task.priority === 'urgent' || task.priority === 'high') && (
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${task.priority === 'urgent' ? 'text-red-600' : 'text-orange-500'
+                                                        <span className={`text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1 ${task.priority === 'urgent' ? 'text-red-600' : 'text-orange-500'
                                                             }`}>
                                                             ● {task.priority}
                                                         </span>
@@ -526,11 +526,11 @@ export default function TasksPage() {
                             <div className="space-y-6 pt-4">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Status</p>
+                                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Status</p>
                                         {getStatusBadge(selectedTask.status)}
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Due Date</p>
+                                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Due Date</p>
                                         <p className="font-medium text-zinc-900 dark:text-white">
                                             {selectedTask.due_date ? formatDateOnly(selectedTask.due_date, { month: 'long', day: 'numeric', year: 'numeric' }) : 'No date set'}
                                         </p>
@@ -539,7 +539,7 @@ export default function TasksPage() {
 
                                 {selectedTask.description && (
                                     <div>
-                                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Description</p>
+                                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Description</p>
                                         <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
                                             {selectedTask.description}
                                         </p>

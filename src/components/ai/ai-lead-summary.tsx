@@ -104,7 +104,7 @@ export function AILeadSummary({
                                         transition={{ delay: i * 0.1 + 0.2 }}
                                         className="text-sm text-zinc-600 dark:text-zinc-400 flex items-start gap-2 p-2 rounded hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                                     >
-                                        <span className="text-orange-500 font-bold mt-0.5">{i + 1}.</span>
+                                        <span className="text-orange-500 font-semibold mt-0.5">{i + 1}.</span>
                                         <span>{step}</span>
                                     </motion.li>
                                 ))}

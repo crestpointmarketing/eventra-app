@@ -80,7 +80,7 @@ export function TaskProgressPredictor({ taskId, eventId }: TaskProgressPredictor
                                             Estimated Time
                                         </span>
                                     </div>
-                                    <span className="text-lg font-bold text-indigo-700 dark:text-indigo-300">
+                                    <span className="text-lg font-semibold text-indigo-700 dark:text-indigo-300">
                                         {prediction.estimatedDays} {prediction.estimatedDays === 1 ? 'day' : 'days'}
                                     </span>
                                 </div>

@@ -79,7 +79,7 @@ export function EventRisksTab({ eventId }: { eventId: string }) {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Variable Risk Score</p>
-                            <h4 className={`text-3xl font-bold mt-2 ${overallScore > 70 ? 'text-red-600' : overallScore > 40 ? 'text-orange-500' : 'text-green-500'
+                            <h4 className={`text-3xl font-semibold mt-2 ${overallScore > 70 ? 'text-red-600' : overallScore > 40 ? 'text-orange-500' : 'text-green-500'
                                 }`}>
                                 {overallScore}/100
                             </h4>
@@ -96,7 +96,7 @@ export function EventRisksTab({ eventId }: { eventId: string }) {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Critical Issues</p>
-                            <h4 className="text-3xl font-bold text-zinc-900 dark:text-white mt-2">
+                            <h4 className="text-3xl font-semibold text-zinc-900 dark:text-white mt-2">
                                 {criticalCount}
                             </h4>
                         </div>
@@ -109,7 +109,7 @@ export function EventRisksTab({ eventId }: { eventId: string }) {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm font-medium text-purple-700 dark:text-purple-300">AI Coverage</p>
-                            <h4 className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-2">100%</h4>
+                            <h4 className="text-3xl font-semibold text-purple-900 dark:text-purple-100 mt-2">100%</h4>
                         </div>
                         <Brain className="w-6 h-6 text-purple-600" />
                     </div>
@@ -168,7 +168,7 @@ export function EventRisksTab({ eventId }: { eventId: string }) {
 
                                 {risk.recommendations && risk.recommendations.length > 0 && (
                                     <div className="bg-blue-50 dark:bg-blue-900/10 rounded-md p-3">
-                                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase mb-2">AI Recommendation</p>
+                                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase mb-2">AI Recommendation</p>
                                         <ul className="list-disc list-inside text-sm text-blue-800 dark:text-blue-200 space-y-1">
                                             {risk.recommendations.map((rec, i) => (
                                                 <li key={i}>{rec}</li>

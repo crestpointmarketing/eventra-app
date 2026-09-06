@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { formatDateOnly } from '@/lib/date-only'
 import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/duplicates'
-import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
+import { buildDefaultEventTasks } from '@/lib/events/default-tasks'
 import { EVENT_PRIORITIES, normalizeEventPriority } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
 
@@ -43,7 +43,9 @@ interface ReviewQueueItem {
         description?: string | null
         discovery_priority?: string
         engagement_type?: string
+        metadata?: Record<string, unknown>
     }
+    createStarterTasks?: boolean
     created_at?: string | null
 }
 
@@ -54,6 +56,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function buildEventPayload(eventData: QueueEventData, ownerId: string) {
+    if (!eventData.name?.trim() || !eventData.event_type) throw new Error('Review and confirm the event name and type before approval')
     return {
         owner_id: ownerId,
         name: eventData.name ?? 'Untitled Event',
@@ -68,6 +71,7 @@ function buildEventPayload(eventData: QueueEventData, ownerId: string) {
         description: eventData.description ?? null,
         discovery_priority: normalizeEventPriority(eventData.discovery_priority),
         engagement_type: normalizeEngagementType(eventData.engagement_type),
+        metadata: eventData.metadata ?? {},
         source: 'ai_discovered',
         status: 'upcoming',
     }
@@ -75,6 +79,7 @@ function buildEventPayload(eventData: QueueEventData, ownerId: string) {
 
 export function ReviewQueueView() {
     const queryClient = useQueryClient()
+    const [taskChoice, setTaskChoice] = useState<ReviewQueueItem | null>(null)
     const [actionId, setActionId] = useState<string | null>(null)
     const [detailItem, setDetailItem] = useState<ReviewQueueItem | null>(null)
     const [detailDraft, setDetailDraft] = useState<QueueEventData>({})
@@ -137,28 +142,16 @@ export function ReviewQueueView() {
             const user = await safeGetUser(supabase)
             if (!user) throw new Error('Not authenticated')
 
-            const { data: insertedEvent, error: insertError } = await supabase
-                .from('events')
-                .insert(buildEventPayload(eventData, user.id))
-                .select('id, start_date')
-                .single()
-            if (insertError) throw insertError
-            if (insertedEvent?.id) {
-                await seedDefaultEventTasks(supabase, insertedEvent.id, insertedEvent.start_date)
-            }
-
-            const { error: updateError } = await supabase
-                .from('event_discovery_queue')
-                .update({ status: 'APPROVED', reviewed_at: new Date().toISOString(), reviewed_by: user.id })
-                .eq('id', item.id)
-            if (updateError) throw updateError
+            const tasks = item.createStarterTasks ? buildDefaultEventTasks('', eventData.start_date) : []
+            const { error } = await supabase.rpc('approve_discovery_item', { p_id: item.id, p_payload: buildEventPayload(eventData, user.id), p_tasks: tasks })
+            if (error) throw error
         },
         onMutate: (item: ReviewQueueItem) => setActionId(item.id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
             queryClient.invalidateQueries({ queryKey: ['discover-events'] })
             queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-            toast.success('Event approved with starter tasks')
+            toast.success('Event approval completed')
         },
         onError: (err: unknown) => {
             toast.error(getErrorMessage(err, 'Failed to approve event'))
@@ -175,14 +168,14 @@ export function ReviewQueueView() {
             return
         }
 
-        approveItem(item)
+        setTaskChoice(item)
     }
 
     function approveDuplicateAnyway() {
         if (!duplicateApproval) return
         const item = duplicateApproval.item
         setDuplicateApproval(null)
-        approveItem(item)
+        setTaskChoice(item)
     }
 
     const { mutate: rejectItem } = useMutation({
@@ -216,21 +209,10 @@ export function ReviewQueueView() {
             const user = await safeGetUser(supabase)
             if (!user) throw new Error('Not authenticated')
 
-            const payloads = items.map(item => buildEventPayload(item.event_data ?? {}, user.id))
-            const { data: insertedEvents, error: insertError } = await supabase
-                .from('events')
-                .insert(payloads)
-                .select('id, start_date')
-            if (insertError) throw insertError
-            for (const event of insertedEvents ?? []) {
-                await seedDefaultEventTasks(supabase, event.id, event.start_date)
+            for (const item of items) {
+                const { error } = await supabase.rpc('approve_discovery_item', { p_id: item.id, p_payload: buildEventPayload(item.event_data ?? {}, user.id), p_tasks: [] })
+                if (error) throw error
             }
-
-            const { error: updateError } = await supabase
-                .from('event_discovery_queue')
-                .update({ status: 'APPROVED', reviewed_at: new Date().toISOString(), reviewed_by: user.id })
-                .in('id', items.map(item => item.id))
-            if (updateError) throw updateError
         },
         onMutate: () => setActionId('bulk'),
         onSuccess: (_, items) => {
@@ -238,7 +220,7 @@ export function ReviewQueueView() {
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
             queryClient.invalidateQueries({ queryKey: ['discover-events'] })
             queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-            toast.success(`${items.length} events approved with starter tasks`)
+            toast.success(`${items.length} events approved without tasks`)
         },
         onError: (err: unknown) => {
             toast.error(getErrorMessage(err, 'Failed to approve selected events'))
@@ -296,7 +278,7 @@ export function ReviewQueueView() {
 
     async function requestBulkApprove() {
         if (selectedItems.length === 0) return
-        const ok = confirm(`Approve ${selectedItems.length} selected events? This will create events in Portfolio and add starter tasks without opening each item.`)
+        const ok = confirm(`Approve ${selectedItems.length} selected events? This will add events to Portfolio without creating tasks.`)
         if (!ok) return
 
         const supabase = createClient()
@@ -331,6 +313,13 @@ export function ReviewQueueView() {
 
     return (
         <div>
+            <Dialog open={!!taskChoice} onOpenChange={open => !open && setTaskChoice(null)}>
+                <DialogContent><DialogHeader><DialogTitle>Add event to Portfolio</DialogTitle><DialogDescription>{taskChoice?.event_data?.name}: choosing starter tasks creates {buildDefaultEventTasks('').length} tasks based on the event date.</DialogDescription></DialogHeader>
+                    <button onClick={() => { if (taskChoice) approveItem({ ...taskChoice, createStarterTasks: false }); setTaskChoice(null) }}>Add event without tasks</button>
+                    <button onClick={() => { if (taskChoice) approveItem({ ...taskChoice, createStarterTasks: true }); setTaskChoice(null) }}>Add event and create tasks</button>
+                    <button onClick={() => setTaskChoice(null)}>Cancel</button>
+                </DialogContent>
+            </Dialog>
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
@@ -512,13 +501,13 @@ export function ReviewQueueView() {
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3">
-                                    <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-1.5">Queue Item</p>
+                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1.5">Queue Item</p>
                                     <p className="font-semibold text-zinc-900 dark:text-white leading-snug">{duplicateApproval.item.event_data?.name ?? 'Untitled Event'}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{duplicateApproval.item.event_data?.start_date ? formatDateOnly(duplicateApproval.item.event_data.start_date) : 'No date'}</p>
                                     <p className="text-xs text-zinc-500">{duplicateApproval.item.event_data?.location ?? 'No location'}</p>
                                 </div>
                                 <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
-                                    <p className="text-[10px] uppercase font-bold text-amber-500 tracking-widest mb-1.5">Existing</p>
+                                    <p className="text-[10px] uppercase font-semibold text-amber-500 tracking-widest mb-1.5">Existing</p>
                                     <p className="font-semibold text-zinc-900 dark:text-white leading-snug">{duplicateApproval.match.name}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{duplicateApproval.match.start_date ? formatDateOnly(duplicateApproval.match.start_date) : 'No date'}</p>
                                     <p className="text-xs text-zinc-500">{duplicateApproval.match.location ?? 'No location'}</p>
