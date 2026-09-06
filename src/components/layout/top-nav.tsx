@@ -74,7 +74,7 @@ export function TopNav() {
     ]
 
     return (
-        <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <nav className="sticky top-0 z-40 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex min-h-20 flex-wrap items-center justify-between gap-2 py-3 sm:h-20 sm:flex-nowrap sm:py-0">
                     {/* LEFT: Logo */}
