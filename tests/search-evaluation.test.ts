@@ -503,3 +503,38 @@ test('advanced field extraction requires typed context and explicit evidence', a
         true,
     )
 })
+
+test('legacy history recomputes evidence summaries when new fields are unknown', async () => {
+    const { hydrateSearchJob, SEARCH_FIELDS, ADVANCED_SEARCH_FIELDS } =
+        await import('../src/lib/events/search-contract')
+    const result = evaluateCandidate(candidate(), criteria())
+    const resolved = Object.fromEntries(
+        SEARCH_FIELDS.filter(
+            (field) =>
+                !(ADVANCED_SEARCH_FIELDS as readonly string[]).includes(field),
+        ).map((field) => [
+            field,
+            { value: 'legacy', status: 'verified', evidence: [] },
+        ]),
+    )
+    const legacy = {
+        criteria: { mode: 'discover' },
+        results: [
+            {
+                ...result,
+                resolved,
+                evidenceStatus: 'Verified',
+                unknownCount: 0,
+            },
+        ],
+    } as unknown as import('../src/lib/events/search-contract').SearchJob
+    const hydrated = hydrateSearchJob(legacy)
+    assert.equal(hydrated.results[0].evidenceStatus, 'Partial')
+    assert.equal(
+        hydrated.results[0].unknownCount,
+        ADVANCED_SEARCH_FIELDS.length,
+    )
+    assert.equal(hydrated.results[0].resolved.ticket_price.status, 'unknown')
+    assert.equal(hydrated.criteria.advanced.ticketMax, null)
+    assert.equal(legacy.results[0].evidenceStatus, 'Verified')
+})

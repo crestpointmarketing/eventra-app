@@ -236,9 +236,8 @@ export function hydrateSearchJob(job: SearchJob): SearchJob {
     return {
         ...job,
         criteria: searchCriteriaSchema.parse(job.criteria),
-        results: job.results.map((result) => ({
-            ...result,
-            resolved: Object.fromEntries(
+        results: job.results.map((result) => {
+            const resolved = Object.fromEntries(
                 SEARCH_FIELDS.map((field) => [
                     field,
                     result.resolved[field] ?? {
@@ -247,7 +246,24 @@ export function hydrateSearchJob(job: SearchJob): SearchJob {
                         evidence: [],
                     },
                 ]),
-            ) as Record<SearchField, ResolvedField>,
-        })),
+            ) as Record<SearchField, ResolvedField>
+            const unknownCount = SEARCH_FIELDS.filter(
+                (field) => resolved[field].status !== 'verified',
+            ).length
+            return {
+                ...result,
+                resolved,
+                unknownCount,
+                evidenceStatus:
+                    unknownCount === 0
+                        ? 'Verified'
+                        : SEARCH_FIELDS.some(
+                                (field) =>
+                                    resolved[field].status === 'verified',
+                            )
+                          ? 'Partial'
+                          : 'Unverified',
+            }
+        }),
     }
 }
