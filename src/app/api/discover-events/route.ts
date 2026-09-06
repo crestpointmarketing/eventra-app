@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from 'next/server'
 import { guardAI } from '@/lib/api/guard'
 import { createClient } from '@/lib/supabase/server'
-import { searchCriteriaSchema } from '@/lib/events/search-contract'
+import { searchCriteriaSchema, hydrateSearchJob, type SearchJob } from '@/lib/events/search-contract'
 import { runSearchWorker, searchEnvironment } from '@/lib/events/search-worker'
 export const maxDuration = 300
 export async function POST(req: NextRequest) {
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
               { status: 503 },
           )
         : NextResponse.json(
-              { jobs: data },
+              { jobs: (data as SearchJob[]).map(hydrateSearchJob) },
               { headers: { 'Cache-Control': 'no-store' } },
           )
 }

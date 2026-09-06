@@ -129,7 +129,17 @@ try {
     const started = Date.now()
     const created = await request(
         '/api/discover-events',
-        { mode: 'specific', query: 'HIMSS 2027' },
+        {
+            mode: 'specific',
+            query: 'HIMSS 2027',
+            advanced: {
+                budgetRule: 'prefer',
+                ticketMax: 500,
+                currency: 'USD',
+                deadlineTypes: ['registration'],
+                deadlineRule: 'prefer',
+            },
+        },
         202,
     )
     check(
@@ -153,6 +163,18 @@ try {
         'persistent search reaches terminal results',
         ['completed', 'warnings'].includes(j.status),
         { status: j.status, counts: j.counts },
+    )
+    check(
+        'advanced criteria persisted',
+        j.criteria.advanced.ticketMax === 500 &&
+            j.criteria.advanced.budgetRule === 'prefer' &&
+            j.criteria.advanced.deadlineTypes.includes('registration'),
+    )
+    check(
+        'advanced result fields available',
+        j.results.every(
+            (r) => r.resolved.ticket_price && r.resolved.registration_deadline,
+        ),
     )
     check(
         'every strict result has verified name/dates',
