@@ -1,13 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
     Search,
     Loader2,
     ExternalLink,
-    SlidersHorizontal,
-    ChevronDown,
+    X,
+    CalendarDays,
+    MapPin,
+    Bookmark,
+    Sparkles,
+    Target,
     CheckCircle2,
     AlertTriangle,
     XCircle,
@@ -15,7 +19,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { buildDefaultEventTasks } from '@/lib/events/default-tasks'
-import { EVENT_TYPES } from '@/lib/events/taxonomy'
+import { SearchFilters } from '@/components/events/search-filters'
 import {
     SEARCH_FIELDS,
     searchCriteriaSchema,
@@ -73,75 +77,15 @@ function sameEdition(result: SearchResult, event: PortfolioItem) {
         normalized(result.name) === normalized(event.name)
     )
 }
-function DelimitedInput({
-    value,
-    onChange,
-}: {
-    value: string[]
-    onChange: (value: string[]) => void
-}) {
-    const [text, setText] = useState(value.join(', '))
-    const joined = value.join(', ')
-    useEffect(() => setText(joined), [joined])
-    return (
-        <input
-            className={control}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onBlur={() =>
-                onChange(
-                    text
-                        .split(/[,，]/)
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                )
-            }
-            placeholder="Separate with commas"
-        />
-    )
-}
-function FilterSection({
-    title,
-    summary,
-    children,
-    defaultOpen = false,
-}: {
-    title: string
-    summary: string
-    children: ReactNode
-    defaultOpen?: boolean
-}) {
-    return (
-        <details
-            open={defaultOpen}
-            className="group border-t border-zinc-200 dark:border-zinc-700"
-        >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-4 [&::-webkit-details-marker]:hidden focus-visible:outline-2 focus-visible:outline-lime-500">
-                <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{title}</span>
-                    <span className="mt-1 block break-words text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                        {summary}
-                    </span>
-                </span>
-                <ChevronDown
-                    size={16}
-                    className="shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
-                />
-            </summary>
-            <div className="space-y-4 pb-5">{children}</div>
-        </details>
-    )
-}
 export function FindEventsView() {
     const [criteria, setCriteria] = useState<SearchCriteria>(initial)
-    const [naturalText, setNaturalText] = useState('')
-    const [filtersOpen, setFiltersOpen] = useState(true)
     const [busy, setBusy] = useState(false)
+    const [sort, setSort] = useState('matches')
     const [jobs, setJobs] = useState<SearchJob[]>([])
     const [jobId, setJobId] = useState<string | null>(null)
-    const [category, setCategory] = useState<
-        'strict' | 'verification' | 'excluded'
-    >('strict')
+    const [selectedCategory, setCategory] = useState<
+        'strict' | 'verification' | 'excluded' | null
+    >(null)
     const [details, setDetails] = useState<SearchResult | null>(null)
     const [selected, setSelected] = useState<string[]>([])
     const [importing, setImporting] = useState(false)
@@ -150,6 +94,13 @@ export function FindEventsView() {
     const [imported, setImported] = useState<string[]>([])
     const [loadError, setLoadError] = useState('')
     const job = jobs.find((j) => j.id === jobId) ?? jobs[0]
+    const category =
+        selectedCategory ??
+        (job?.counts.strict
+            ? 'strict'
+            : job?.counts.verification
+              ? 'verification'
+              : 'strict')
     const running = jobs.some(
         (j) => j.status === 'queued' || j.status === 'running',
     )
@@ -208,9 +159,7 @@ export function FindEventsView() {
             setJobId(data.id)
             setSelected([])
             setImported([])
-            setCategory('strict')
-            if (window.matchMedia('(max-width: 1279px)').matches)
-                setFiltersOpen(false)
+            setCategory(null)
             await refresh()
         } catch (error) {
             toast.error(
@@ -224,7 +173,7 @@ export function FindEventsView() {
         setBusy(true)
         try {
             const data = await request('/parse', {
-                text: naturalText,
+                text: criteria.query,
                 mode: criteria.mode,
             })
             setCriteria(data.criteria)
@@ -284,85 +233,114 @@ export function FindEventsView() {
             setImporting(false)
         }
     }
-    const listInput = (
-        key:
-            | 'industries'
-            | 'technologies'
-            | 'includeAny'
-            | 'includeAll'
-            | 'exclude',
-        label: string,
-    ) => (
-        <label className="block space-y-1 text-sm" key={key}>
-            <span>{label}</span>
-            <DelimitedInput
-                value={criteria[key]}
-                onChange={(value) => set(key, value)}
-            />
-        </label>
+    const conditionChips: { id: string; label: string; remove: () => void }[] =
+        []
+    for (const key of [
+        'industries',
+        'technologies',
+        'eventTypes',
+        'includeAny',
+        'includeAll',
+        'exclude',
+    ] as const) {
+        for (const value of criteria[key])
+            conditionChips.push({
+                id: `${key}:${value}`,
+                label: `${key === 'exclude' ? 'Exclude: ' : key === 'includeAll' ? 'Required: ' : key === 'includeAny' ? 'Any: ' : ''}${value}`,
+                remove: () =>
+                    set(
+                        key,
+                        criteria[key].filter((v) => v !== value),
+                    ),
+            })
+    }
+    for (const key of [
+        'country',
+        'state',
+        'city',
+        'organizer',
+        'audience',
+        'pageUrl',
+    ] as const) {
+        if (criteria[key])
+            conditionChips.push({
+                id: key,
+                label: `${key === 'pageUrl' ? 'Source: ' : key === 'organizer' ? 'Organizer: ' : key === 'audience' ? 'Audience: ' : ''}${criteria[key]}`,
+                remove: () => set(key, ''),
+            })
+    }
+    if (criteria.startDate || criteria.endDate)
+        conditionChips.push({
+            id: 'dates',
+            label: `${criteria.startDate || 'Any date'} – ${criteria.endDate || 'Onward'}`,
+            remove: () =>
+                setCriteria((c) => ({ ...c, startDate: null, endDate: null })),
+        })
+    if (criteria.attendance !== 'any')
+        conditionChips.push({
+            id: 'attendance',
+            label:
+                criteria.attendance === 'in_person'
+                    ? 'In person'
+                    : criteria.attendance === 'online'
+                      ? 'Online'
+                      : 'Hybrid',
+            remove: () => set('attendance', 'any'),
+        })
+    if (criteria.includePast)
+        conditionChips.push({
+            id: 'past',
+            label: 'Include past editions',
+            remove: () => set('includePast', false),
+        })
+    if (criteria.topicOperator === 'AND')
+        conditionChips.push({
+            id: 'operator',
+            label: 'Match all topics',
+            remove: () => set('topicOperator', 'OR'),
+        })
+    const visibleResults = (
+        job?.results.filter((r) => r.category === category) ?? []
     )
+        .slice()
+        .sort((a, b) => {
+            if (sort === 'date')
+                return (a.resolved.start_date.value || '9999').localeCompare(
+                    b.resolved.start_date.value || '9999',
+                )
+            if (sort === 'name') return a.name.localeCompare(b.name)
+            return (
+                b.criteria.filter((c) => c.status === 'matched').length -
+                a.criteria.filter((c) => c.status === 'matched').length
+            )
+        })
+    const stages = [
+        'Building search queries',
+        'Finding candidate events',
+        'Checking official sources',
+        'Extracting event details',
+        'Applying required filters',
+        'Removing duplicates',
+        'Results ready',
+    ]
+    const stageIndex = job ? stages.indexOf(job.stage) : -1
     const chosen = job?.results.filter((r) => selected.includes(r.id)) ?? []
     return (
         <div className="space-y-6">
-            <header className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Find events</h1>
-                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        Search broadly. Verify each field. Choose what enters
-                        your Portfolio.
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        className={`${button} bg-zinc-900 text-white dark:bg-white dark:text-zinc-900`}
-                        disabled={busy || running}
-                        onClick={() => search()}
-                    >
-                        Start search
-                    </button>
-                    <button
-                        className={button}
-                        onClick={() => {
-                            localStorage.setItem(
-                                'eventra-search-criteria-v1',
-                                JSON.stringify(criteria),
-                            )
-                            toast.success(
-                                'Search conditions saved on this device',
-                            )
-                        }}
-                    >
-                        Save conditions
-                    </button>
-                </div>
-            </header>
-            <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-                <aside className="min-w-0 self-start rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                        <h2 className="flex items-center gap-2 text-base font-semibold">
-                            <SlidersHorizontal size={17} /> Search filters
-                        </h2>
-                        <button
-                            className="text-xs text-zinc-500 underline underline-offset-4 hover:text-zinc-900 dark:hover:text-white"
-                            onClick={() => {
-                                setCriteria(initial())
-                                setNaturalText('')
-                            }}
-                        >
-                            Reset all
-                        </button>
-                    </div>
-                    <button
-                        className={`${button} mb-3 xl:hidden`}
-                        onClick={() => setFiltersOpen((v) => !v)}
-                    >
-                        {filtersOpen ? 'Hide filters' : 'Edit search filters'}
-                    </button>
-                    <div
-                        className={`${filtersOpen ? 'block' : 'hidden'} xl:block space-y-4`}
+            <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+                <SearchFilters
+                    criteria={criteria}
+                    onChange={setCriteria}
+                    onSearch={() => search()}
+                    disabled={busy || running}
+                />
+                <main className="min-w-0 space-y-5">
+                    <section
+                        aria-label="Search query"
+                        className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
                     >
                         <div
-                            className="grid grid-cols-2 gap-2"
+                            className="flex flex-wrap gap-2"
                             role="group"
                             aria-label="Search mode"
                         >
@@ -370,332 +348,117 @@ export function FindEventsView() {
                                 <button
                                     key={mode}
                                     aria-pressed={criteria.mode === mode}
-                                    className={`${button} ${criteria.mode === mode ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : ''}`}
                                     onClick={() => set('mode', mode)}
+                                    className={`${button} inline-flex items-center gap-2 ${criteria.mode === mode ? 'border-lime-300 bg-lime-50 dark:bg-lime-950' : ''}`}
                                 >
+                                    {mode === 'discover' ? (
+                                        <Search size={17} />
+                                    ) : (
+                                        <Target size={17} />
+                                    )}
                                     {mode === 'discover'
                                         ? 'Discover events'
                                         : 'Find a specific event'}
                                 </button>
                             ))}
                         </div>
-                        <label className="block space-y-1 text-sm">
-                            <span>
-                                {criteria.mode === 'specific'
-                                    ? 'Event name / exact phrase'
-                                    : 'Search description'}
-                            </span>
-                            <input
-                                className={control}
-                                value={criteria.query}
-                                placeholder={
-                                    criteria.mode === 'specific'
-                                        ? 'e.g. HIMSS 2027'
-                                        : 'e.g. Healthcare AI conferences'
-                                }
-                                onChange={(e) => set('query', e.target.value)}
-                            />
-                        </label>
-                        <FilterSection
-                            title="Dates & location"
-                            summary={
-                                [
-                                    criteria.startDate &&
-                                        `From ${criteria.startDate}`,
-                                    criteria.endDate &&
-                                        `Through ${criteria.endDate}`,
-                                    criteria.city,
-                                    criteria.state,
-                                    criteria.country,
-                                ]
-                                    .filter(Boolean)
-                                    .join(' · ') ||
-                                (criteria.includePast
-                                    ? 'Any dates · Anywhere'
-                                    : 'Upcoming events · Anywhere')
-                            }
-                            defaultOpen
-                        >
-                            <div className="grid grid-cols-2 gap-3">
-                                {(['startDate', 'endDate'] as const).map(
-                                    (key) => (
-                                        <label
-                                            key={key}
-                                            className="text-sm space-y-1"
-                                        >
-                                            <span>
-                                                {key === 'startDate'
-                                                    ? 'From'
-                                                    : 'Through'}
-                                            </span>
-                                            <input
-                                                type="date"
-                                                className={control}
-                                                value={criteria[key] ?? ''}
-                                                onChange={(e) =>
-                                                    set(
-                                                        key,
-                                                        e.target.value || null,
-                                                    )
-                                                }
-                                            />
-                                        </label>
-                                    ),
-                                )}
-                            </div>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                Events must overlap this date range. Both event
-                                dates are checked.
-                            </p>
-                            {(['country', 'state', 'city'] as const).map(
-                                (key) => (
-                                    <label
-                                        key={key}
-                                        className="block space-y-1 text-sm"
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-zinc-200 px-3 dark:border-zinc-700">
+                                <Search
+                                    size={17}
+                                    className="shrink-0 text-zinc-500"
+                                />
+                                <input
+                                    aria-label={
+                                        criteria.mode === 'specific'
+                                            ? 'Event name / exact phrase'
+                                            : 'Search description'
+                                    }
+                                    value={criteria.query}
+                                    onChange={(e) =>
+                                        set('query', e.target.value)
+                                    }
+                                    placeholder={
+                                        criteria.mode === 'specific'
+                                            ? 'Enter an event name, organizer, or edition'
+                                            : 'e.g. Healthcare AI conferences in Canada over the next 6 months'
+                                    }
+                                    className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-lime-500"
+                                />
+                                {criteria.query && (
+                                    <button
+                                        aria-label="Clear search text"
+                                        onClick={() => set('query', '')}
+                                        className="p-1 text-zinc-500"
                                     >
-                                        <span>
-                                            {
-                                                {
-                                                    country: 'Country',
-                                                    state: 'State / province',
-                                                    city: 'City',
-                                                    organizer: 'Organizer',
-                                                    audience:
-                                                        'Officially stated audience',
-                                                }[key]
-                                            }
-                                        </span>
-                                        <input
-                                            className={control}
-                                            value={criteria[key]}
-                                            onChange={(e) =>
-                                                set(key, e.target.value)
-                                            }
-                                        />
-                                    </label>
-                                ),
-                            )}
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    className="size-4 accent-lime-600"
-                                    checked={criteria.includePast}
-                                    onChange={(e) =>
-                                        set('includePast', e.target.checked)
-                                    }
-                                />{' '}
-                                Include past editions
-                            </label>
-                        </FilterSection>
-                        <FilterSection
-                            title="Format & event type"
-                            summary={[
-                                criteria.attendance === 'any'
-                                    ? 'Any format'
-                                    : criteria.attendance.replace('_', ' '),
-                                criteria.eventTypes.join(', ') ||
-                                    'Any event type',
-                            ].join(' · ')}
-                        >
-                            <label className="block space-y-1 text-sm">
-                                <span>Attendance</span>
-                                <select
-                                    className={control}
-                                    value={criteria.attendance}
-                                    onChange={(e) =>
-                                        set(
-                                            'attendance',
-                                            e.target
-                                                .value as SearchCriteria['attendance'],
-                                        )
-                                    }
-                                >
-                                    <option value="any">Any</option>
-                                    <option value="in_person">In person</option>
-                                    <option value="online">Online</option>
-                                    <option value="hybrid">Hybrid</option>
-                                </select>
-                            </label>
-                            <fieldset className="space-y-2">
-                                <legend className="text-sm">
-                                    Event types · match any
-                                </legend>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {EVENT_TYPES.map((type) => (
-                                        <button
-                                            key={type}
-                                            className={`${button} text-xs ${criteria.eventTypes.includes(type) ? 'border-lime-500 bg-lime-50 text-zinc-900 dark:bg-lime-950 dark:text-lime-100' : ''} text-left`}
-                                            aria-pressed={criteria.eventTypes.includes(
-                                                type,
-                                            )}
-                                            onClick={() =>
-                                                set(
-                                                    'eventTypes',
-                                                    criteria.eventTypes.includes(
-                                                        type,
-                                                    )
-                                                        ? criteria.eventTypes.filter(
-                                                              (t) => t !== type,
-                                                          )
-                                                        : [
-                                                              ...criteria.eventTypes,
-                                                              type,
-                                                          ],
-                                                )
-                                            }
-                                        >
-                                            {type}
-                                        </button>
-                                    ))}
-                                </div>
-                            </fieldset>
-                        </FilterSection>
-                        <FilterSection
-                            title="Industries & technologies"
-                            summary={
-                                [
-                                    ...criteria.industries,
-                                    ...criteria.technologies,
-                                ].join(` ${criteria.topicOperator} `) ||
-                                'All topics'
-                            }
-                        >
-                            {listInput('industries', 'Industries')}
-                            {listInput('technologies', 'Technologies')}
-                            <label className="block text-sm space-y-1">
-                                <span>Industry / technology relationship</span>
-                                <select
-                                    className={control}
-                                    value={criteria.topicOperator}
-                                    onChange={(e) =>
-                                        set(
-                                            'topicOperator',
-                                            e.target.value as 'AND' | 'OR',
-                                        )
-                                    }
-                                >
-                                    <option value="OR">
-                                        OR — match any selected topic
-                                    </option>
-                                    <option value="AND">
-                                        AND — match all selected topics
-                                    </option>
-                                </select>
-                            </label>
-                        </FilterSection>
-                        <FilterSection
-                            title="Keywords & exclusions"
-                            summary={`${criteria.includeAny.length + criteria.includeAll.length} included · ${criteria.exclude.length} excluded`}
-                        >
-                            {listInput('includeAny', 'Include any keyword')}
-                            {listInput('includeAll', 'Include all keywords')}
-                            {listInput('exclude', 'Exclude keywords')}
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                Keywords apply to title, description and
-                                organizer. Unknown facts stay unconfirmed.
-                            </p>
-                        </FilterSection>
-                        <FilterSection
-                            title="Organizer & audience"
-                            summary={
-                                [criteria.organizer, criteria.audience]
-                                    .filter(Boolean)
-                                    .join(' · ') ||
-                                'Any organizer · Any audience'
-                            }
-                        >
-                            {(['organizer', 'audience'] as const).map((key) => (
-                                <label
-                                    key={key}
-                                    className="block space-y-1 text-sm"
-                                >
-                                    <span>
-                                        {key === 'organizer'
-                                            ? 'Organizer'
-                                            : 'Officially stated audience'}
-                                    </span>
-                                    <input
-                                        className={control}
-                                        value={criteria[key]}
-                                        placeholder={
-                                            key === 'organizer'
-                                                ? 'e.g. HIMSS'
-                                                : 'e.g. Hospital CIOs'
-                                        }
-                                        onChange={(e) =>
-                                            set(key, e.target.value)
-                                        }
-                                    />
-                                </label>
-                            ))}
-                        </FilterSection>
-                        <FilterSection
-                            title="Verify a page"
-                            summary={
-                                criteria.pageUrl ||
-                                'Optional · Check a source URL'
-                            }
-                        >
-                            <label className="block space-y-1 text-sm">
-                                <span>Verify from this page</span>
-                                <input
-                                    type="url"
-                                    className={control}
-                                    value={criteria.pageUrl}
-                                    onChange={(e) =>
-                                        set('pageUrl', e.target.value)
-                                    }
-                                    placeholder="https://…"
-                                />
-                                <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                                    A submitted URL is checked for official
-                                    ownership.
-                                </span>
-                            </label>
-                        </FilterSection>
-                        <FilterSection
-                            title="Describe your search with AI"
-                            summary="Optional · Turn a sentence into editable filters"
-                        >
-                            <label className="block space-y-1 text-sm">
-                                <span>Describe your search</span>
-                                <textarea
-                                    className={control}
-                                    rows={3}
-                                    value={naturalText}
-                                    onChange={(e) =>
-                                        setNaturalText(e.target.value)
-                                    }
-                                    placeholder="Healthcare AI conferences in Toronto, October–December 2026, excluding webinars"
-                                />
+                                        <X size={15} />
+                                    </button>
+                                )}
                             </label>
                             <button
-                                className={button}
-                                disabled={busy || !naturalText.trim()}
-                                onClick={parse}
+                                disabled={busy || running}
+                                onClick={() => search()}
+                                className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
                             >
-                                Parse into editable conditions
+                                {busy && (
+                                    <Loader2
+                                        size={15}
+                                        className="animate-spin"
+                                    />
+                                )}
+                                Search events
                             </button>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                Parsing never changes your search mode or starts
-                                a search.
-                            </p>
-                        </FilterSection>
-                        <button
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 dark:bg-white px-4 py-3 font-medium text-white dark:text-zinc-900 disabled:opacity-50"
-                            disabled={busy || running}
-                            onClick={() => search()}
-                        >
-                            {busy ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <Search size={16} />
-                            )}{' '}
-                            Start search
-                        </button>
-                    </div>
-                </aside>
-                <main className="min-w-0 space-y-5">
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {conditionChips.map((chip) => (
+                                <button
+                                    key={chip.id}
+                                    onClick={chip.remove}
+                                    aria-label={`Remove condition: ${chip.label}`}
+                                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-lime-200 bg-lime-50 px-2.5 py-1.5 text-xs dark:border-lime-900 dark:bg-lime-950"
+                                >
+                                    <span className="break-words">
+                                        {chip.label}
+                                    </span>
+                                    <X size={12} className="shrink-0" />
+                                </button>
+                            ))}
+                            {!conditionChips.length && (
+                                <p className="text-xs text-zinc-500">
+                                    Upcoming events · Any location · All topics
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                            <button
+                                disabled={busy || !criteria.query.trim()}
+                                onClick={parse}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 disabled:opacity-50"
+                            >
+                                <Sparkles size={14} />
+                                Extract filters from text
+                            </button>
+                            <span className="text-xs text-zinc-500">
+                                Review extracted filters before searching.
+                            </span>
+                            <button
+                                className="inline-flex items-center gap-1.5 text-xs font-medium"
+                                onClick={() => {
+                                    localStorage.setItem(
+                                        'eventra-search-criteria-v1',
+                                        JSON.stringify(criteria),
+                                    )
+                                    toast.success(
+                                        'Search conditions saved on this device',
+                                    )
+                                }}
+                            >
+                                <Bookmark size={14} />
+                                Save conditions
+                            </button>
+                        </div>
+                    </section>
+
                     {loadError && (
                         <div
                             role="alert"
@@ -715,6 +478,7 @@ export function FindEventsView() {
                                 value={job?.id ?? ''}
                                 onChange={(e) => {
                                     setJobId(e.target.value)
+                                    setCategory(null)
                                     setSelected([])
                                     setImported([])
                                 }}
@@ -785,6 +549,54 @@ export function FindEventsView() {
                                     Retry sources needing verification
                                 </button>
                             )}
+                            <ol
+                                aria-label="Search stages"
+                                className="flex flex-wrap gap-x-4 gap-y-2 border-t border-zinc-100 pt-3 text-xs dark:border-zinc-800"
+                            >
+                                {stages.map((stage, index) => (
+                                    <li
+                                        key={stage}
+                                        aria-current={
+                                            job?.stage === stage
+                                                ? 'step'
+                                                : undefined
+                                        }
+                                        className={`inline-flex items-center gap-1.5 ${index === stageIndex ? 'font-medium text-zinc-900 dark:text-white' : 'text-zinc-500'}`}
+                                    >
+                                        {index < stageIndex ||
+                                        (stage === 'Results ready' &&
+                                            ['completed', 'warnings'].includes(
+                                                job.status,
+                                            )) ? (
+                                            <CheckCircle2
+                                                size={13}
+                                                className="text-green-600"
+                                            />
+                                        ) : index === stageIndex &&
+                                          job.status === 'running' ? (
+                                            <Loader2
+                                                size={13}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <span className="inline-flex size-4 items-center justify-center rounded-full border text-[10px]">
+                                                {index + 1}
+                                            </span>
+                                        )}
+                                        {
+                                            [
+                                                'Queries',
+                                                'Candidates',
+                                                'Source checks',
+                                                'Details',
+                                                'Filters',
+                                                'Duplicates',
+                                                'Ready',
+                                            ][index]
+                                        }
+                                    </li>
+                                ))}
+                            </ol>
                             {job.error && (
                                 <p
                                     role="alert"
@@ -844,7 +656,7 @@ export function FindEventsView() {
                     {job && (
                         <>
                             <div
-                                className="flex flex-wrap gap-2"
+                                className="flex flex-wrap gap-1 border-b border-zinc-200 dark:border-zinc-700"
                                 role="group"
                                 aria-label="Result category"
                             >
@@ -852,7 +664,7 @@ export function FindEventsView() {
                                     [
                                         {
                                             key: 'strict',
-                                            label: 'Strict Match',
+                                            label: 'Strict matches',
                                             icon: CheckCircle2,
                                         },
                                         {
@@ -862,14 +674,14 @@ export function FindEventsView() {
                                         },
                                         {
                                             key: 'excluded',
-                                            label: 'View excluded results',
+                                            label: 'Excluded',
                                             icon: XCircle,
                                         },
                                     ] as const
                                 ).map(({ key, label, icon: Icon }) => (
                                     <button
                                         key={key}
-                                        className={`${button} flex gap-2 items-center ${category === key ? 'bg-lime-50 dark:bg-zinc-800 ring-1 ring-lime-500' : ''}`}
+                                        className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm ${category === key ? 'border-lime-400 font-semibold text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500'}`}
                                         aria-pressed={category === key}
                                         onClick={() => setCategory(key)}
                                     >
@@ -893,33 +705,51 @@ export function FindEventsView() {
                                     import
                                 </button>
                             )}
-                            {job.results
-                                .filter((r) => r.category === category)
-                                .map((result) => {
-                                    const f = result.resolved
-                                    const existing = portfolio.find((p) =>
-                                        sameEdition(result, p),
-                                    )
-                                    const otherEdition =
-                                        !existing && result.seriesKey
-                                            ? portfolio.find(
-                                                  (p) =>
-                                                      p.metadata?.search
-                                                          ?.seriesKey ===
-                                                      result.seriesKey,
-                                              )
-                                            : null
-                                    return (
-                                        <article
-                                            key={result.id}
-                                            className="rounded-xl border bg-white dark:bg-zinc-900 p-5 space-y-4"
-                                        >
-                                            <div className="flex items-start gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                <span>{visibleResults.length} events</span>
+                                <label className="flex items-center gap-2 text-zinc-500">
+                                    Sort by{' '}
+                                    <select
+                                        className={`${control} w-auto`}
+                                        value={sort}
+                                        onChange={(e) =>
+                                            setSort(e.target.value)
+                                        }
+                                    >
+                                        <option value="matches">
+                                            Criteria matched
+                                        </option>
+                                        <option value="date">Start date</option>
+                                        <option value="name">Event name</option>
+                                    </select>
+                                </label>
+                            </div>
+                            {visibleResults.map((result) => {
+                                const f = result.resolved
+                                const existing = portfolio.find((p) =>
+                                    sameEdition(result, p),
+                                )
+                                const otherEdition =
+                                    !existing && result.seriesKey
+                                        ? portfolio.find(
+                                              (p) =>
+                                                  p.metadata?.search
+                                                      ?.seriesKey ===
+                                                  result.seriesKey,
+                                          )
+                                        : null
+                                return (
+                                    <article
+                                        key={result.id}
+                                        className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                                    >
+                                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                                            <div className="flex min-w-0 items-start gap-3">
                                                 {result.category !==
                                                     'excluded' && (
                                                     <input
                                                         aria-label={`Select ${result.name}`}
-                                                        className="mt-1"
+                                                        className="mt-1 size-4 shrink-0 accent-lime-600"
                                                         type="checkbox"
                                                         disabled={imported.includes(
                                                             result.id,
@@ -928,35 +758,84 @@ export function FindEventsView() {
                                                             result.id,
                                                         )}
                                                         onChange={(e) =>
-                                                            setSelected((s) =>
-                                                                e.target.checked
-                                                                    ? [
-                                                                          ...s,
-                                                                          result.id,
-                                                                      ]
-                                                                    : s.filter(
-                                                                          (
-                                                                              id,
-                                                                          ) =>
-                                                                              id !==
+                                                            setSelected(
+                                                                (ids) =>
+                                                                    e.target
+                                                                        .checked
+                                                                        ? [
+                                                                              ...ids,
                                                                               result.id,
-                                                                      ),
+                                                                          ]
+                                                                        : ids.filter(
+                                                                              (
+                                                                                  id,
+                                                                              ) =>
+                                                                                  id !==
+                                                                                  result.id,
+                                                                          ),
                                                             )
                                                         }
                                                     />
                                                 )}
-                                                <div className="min-w-0 flex-1">
-                                                    <h3 className="text-lg font-semibold">
+                                                <div className="hidden w-16 shrink-0 rounded-md bg-blue-50 px-2 py-2 text-center dark:bg-blue-950 sm:block">
+                                                    <span className="block text-xs font-medium text-blue-600">
+                                                        {f.start_date.value
+                                                            ? new Date(
+                                                                  f.start_date
+                                                                      .value +
+                                                                      'T12:00:00Z',
+                                                              ).toLocaleDateString(
+                                                                  'en-US',
+                                                                  {
+                                                                      month: 'short',
+                                                                      timeZone:
+                                                                          'UTC',
+                                                                  },
+                                                              )
+                                                            : 'Date'}
+                                                    </span>
+                                                    <span className="block text-lg font-semibold">
+                                                        {f.start_date.value
+                                                            ? f.start_date.value.slice(
+                                                                  8,
+                                                                  10,
+                                                              )
+                                                            : '—'}
+                                                    </span>
+                                                    <span className="block text-xs text-zinc-500">
+                                                        {f.start_date.value
+                                                            ? f.start_date.value.slice(
+                                                                  0,
+                                                                  4,
+                                                              )
+                                                            : 'Unknown'}
+                                                    </span>
+                                                </div>
+                                                <div className="min-w-0 space-y-1.5">
+                                                    <h3 className="break-words text-base font-semibold">
                                                         {f.name.value ||
                                                             result.name}
                                                     </h3>
-                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                                    <p className="break-words text-xs text-zinc-500">
+                                                        {f.organizer.value ||
+                                                            'Organizer unknown'}
+                                                    </p>
+                                                    <p className="flex items-start gap-1.5 text-xs text-zinc-500">
+                                                        <CalendarDays
+                                                            size={13}
+                                                            className="shrink-0"
+                                                        />
                                                         {f.start_date.value ||
                                                             'Date unknown'}{' '}
                                                         —{' '}
                                                         {f.end_date.value ||
-                                                            'Date unknown'}{' '}
-                                                        ·{' '}
+                                                            'Date unknown'}
+                                                    </p>
+                                                    <p className="flex items-start gap-1.5 text-xs text-zinc-500">
+                                                        <MapPin
+                                                            size={13}
+                                                            className="shrink-0"
+                                                        />
                                                         {[
                                                             f.city.value,
                                                             f.state.value,
@@ -966,19 +845,43 @@ export function FindEventsView() {
                                                             .join(', ') ||
                                                             'Location unknown'}
                                                     </p>
-                                                    <p className="mt-1 text-sm">
-                                                        {f.attendance.value ||
-                                                            'Attendance unknown'}{' '}
-                                                        ·{' '}
-                                                        {f.event_type.value ||
-                                                            'Type unknown'}{' '}
-                                                        ·{' '}
-                                                        {f.organizer.value ||
-                                                            'Organizer unknown'}
-                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5 text-xs">
+                                                        <span className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+                                                            {f.event_type
+                                                                .value ||
+                                                                'Type unknown'}
+                                                        </span>
+                                                        <span className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+                                                            {f.attendance
+                                                                .value ===
+                                                            'in_person'
+                                                                ? 'In person'
+                                                                : f.attendance
+                                                                      .value ||
+                                                                  'Attendance unknown'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/50 p-3 text-sm space-y-1">
+                                            <div className="min-w-0 space-y-2 text-xs xl:border-l xl:border-zinc-100 xl:pl-4 dark:xl:border-zinc-800">
+                                                <span
+                                                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 ${result.evidenceStatus === 'Verified' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}
+                                                >
+                                                    {result.evidenceStatus ===
+                                                    'Verified' ? (
+                                                        <CheckCircle2
+                                                            size={13}
+                                                        />
+                                                    ) : (
+                                                        <AlertTriangle
+                                                            size={13}
+                                                        />
+                                                    )}
+                                                    {result.evidenceStatus ===
+                                                    'Partial'
+                                                        ? 'Partial evidence'
+                                                        : result.evidenceStatus}
+                                                </span>
                                                 <p>
                                                     Criteria match:{' '}
                                                     <strong>
@@ -992,76 +895,16 @@ export function FindEventsView() {
                                                         /
                                                         {result.criteria.length}
                                                     </strong>{' '}
-                                                    required checks
+                                                    required checks ·{' '}
+                                                    {result.unknownCount}{' '}
+                                                    unconfirmed fields
                                                 </p>
-                                                <p>
-                                                    Evidence status:{' '}
-                                                    <strong>
-                                                        {result.evidenceStatus}
-                                                    </strong>{' '}
-                                                    · {result.unknownCount}{' '}
-                                                    fields not confirmed
+                                                <p className="text-zinc-500">
+                                                    {result.reasons
+                                                        .slice(0, 2)
+                                                        .join(' · ') ||
+                                                        'Required conditions match the available evidence.'}
                                                 </p>
-                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                    Last source check:{' '}
-                                                    {result.sources[0]
-                                                        ?.checkedAt
-                                                        ? new Date(
-                                                              result.sources[0]
-                                                                  .checkedAt,
-                                                          ).toLocaleString()
-                                                        : 'Not checked'}
-                                                </p>
-                                            </div>
-                                            <ul className="text-sm space-y-1">
-                                                {(result.reasons.length
-                                                    ? result.reasons
-                                                    : result.criteria
-                                                          .filter(
-                                                              (c) =>
-                                                                  c.status ===
-                                                                  'matched',
-                                                          )
-                                                          .map((c) => c.label)
-                                                )
-                                                    .slice(0, 3)
-                                                    .map((reason) => (
-                                                        <li key={reason}>
-                                                            {reason}
-                                                        </li>
-                                                    ))}
-                                            </ul>
-                                            {existing && (
-                                                <p className="text-sm text-amber-700">
-                                                    Possible Portfolio
-                                                    duplicate:{' '}
-                                                    <Link
-                                                        href={`/events/${existing.id}`}
-                                                        className="underline"
-                                                    >
-                                                        {existing.name}
-                                                    </Link>
-                                                    . Review before adding.
-                                                </p>
-                                            )}
-                                            {otherEdition && (
-                                                <p className="text-sm">
-                                                    Another edition already
-                                                    exists: {otherEdition.name}{' '}
-                                                    ({otherEdition.start_date}).
-                                                    This edition will remain
-                                                    separate.
-                                                </p>
-                                            )}
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    className={button}
-                                                    onClick={() =>
-                                                        setDetails(result)
-                                                    }
-                                                >
-                                                    View field evidence
-                                                </button>
                                                 {result.website_url &&
                                                     /^https?:\/\//i.test(
                                                         result.website_url,
@@ -1072,54 +915,107 @@ export function FindEventsView() {
                                                             }
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className={`${button} inline-flex items-center gap-2`}
+                                                            className="inline-flex max-w-full items-center gap-1 text-blue-600"
                                                         >
-                                                            Source page{' '}
+                                                            <span className="truncate">
+                                                                {
+                                                                    result.website_url
+                                                                }
+                                                            </span>
                                                             <ExternalLink
-                                                                size={14}
+                                                                size={13}
+                                                                className="shrink-0"
                                                             />
                                                         </a>
                                                     )}
-                                                {result.category !==
-                                                    'excluded' &&
-                                                    [
-                                                        'completed',
-                                                        'warnings',
-                                                    ].includes(job.status) && (
-                                                        <button
-                                                            className={button}
-                                                            disabled={imported.includes(
-                                                                result.id,
-                                                            )}
-                                                            onClick={() =>
-                                                                prepareImport([
-                                                                    result.id,
-                                                                ])
-                                                            }
-                                                        >
-                                                            {imported.includes(
-                                                                result.id,
-                                                            )
-                                                                ? 'Imported'
-                                                                : 'Review for import'}
-                                                        </button>
-                                                    )}
+                                                <p className="text-zinc-500">
+                                                    Last source check:{' '}
+                                                    {result.sources[0]
+                                                        ?.checkedAt
+                                                        ? new Date(
+                                                              result.sources[0]
+                                                                  .checkedAt,
+                                                          ).toLocaleString()
+                                                        : 'Not checked'}
+                                                </p>
                                             </div>
-                                        </article>
-                                    )
-                                })}
+                                        </div>
+                                        {existing && (
+                                            <p className="mt-3 text-xs text-amber-700">
+                                                Possible Portfolio duplicate:{' '}
+                                                <Link
+                                                    href={`/events/${existing.id}`}
+                                                    className="underline"
+                                                >
+                                                    {existing.name}
+                                                </Link>
+                                                . Review before adding.
+                                            </p>
+                                        )}
+                                        {otherEdition && (
+                                            <p className="mt-3 text-xs">
+                                                Another edition already exists:{' '}
+                                                {otherEdition.name} (
+                                                {otherEdition.start_date}). This
+                                                edition stays separate.
+                                            </p>
+                                        )}
+                                        <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                                            <button
+                                                className={button}
+                                                onClick={() =>
+                                                    setDetails(result)
+                                                }
+                                            >
+                                                View field evidence
+                                            </button>
+                                            {result.category !== 'excluded' &&
+                                                [
+                                                    'completed',
+                                                    'warnings',
+                                                ].includes(job.status) && (
+                                                    <button
+                                                        className={`${button} bg-zinc-900 text-white dark:bg-white dark:text-zinc-900`}
+                                                        disabled={imported.includes(
+                                                            result.id,
+                                                        )}
+                                                        onClick={() =>
+                                                            prepareImport([
+                                                                result.id,
+                                                            ])
+                                                        }
+                                                    >
+                                                        {imported.includes(
+                                                            result.id,
+                                                        )
+                                                            ? 'Imported'
+                                                            : 'Review for import'}
+                                                    </button>
+                                                )}
+                                        </div>
+                                    </article>
+                                )
+                            })}
                             {!job.results.some(
                                 (r) => r.category === category,
                             ) && (
                                 <div className="rounded-xl border p-6 space-y-3">
                                     <p>
-                                        No{' '}
+                                        {['queued', 'running'].includes(
+                                            job.status,
+                                        )
+                                            ? 'Still searching — no '
+                                            : 'No '}{' '}
                                         {category === 'strict'
                                             ? 'strict matches'
                                             : category === 'verification'
                                               ? 'results awaiting verification'
                                               : 'excluded results'}{' '}
-                                        in this search.
+                                        {['queued', 'running'].includes(
+                                            job.status,
+                                        )
+                                            ? 'confirmed yet.'
+                                            : 'in this search.'}
                                     </p>
                                     {category === 'strict' &&
                                         job.counts.verification > 0 && (

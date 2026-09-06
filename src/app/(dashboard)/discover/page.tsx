@@ -381,7 +381,7 @@ export default function EventPulsePage() {
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-1">EventPulse</h1>
+                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-1">{view === 'discover' ? 'Discover Events' : 'EventPulse'}</h1>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                             Discover, review, and manage your event portfolio from one workspace.
                         </p>
@@ -401,7 +401,7 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Tab bar */}
-                <div className="flex items-center gap-0 overflow-x-auto border-b border-zinc-200 dark:border-zinc-700 mb-6">
+                <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden border-b border-zinc-200 dark:border-zinc-700 mb-6">
                     {TAB_LABELS.map(tab => (
                         <button
                             key={tab.id}
