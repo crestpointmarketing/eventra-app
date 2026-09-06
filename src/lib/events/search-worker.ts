@@ -21,10 +21,13 @@ function admin() {
         auth: { persistSession: false, autoRefreshToken: false },
     })
 }
-export async function runSearchWorker(id?: string) {
+export async function runSearchWorker(
+    id?: string,
+    environment = searchEnvironment(),
+) {
     const db = admin()
     const { data, error } = await db.rpc('claim_event_search', {
-        p_environment: searchEnvironment(),
+        p_environment: environment,
         p_id: id ?? null,
     })
     if (error) throw new Error('Could not claim search job')

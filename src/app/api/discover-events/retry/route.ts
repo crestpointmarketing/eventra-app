@@ -10,9 +10,22 @@ export async function POST(req: NextRequest) {
     const input = z.object({ id: z.uuid() }).safeParse(await req.json())
     if (!input.success)
         return NextResponse.json({ error: 'Invalid job' }, { status: 400 })
-    const { data, error } = await (
-        await createClient()
-    ).rpc('retry_event_search', { p_id: input.data.id })
+    const db = await createClient()
+    // RLS limits this lookup to the authenticated creator. Explicit retries can
+    // resume their saved history even when its original preview was replaced.
+    const { data: savedJob, error: readError } = await db
+        .from('event_search_jobs')
+        .select('environment')
+        .eq('id', input.data.id)
+        .single()
+    if (readError || !savedJob)
+        return NextResponse.json(
+            { error: 'Search unavailable' },
+            { status: 404 },
+        )
+    const { data, error } = await db.rpc('retry_event_search', {
+        p_id: input.data.id,
+    })
     if (error || !data)
         return NextResponse.json(
             {
@@ -22,7 +35,7 @@ export async function POST(req: NextRequest) {
         )
     after(async () => {
         try {
-            await runSearchWorker(input.data.id)
+            await runSearchWorker(input.data.id, savedJob.environment)
         } catch {
             console.error('Search retry worker unavailable')
         }
