@@ -1,715 +1,1237 @@
 'use client'
 
-import { useState } from 'react'
-import { Search, Filter, Plus, MapPin, ExternalLink, Loader2, AlertTriangle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { safeGetUser } from '@/lib/supabase/auth'
-import { dateOnlyTime, formatDateOnly } from '@/lib/date-only'
-import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/duplicates'
-import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
-import { EVENT_PRIORITY_PILL, type EventPriority, normalizeEventPriority } from '@/lib/events/priority'
-import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import {
+    Search,
+    Loader2,
+    ExternalLink,
+    SlidersHorizontal,
+    CheckCircle2,
+    AlertTriangle,
+    XCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import { buildDefaultEventTasks } from '@/lib/events/default-tasks'
+import { EVENT_TYPES } from '@/lib/events/taxonomy'
+import {
+    SEARCH_FIELDS,
+    searchCriteriaSchema,
+    type SearchCriteria,
+    type SearchJob,
+    type SearchResult,
+} from '@/lib/events/search-contract'
+import { normalized } from '@/lib/events/search-evaluation'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
-const DEFAULT_TOPICS = [
-    'Artificial Intelligence',
-    'Generative AI',
-    'Machine Learning',
-    'Computer Vision',
-    'Robotics',
-    'AI Infrastructure',
-    'AI in Healthcare',
-    'AI in Finance',
-    'AI Systems / MLOps',
-    'AI Ethics',
-    'Foundation Models',
-    'Autonomous Systems',
-]
-
-interface DiscoveredEvent {
+const control =
+    'w-full min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm'
+const button =
+    'rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50'
+const initial = () => searchCriteriaSchema.parse({ mode: 'discover' })
+const taskCount = buildDefaultEventTasks('').length
+interface PortfolioItem {
+    id: string
     name: string
-    event_type?: string
-    start_date: string
-    end_date: string
-    location: string
+    start_date: string | null
     website_url: string | null
-    focus_area: string
-    target_audience: string
-    expected_attendees: number | null
-    description: string
-    discovery_priority: EventPriority | string
-    engagement_type?: string
-    confidence?: number
-    match_notes?: string | null
+    metadata: { search?: { editionKey?: string; seriesKey?: string } } | null
 }
-
-type DupeMatch = EventDuplicateMatch
-
-function normalize(s: string): string {
-    return s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+async function request(path: string, body?: unknown) {
+    const response = await fetch(
+        `/api/discover-events${path}`,
+        body
+            ? {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+              }
+            : { cache: 'no-store' },
+    )
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Request failed')
+    return data
 }
-
-const STOP_WORDS = new Set(['conference', 'summit', 'expo', 'forum', 'congress', 'symposium', 'workshop', 'annual', 'global', 'international', 'world', '2025', '2026', '2027'])
-
-function coreTokens(name: string): string[] {
-    return normalize(name).split(' ').filter(t => t.length > 2 && !STOP_WORDS.has(t))
+function sameEdition(result: SearchResult, event: PortfolioItem) {
+    if (
+        result.editionKey &&
+        result.editionKey === event.metadata?.search?.editionKey
+    )
+        return true
+    // Legacy records without organizer metadata are possible matches, never silently merged.
+    return (
+        !!event.start_date &&
+        result.resolved.start_date.value === event.start_date &&
+        normalized(result.name) === normalized(event.name)
+    )
 }
-
-function tokenOverlap(a: string[], b: string[]): number {
-    if (a.length === 0 || b.length === 0) return 0
-    const setB = new Set(b)
-    const common = a.filter(t => setB.has(t)).length
-    return common / Math.max(a.length, b.length)
-}
-
-function datesClose(d1: string | null, d2: string | null, days = 21): boolean {
-    if (!d1 || !d2) return false
-    return Math.abs(dateOnlyTime(d1) - dateOnlyTime(d2)) <= days * 86_400_000
-}
-
-function locationsOverlap(l1: string | null, l2: string | null): boolean {
-    if (!l1 || !l2) return false
-    const words1 = normalize(l1).split(' ').filter(w => w.length > 3)
-    const n2 = normalize(l2)
-    return words1.some(w => n2.includes(w))
-}
-
-// Strip generic words that appear in many event names so "AI Summit 2026" ≈ "AI Summit"
-function getErrorMessage(error: unknown, fallback: string) {
-    return error instanceof Error ? error.message : fallback
-}
-
-async function findDuplicate(event: DiscoveredEvent): Promise<DupeMatch | null> {
-    const supabase = createClient()
-    const sharedMatch = await findEventDuplicate(supabase, event)
-    if (sharedMatch) return sharedMatch
-
-    const { data, error } = await supabase
-        .from('events')
-        .select('id, name, start_date, location, source')
-        .order('created_at', { ascending: false })
-
-    if (error || !data) return null
-
-    const incomingTokens = coreTokens(event.name)
-
-    for (const existing of data) {
-        const existingTokens = coreTokens(existing.name ?? '')
-        const overlap   = tokenOverlap(incomingTokens, existingTokens)
-        const dateClose = datesClose(event.start_date, existing.start_date)
-        const locClose  = locationsOverlap(event.location, existing.location)
-
-        // Different location or different dates → definitely a different event
-        const isDupe = locClose && dateClose && overlap >= 0.5
-
-        if (isDupe) {
-            const reasons: string[] = []
-            reasons.push(`similar name (${Math.round(overlap * 100)}% match)`)
-            reasons.push('same location')
-            reasons.push('overlapping dates')
-
-            return {
-                id:         existing.id,
-                name:       existing.name,
-                start_date: existing.start_date,
-                location:   existing.location,
-                source:     existing.source,
-                reason:     reasons.join(', '),
-                score:      overlap,
+function DelimitedInput({
+    value,
+    onChange,
+}: {
+    value: string[]
+    onChange: (value: string[]) => void
+}) {
+    const [text, setText] = useState(value.join(', '))
+    const joined = value.join(', ')
+    useEffect(() => setText(joined), [joined])
+    return (
+        <input
+            className={control}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() =>
+                onChange(
+                    text
+                        .split(/[,，]/)
+                        .map((v) => v.trim())
+                        .filter(Boolean),
+                )
             }
-        }
-    }
-
-    return null
+            placeholder="Separate with commas"
+        />
+    )
 }
-
-const YEARS = ['2025', '2026', '2027', '2028']
-
-const REGIONS = [
-    'Global',
-    'North America',
-    'Europe',
-    'Asia Pacific',
-    'Middle East',
-    'Latin America',
-    'Africa',
-]
-
 export function FindEventsView() {
-    const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set())
-    const [customTopic, setCustomTopic]       = useState('')
-    const [knownDetails, setKnownDetails]     = useState('')
-    const [topics, setTopics]                 = useState<string[]>(DEFAULT_TOPICS)
-    const [directSync, setDirectSync]         = useState(false)
-    const [scanning, setScanning]             = useState(false)
-    const [results, setResults]               = useState<DiscoveredEvent[] | null>(null)
-    const [addedIds, setAddedIds]             = useState<Set<number>>(new Set())
-    const [addingIdx, setAddingIdx]           = useState<number | null>(null)
-
-    // Year & region constraints
-    const [selectedYears,   setSelectedYears]   = useState<Set<string>>(new Set(['2026']))
-    const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set())
-
-    // Duplicate confirmation state
-    const [dupePending, setDupePending] = useState<{ event: DiscoveredEvent; idx: number } | null>(null)
-    const [dupeMatch, setDupeMatch]     = useState<DupeMatch | null>(null)
-    const [dupeChecking, setDupeChecking] = useState<number | null>(null)
-
-    // Expanded card
-    const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
-
-    function toggleYear(y: string) {
-        setSelectedYears(prev => {
-            const n = new Set(prev)
-            if (n.has(y)) n.delete(y)
-            else n.add(y)
-            return n
-        })
-    }
-    function toggleRegion(r: string) {
-        setSelectedRegions(prev => {
-            const n = new Set(prev)
-            if (n.has(r)) n.delete(r)
-            else n.add(r)
-            return n
-        })
-    }
-
-    function toggleTopic(t: string) {
-        setSelectedTopics(prev => {
-            const next = new Set(prev)
-            if (next.has(t)) next.delete(t)
-            else next.add(t)
-            return next
-        })
-    }
-
-    function selectAll() { setSelectedTopics(new Set(topics)) }
-    function clearAll()  { setSelectedTopics(new Set()) }
-
-    function addCustomTopic() {
-        const val = customTopic.trim()
-        if (!val) return
-        if (!topics.includes(val)) setTopics(prev => [...prev, val])
-        setSelectedTopics(prev => new Set([...prev, val]))
-        setCustomTopic('')
-    }
-
-    function toggleDirectSync() {
-        if (!directSync) {
-            const ok = confirm('Direct Cloud Sync will bypass Review and create events immediately. Use this only when you trust the result. Continue?')
-            if (!ok) return
-        }
-        setDirectSync(v => !v)
-    }
-
-    async function runScan() {
-        const details = knownDetails.trim()
-        if (selectedTopics.size === 0 && !details) return
-        setScanning(true)
-        setResults(null)
+    const [criteria, setCriteria] = useState<SearchCriteria>(initial)
+    const [naturalText, setNaturalText] = useState('')
+    const [filtersOpen, setFiltersOpen] = useState(true)
+    const [busy, setBusy] = useState(false)
+    const [jobs, setJobs] = useState<SearchJob[]>([])
+    const [jobId, setJobId] = useState<string | null>(null)
+    const [category, setCategory] = useState<
+        'strict' | 'verification' | 'excluded'
+    >('strict')
+    const [details, setDetails] = useState<SearchResult | null>(null)
+    const [selected, setSelected] = useState<string[]>([])
+    const [importing, setImporting] = useState(false)
+    const [confirmImport, setConfirmImport] = useState(false)
+    const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+    const [imported, setImported] = useState<string[]>([])
+    const [loadError, setLoadError] = useState('')
+    const job = jobs.find((j) => j.id === jobId) ?? jobs[0]
+    const running = jobs.some(
+        (j) => j.status === 'queued' || j.status === 'running',
+    )
+    const refresh = useCallback(async () => {
         try {
-            const res = await fetch('/api/discover-events', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    topics:  Array.from(selectedTopics),
-                    years:   Array.from(selectedYears),
-                    regions: Array.from(selectedRegions),
-                    knownDetails: details,
-                    directSync,
-                }),
+            const data = await request('')
+            setJobs(data.jobs)
+            setLoadError('')
+        } catch (error) {
+            setLoadError(
+                error instanceof Error
+                    ? error.message
+                    : 'Search history unavailable',
+            )
+        }
+    }, [])
+    const refreshPortfolio = useCallback(async () => {
+        const { data, error } = await createClient()
+            .from('events')
+            .select('id,name,start_date,website_url,metadata')
+            .is('deleted_at', null)
+        if (error) throw new Error('Portfolio duplicate check unavailable')
+        setPortfolio((data ?? []) as PortfolioItem[])
+    }, [])
+    useEffect(() => {
+        void refresh()
+        void refreshPortfolio().catch(() => {})
+        const saved = localStorage.getItem('eventra-search-criteria-v1')
+        if (saved) {
+            try {
+                const parsed = searchCriteriaSchema.safeParse(JSON.parse(saved))
+                if (parsed.success) setCriteria(parsed.data)
+            } catch {}
+        }
+    }, [refresh, refreshPortfolio])
+    useEffect(() => {
+        if (!running) return
+        const timer = setInterval(() => void refresh(), 3000)
+        return () => clearInterval(timer)
+    }, [running, refresh])
+    function set<K extends keyof SearchCriteria>(
+        key: K,
+        value: SearchCriteria[K],
+    ) {
+        setCriteria((c) => ({ ...c, [key]: value }))
+    }
+    async function search(next = criteria) {
+        const valid = searchCriteriaSchema.safeParse(next)
+        if (!valid.success) {
+            toast.error(valid.error.issues[0]?.message || 'Review your filters')
+            return
+        }
+        setBusy(true)
+        try {
+            const data = await request('', valid.data)
+            setJobId(data.id)
+            setSelected([])
+            setImported([])
+            setCategory('strict')
+            if (window.matchMedia('(max-width: 1279px)').matches)
+                setFiltersOpen(false)
+            await refresh()
+        } catch (error) {
+            toast.error(
+                error instanceof Error ? error.message : 'Search failed',
+            )
+        } finally {
+            setBusy(false)
+        }
+    }
+    async function parse() {
+        setBusy(true)
+        try {
+            const data = await request('/parse', {
+                text: naturalText,
+                mode: criteria.mode,
             })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error ?? 'Scan failed')
-            setResults(data.events ?? [])
-            setAddedIds(new Set())
-        } catch (err: unknown) {
-            toast.error(getErrorMessage(err, 'Failed to run discovery scan'))
+            setCriteria(data.criteria)
+            toast.success('Review the parsed conditions, then start search')
+        } catch (error) {
+            toast.error(
+                error instanceof Error ? error.message : 'Parsing failed',
+            )
         } finally {
-            setScanning(false)
+            setBusy(false)
         }
     }
-
-    // Called when user clicks Add button — runs duplicate check first
-    async function handleAdd(event: DiscoveredEvent, idx: number) {
-        setDupeChecking(idx)
+    async function prepareImport(ids: string[]) {
         try {
-            const match = await findDuplicate(event)
-            if (match) {
-                setDupePending({ event, idx })
-                setDupeMatch(match)
-                return
-            }
-        } finally {
-            setDupeChecking(null)
+            await refreshPortfolio()
+            setSelected(ids)
+            setConfirmImport(true)
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Duplicate check failed',
+            )
         }
-        await commitAdd(event, idx)
     }
-
-    // Actually write to DB (called after dupe check passes or user confirms)
-    async function commitAdd(event: DiscoveredEvent, idx: number) {
-        setAddingIdx(idx)
+    async function importResults(
+        destination: 'queue' | 'portfolio',
+        createTasks: boolean,
+    ) {
+        if (!job) return
+        setImporting(true)
         try {
-            const supabase = createClient()
-            const user = await safeGetUser(supabase)
-            if (!user) throw new Error('Not authenticated')
-            const payload = {
-                owner_id:           user.id,
-                name:               event.name,
-                event_type:         normalizeEventType(event.event_type),
-                start_date:         event.start_date || null,
-                end_date:           event.end_date   || null,
-                location:           event.location   || null,
-                website_url:        event.website_url || null,
-                focus_area:         event.focus_area  || null,
-                target_audience:    event.target_audience || null,
-                expected_attendees: event.expected_attendees ?? null,
-                description:        event.description || null,
-                discovery_priority: normalizeEventPriority(event.discovery_priority),
-                engagement_type:    normalizeEngagementType(event.engagement_type),
-                source:             'ai_discovered',
-                status:             'upcoming',
-            }
-
-            if (directSync) {
-                const ok = confirm(`Add "${event.name}" directly to Portfolio and create starter tasks?`)
-                if (!ok) return
-                const { data: insertedEvent, error } = await supabase
-                    .from('events')
-                    .insert(payload)
-                    .select('id, start_date')
-                    .single()
-                if (error) throw error
-                if (insertedEvent?.id) {
-                    await seedDefaultEventTasks(supabase, insertedEvent.id, insertedEvent.start_date)
-                }
-                toast.success('Event added directly with starter tasks')
-            } else {
-                const { error } = await supabase.from('event_discovery_queue').insert({
-                    type: 'NEW',
-                    status: 'PENDING',
-                    event_data: {
-                        ...event,
-                        event_type: normalizeEventType(event.event_type),
-                        discovery_priority: normalizeEventPriority(event.discovery_priority),
-                        engagement_type: normalizeEngagementType(event.engagement_type),
-                    },
+            for (const id of selected) {
+                await request('/import', {
+                    jobId: job.id,
+                    resultId: id,
+                    destination,
+                    createTasks,
                 })
-                if (error) throw error
-                toast.success('Event added to review queue')
+                setImported((prev) => [...prev, id])
             }
-
-            setAddedIds(prev => new Set([...prev, idx]))
-        } catch (err: unknown) {
-            toast.error(getErrorMessage(err, 'Failed to add event'))
+            setConfirmImport(false)
+            setSelected([])
+            await refreshPortfolio()
+            toast.success(
+                destination === 'queue'
+                    ? 'Added to Review Queue. No tasks created.'
+                    : 'Portfolio import completed',
+            )
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Import failed; completed items are safe to retry',
+            )
         } finally {
-            setAddingIdx(null)
+            setImporting(false)
         }
     }
-
-    function confirmDupe() {
-        if (!dupePending) return
-        const { event, idx } = dupePending
-        setDupePending(null)
-        setDupeMatch(null)
-        commitAdd(event, idx)
-    }
-
-    function cancelDupe() {
-        setDupePending(null)
-        setDupeMatch(null)
-    }
-
-    const hasKnownDetails = knownDetails.trim().length > 0
-    const canScan = (selectedTopics.size > 0 || hasKnownDetails) && !scanning
-
+    const listInput = (
+        key:
+            | 'industries'
+            | 'technologies'
+            | 'includeAny'
+            | 'includeAll'
+            | 'exclude',
+        label: string,
+    ) => (
+        <label className="block space-y-1 text-sm" key={key}>
+            <span>{label}</span>
+            <DelimitedInput
+                value={criteria[key]}
+                onChange={(value) => set(key, value)}
+            />
+        </label>
+    )
+    const chosen = job?.results.filter((r) => selected.includes(r.id)) ?? []
     return (
         <div className="space-y-6">
-            {/* Duplicate confirmation modal */}
-            {dupePending && dupeMatch && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
-                        <div className="flex items-start gap-3 mb-4">
-                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
-                                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">Possible Duplicate Detected</h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                    Matched on: <span className="font-medium text-zinc-700 dark:text-zinc-300">{dupeMatch.reason}</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Side-by-side comparison */}
-                        <div className="grid grid-cols-2 gap-3 mb-5">
-                            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
-                                <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest mb-1.5">Incoming</p>
-                                <p className="text-xs font-semibold text-zinc-900 dark:text-white leading-snug mb-1">{dupePending.event.name}</p>
-                                <p className="text-[11px] text-zinc-500">{dupePending.event.start_date ?? '—'}</p>
-                                <p className="text-[11px] text-zinc-500">{dupePending.event.location ?? '—'}</p>
-                            </div>
-                            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800">
-                                <p className="text-[10px] uppercase font-bold text-amber-500 tracking-widest mb-1.5">Existing ({dupeMatch.source})</p>
-                                <p className="text-xs font-semibold text-zinc-900 dark:text-white leading-snug mb-1">{dupeMatch.name}</p>
-                                <p className="text-[11px] text-zinc-500">{dupeMatch.start_date ?? '—'}</p>
-                                <p className="text-[11px] text-zinc-500">{dupeMatch.location ?? '—'}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button
-                                onClick={cancelDupe}
-                                className="flex-1 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDupe}
-                                className="flex-1 py-2 text-sm font-semibold bg-[#CBFB45] hover:bg-[#b8e33d] text-zinc-900 rounded-lg transition-colors"
-                            >
-                                Add Anyway
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Main card */}
-            <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-8 max-w-3xl mx-auto">
-                {/* Icon + Title */}
-                <div className="flex flex-col items-center text-center mb-8">
-                    <div className="w-20 h-20 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center mb-4">
-                        <Search className="h-10 w-10 text-zinc-500 dark:text-zinc-400" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Discovery Engine</h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md">
-                        Select focus areas for your intelligence scan. Choose between human review or direct automated sync.
+            <header className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-semibold">Find events</h1>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        Search broadly. Verify each field. Choose what enters
+                        your Portfolio.
                     </p>
                 </div>
-
-                {/* Direct Cloud Sync toggle */}
-                <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600 mb-6">
-                    <div className="flex-1 mr-4">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-700 dark:text-zinc-300 mb-0.5">
-                            Direct Cloud Sync
-                        </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            Bypass the review queue and write discovered events directly to Eventra.
-                        </p>
-                    </div>
+                <div className="flex gap-2">
                     <button
-                        role="switch"
-                        aria-checked={directSync}
-                        onClick={toggleDirectSync}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                            directSync ? 'bg-[#CBFB45]' : 'bg-zinc-300 dark:bg-zinc-600'
-                        }`}
+                        className={`${button} bg-zinc-900 text-white dark:bg-white dark:text-zinc-900`}
+                        disabled={busy || running}
+                        onClick={() => search()}
                     >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                            directSync ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
+                        Start search
+                    </button>
+                    <button
+                        className={button}
+                        onClick={() => {
+                            localStorage.setItem(
+                                'eventra-search-criteria-v1',
+                                JSON.stringify(criteria),
+                            )
+                            toast.success(
+                                'Search conditions saved on this device',
+                            )
+                        }}
+                    >
+                        Save conditions
                     </button>
                 </div>
-
-                {/* Scan Constraints box */}
-                <div className="border border-zinc-200 dark:border-zinc-600 rounded-lg overflow-hidden mb-6">
-                    <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-700/50 border-b border-zinc-200 dark:border-zinc-600">
-                        <div className="flex items-center gap-2">
-                            <Filter className="h-3.5 w-3.5 text-zinc-500" />
-                            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
-                                Scan Constraints
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                            <button onClick={() => setTopics(DEFAULT_TOPICS)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">Refresh</button>
-                            <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                            <button onClick={selectAll} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">Select All</button>
-                            <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                            <button onClick={clearAll} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">Clear</button>
-                        </div>
-                    </div>
-
-                    <div className="p-4 flex flex-wrap gap-2">
-                        {topics.map(topic => {
-                            const selected = selectedTopics.has(topic)
-                            return (
-                                <span
-                                    key={topic}
-                                    className={`group inline-flex items-center gap-1 rounded-full text-xs font-medium border transition-all ${
-                                        selected
-                                            ? 'border-[#CBFB45] bg-[#CBFB45]/10 text-zinc-900 dark:text-zinc-100'
-                                            : 'border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-400'
-                                    }`}
-                                >
-                                    <button onClick={() => toggleTopic(topic)} className="pl-3 pr-1 py-1.5">
-                                        {topic}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setTopics(prev => prev.filter(t => t !== topic))
-                                            setSelectedTopics(prev => { const n = new Set(prev); n.delete(topic); return n })
-                                        }}
-                                        className="pr-2 py-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        aria-label={`Remove ${topic}`}
-                                    >
-                                        ×
-                                    </button>
-                                </span>
-                            )
-                        })}
-                    </div>
-
-                    {/* Year constraint */}
-                    <div className="px-4 pb-3 border-t border-zinc-100 dark:border-zinc-700 pt-3">
-                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-2">Year</p>
-                        <div className="flex flex-wrap gap-2">
-                            {YEARS.map(y => {
-                                const active = selectedYears.has(y)
-                                return (
-                                    <button key={y} onClick={() => toggleYear(y)}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                                            active
-                                                ? 'border-[#CBFB45] bg-[#CBFB45]/10 text-zinc-900 dark:text-zinc-100'
-                                                : 'border-zinc-200 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400'
-                                        }`}
-                                    >{y}</button>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Region constraint */}
-                    <div className="px-4 pb-3 border-t border-zinc-100 dark:border-zinc-700 pt-3">
-                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-2">
-                            Region <span className="normal-case font-normal text-zinc-300">(optional — leave blank for global)</span>
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {REGIONS.map(r => {
-                                const active = selectedRegions.has(r)
-                                return (
-                                    <button key={r} onClick={() => toggleRegion(r)}
-                                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                                            active
-                                                ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
-                                                : 'border-zinc-200 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400'
-                                        }`}
-                                    >{r}</button>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Known details */}
-                    <div className="px-4 pb-4 border-t border-zinc-100 dark:border-zinc-700 pt-3">
-                        <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-2">
-                            Known Details <span className="normal-case font-normal text-zinc-300">(optional)</span>
-                        </p>
-                        <input
-                            type="text"
-                            value={knownDetails}
-                            onChange={e => setKnownDetails(e.target.value)}
-                            placeholder="e.g., AI Summit 2026 London June"
-                            className="w-full text-xs px-3 py-2 border border-zinc-200 dark:border-zinc-600 rounded-lg bg-transparent text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#CBFB45]"
-                        />
-                    </div>
-
-                    {/* Custom topic */}
-                    <div className="px-4 pb-4 flex gap-2 border-t border-zinc-100 dark:border-zinc-700 pt-3">
-                        <input
-                            type="text"
-                            value={customTopic}
-                            onChange={e => setCustomTopic(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addCustomTopic()}
-                            placeholder="Add custom topic..."
-                            className="flex-1 text-xs px-3 py-2 border border-zinc-200 dark:border-zinc-600 rounded-lg bg-transparent text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#CBFB45]"
-                        />
-                        <button
-                            onClick={addCustomTopic}
-                            className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-600 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:border-zinc-400 transition-colors"
+            </header>
+            <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+                <aside className="min-w-0 self-start xl:sticky xl:top-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
+                    <button
+                        className={`${button} mb-3 xl:hidden`}
+                        onClick={() => setFiltersOpen((v) => !v)}
+                    >
+                        {filtersOpen ? 'Hide filters' : 'Edit search filters'}
+                    </button>
+                    <div
+                        className={`${filtersOpen ? 'block' : 'hidden'} xl:block xl:max-h-[calc(100vh-240px)] xl:overflow-y-auto space-y-5`}
+                    >
+                        <div
+                            className="grid grid-cols-2 gap-2"
+                            role="group"
+                            aria-label="Search mode"
                         >
-                            <Plus className="h-4 w-4" />
+                            {(['discover', 'specific'] as const).map((mode) => (
+                                <button
+                                    key={mode}
+                                    aria-pressed={criteria.mode === mode}
+                                    className={`${button} ${criteria.mode === mode ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : ''}`}
+                                    onClick={() => set('mode', mode)}
+                                >
+                                    {mode === 'discover'
+                                        ? 'Discover events'
+                                        : 'Find a specific event'}
+                                </button>
+                            ))}
+                        </div>
+                        <label className="block space-y-1 text-sm">
+                            <span>Describe your search</span>
+                            <textarea
+                                className={control}
+                                rows={3}
+                                value={naturalText}
+                                onChange={(e) => setNaturalText(e.target.value)}
+                                placeholder="Healthcare AI conferences in Toronto, October–December 2026, excluding webinars"
+                            />
+                        </label>
+                        <button
+                            className={button}
+                            disabled={busy || !naturalText.trim()}
+                            onClick={parse}
+                        >
+                            Parse into editable conditions
+                        </button>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            Parsing never changes your search mode or starts a
+                            search.
+                        </p>
+                        <div className="flex items-center gap-2 font-medium">
+                            <SlidersHorizontal size={16} /> Search conditions
+                        </div>
+                        <label className="block space-y-1 text-sm">
+                            <span>
+                                {criteria.mode === 'specific'
+                                    ? 'Event name / exact phrase'
+                                    : 'Search description'}
+                            </span>
+                            <input
+                                className={control}
+                                value={criteria.query}
+                                onChange={(e) => set('query', e.target.value)}
+                            />
+                        </label>
+                        <label className="block space-y-1 text-sm">
+                            <span>Verify from this page</span>
+                            <input
+                                type="url"
+                                className={control}
+                                value={criteria.pageUrl}
+                                onChange={(e) => set('pageUrl', e.target.value)}
+                                placeholder="https://…"
+                            />
+                            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                                A submitted URL is checked for official
+                                ownership.
+                            </span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {(['startDate', 'endDate'] as const).map((key) => (
+                                <label key={key} className="text-sm space-y-1">
+                                    <span>
+                                        {key === 'startDate'
+                                            ? 'From'
+                                            : 'Through'}
+                                    </span>
+                                    <input
+                                        type="date"
+                                        className={control}
+                                        value={criteria[key] ?? ''}
+                                        onChange={(e) =>
+                                            set(key, e.target.value || null)
+                                        }
+                                    />
+                                </label>
+                            ))}
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            Events must overlap this date range. Both event
+                            dates are checked.
+                        </p>
+                        {(
+                            [
+                                'country',
+                                'state',
+                                'city',
+                                'organizer',
+                                'audience',
+                            ] as const
+                        ).map((key) => (
+                            <label
+                                key={key}
+                                className="block space-y-1 text-sm"
+                            >
+                                <span>
+                                    {
+                                        {
+                                            country: 'Country',
+                                            state: 'State / province',
+                                            city: 'City',
+                                            organizer: 'Organizer',
+                                            audience:
+                                                'Officially stated audience',
+                                        }[key]
+                                    }
+                                </span>
+                                <input
+                                    className={control}
+                                    value={criteria[key]}
+                                    onChange={(e) => set(key, e.target.value)}
+                                />
+                            </label>
+                        ))}
+                        <label className="block space-y-1 text-sm">
+                            <span>Attendance</span>
+                            <select
+                                className={control}
+                                value={criteria.attendance}
+                                onChange={(e) =>
+                                    set(
+                                        'attendance',
+                                        e.target
+                                            .value as SearchCriteria['attendance'],
+                                    )
+                                }
+                            >
+                                <option value="any">Any</option>
+                                <option value="in_person">In person</option>
+                                <option value="online">Online</option>
+                                <option value="hybrid">Hybrid</option>
+                            </select>
+                        </label>
+                        <fieldset className="space-y-2">
+                            <legend className="text-sm">
+                                Event types — OR
+                            </legend>
+                            <div className="flex flex-wrap gap-2">
+                                {EVENT_TYPES.map((type) => (
+                                    <button
+                                        key={type}
+                                        className={`${button} text-xs ${criteria.eventTypes.includes(type) ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : ''}`}
+                                        aria-pressed={criteria.eventTypes.includes(
+                                            type,
+                                        )}
+                                        onClick={() =>
+                                            set(
+                                                'eventTypes',
+                                                criteria.eventTypes.includes(
+                                                    type,
+                                                )
+                                                    ? criteria.eventTypes.filter(
+                                                          (t) => t !== type,
+                                                      )
+                                                    : [
+                                                          ...criteria.eventTypes,
+                                                          type,
+                                                      ],
+                                            )
+                                        }
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        </fieldset>
+                        {listInput('industries', 'Industries')}
+                        {listInput('technologies', 'Technologies')}
+                        <label className="block text-sm space-y-1">
+                            <span>Industry / technology relationship</span>
+                            <select
+                                className={control}
+                                value={criteria.topicOperator}
+                                onChange={(e) =>
+                                    set(
+                                        'topicOperator',
+                                        e.target.value as 'AND' | 'OR',
+                                    )
+                                }
+                            >
+                                <option value="OR">
+                                    OR — match any selected topic
+                                </option>
+                                <option value="AND">
+                                    AND — match all selected topics
+                                </option>
+                            </select>
+                        </label>
+                        {listInput('includeAny', 'Include any keyword')}
+                        {listInput('includeAll', 'Include all keywords')}
+                        {listInput('exclude', 'Exclude keywords')}
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            Keywords apply to title, description and organizer.
+                            Unknown facts stay unconfirmed.
+                        </p>
+                        <label className="flex gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={criteria.includePast}
+                                onChange={(e) =>
+                                    set('includePast', e.target.checked)
+                                }
+                            />{' '}
+                            Include past editions
+                        </label>
+                        <button
+                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 dark:bg-white px-4 py-3 font-medium text-white dark:text-zinc-900 disabled:opacity-50"
+                            disabled={busy || running}
+                            onClick={() => search()}
+                        >
+                            {busy ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Search size={16} />
+                            )}{' '}
+                            Start search
+                        </button>
+                        <button
+                            className={button}
+                            onClick={() => setCriteria(initial())}
+                        >
+                            Clear conditions
                         </button>
                     </div>
-                </div>
-
-                <button
-                    onClick={runScan}
-                    disabled={!canScan}
-                    className={`w-full py-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                        canScan
-                            ? 'bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-900 dark:hover:bg-zinc-200'
-                            : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-50 cursor-not-allowed'
-                    }`}
-                >
-                    {scanning ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" />Scanning...</>
-                    ) : (
-                        hasKnownDetails ? 'Find matching event ->' : selectedTopics.size === 0 ? 'Select topics to scan ->' : `Scan ${selectedTopics.size} topic${selectedTopics.size !== 1 ? 's' : ''} ->`
-                    )}
-                </button>
-            </div>
-
-            {/* Results */}
-            {results !== null && (
-                <div className="max-w-3xl mx-auto">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Scan Results</h3>
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                            {results.length} event{results.length !== 1 ? 's' : ''} found
-                        </span>
-                    </div>
-
-                    <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4 text-xs text-amber-800 dark:text-amber-300">
-                        <span className="mt-0.5 flex-shrink-0">⚠</span>
-                        <span>
-                            AI suggestions are based on known recurring events and may contain inaccurate dates or details. Verify before adding.
-                        </span>
-                    </div>
-
-                    {results.length === 0 ? (
-                        <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-12 text-center text-zinc-400 dark:text-zinc-500">
-                            No events found for selected topics
+                </aside>
+                <main className="min-w-0 space-y-5">
+                    {loadError && (
+                        <div
+                            role="alert"
+                            className="rounded-lg border p-4 text-sm"
+                        >
+                            {loadError}
+                            <button className={button} onClick={refresh}>
+                                Retry
+                            </button>
                         </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {results.map((event, idx) => {
-                                const expanded = expandedIdx === idx
-                                return (
-                                <div
-                                    key={idx}
-                                    className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden"
+                    )}
+                    {!!jobs.length && (
+                        <label className="flex items-center gap-3 text-sm">
+                            Search history
+                            <select
+                                className={control}
+                                value={job?.id ?? ''}
+                                onChange={(e) => {
+                                    setJobId(e.target.value)
+                                    setSelected([])
+                                    setImported([])
+                                }}
+                            >
+                                {jobs.map((j) => (
+                                    <option key={j.id} value={j.id}>
+                                        {new Date(
+                                            j.created_at,
+                                        ).toLocaleString()}{' '}
+                                        ·{' '}
+                                        {j.criteria.query ||
+                                            j.criteria.industries.join(', ') ||
+                                            'Event search'}{' '}
+                                        · {j.status}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+                    {job && (
+                        <section
+                            className="rounded-xl border bg-white dark:bg-zinc-900 p-5 space-y-3"
+                            aria-live="polite"
+                        >
+                            <div className="flex flex-wrap justify-between gap-3">
+                                <h2 className="font-medium">
+                                    {job.status === 'warnings'
+                                        ? 'Search completed with warnings'
+                                        : job.status === 'completed'
+                                          ? 'Search completed'
+                                          : job.status === 'cancelled'
+                                            ? 'Search cancelled'
+                                            : job.stage}
+                                </h2>
+                                <button
+                                    className={button}
+                                    onClick={() => setCriteria(job.criteria)}
                                 >
-                                    {/* Clickable header row */}
-                                    <div
-                                        className="p-5 flex items-start gap-4 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors"
-                                        onClick={() => setExpandedIdx(expanded ? null : idx)}
+                                    Restore these conditions
+                                </button>
+                            </div>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                {job.counts.candidates} candidates found ·{' '}
+                                {job.counts.checked} source checks ·{' '}
+                                {job.counts.strict} strict matches ·{' '}
+                                {job.counts.verification} need verification ·{' '}
+                                {job.counts.excluded} excluded
+                            </p>
+                            {['failed', 'warnings'].includes(job.status) && (
+                                <button
+                                    className={button}
+                                    disabled={running}
+                                    onClick={async () => {
+                                        try {
+                                            await request('/retry', {
+                                                id: job.id,
+                                            })
+                                            await refresh()
+                                        } catch (error) {
+                                            toast.error(
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : 'Retry failed',
+                                            )
+                                        }
+                                    }}
+                                >
+                                    Retry sources needing verification
+                                </button>
+                            )}
+                            {job.error && (
+                                <p
+                                    role="alert"
+                                    className="text-sm text-red-600"
+                                >
+                                    {job.error}
+                                </p>
+                            )}
+                            {job.warnings.map((w) => (
+                                <p key={w} className="text-sm text-amber-700">
+                                    {w}
+                                </p>
+                            ))}
+                            {['queued', 'running'].includes(job.status) && (
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        className={button}
+                                        onClick={async () => {
+                                            try {
+                                                await request('/cancel', {
+                                                    id: job.id,
+                                                })
+                                                await refresh()
+                                            } catch {
+                                                toast.error(
+                                                    'Cancellation failed',
+                                                )
+                                            }
+                                        }}
                                     >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start gap-2 flex-wrap mb-1">
-                                                <h4 className="font-semibold text-zinc-900 dark:text-white text-sm leading-snug">
-                                                    {event.name}
-                                                </h4>
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVENT_PRIORITY_PILL[normalizeEventPriority(event.discovery_priority)]}`}>
-                                                    {normalizeEventPriority(event.discovery_priority)}
-                                                </span>
-                                                {typeof event.confidence === 'number' && (
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                        event.confidence >= 85
-                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                                            : event.confidence >= 65
-                                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                                                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
-                                                    }`}>
-                                                        {event.confidence}% match
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 flex-wrap">
-                                                {event.start_date && (
-                                                    <span className="flex items-center gap-1.5">
-                                                        {formatDateOnly(event.start_date)}
-                                                        {event.end_date && event.end_date !== event.start_date && (
-                                                            <> - {formatDateOnly(event.end_date)}</>
-                                                        )}
-                                                        <span className="px-1 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-600">est.</span>
-                                                    </span>
-                                                )}
-                                                {event.location && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="h-3 w-3" />
-                                                        {event.location}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                                            {event.website_url && (
-                                                <a
-                                                    href={event.website_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-                                                >
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            )}
-                                            <button
-                                                onClick={() => handleAdd(event, idx)}
-                                                disabled={addedIds.has(idx) || addingIdx === idx || dupeChecking === idx}
-                                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                                                    addedIds.has(idx)
-                                                        ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400 cursor-default'
-                                                        : 'bg-[#CBFB45] hover:bg-[#b8e33d] text-zinc-900 disabled:opacity-50'
-                                                }`}
-                                            >
-                                                {(addingIdx === idx || dupeChecking === idx) ? (
-                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                ) : addedIds.has(idx) ? (
-                                                    'Added ✓'
-                                                ) : directSync ? (
-                                                    'Add Directly'
-                                                ) : (
-                                                    'Add to Queue'
-                                                )}
-                                            </button>
-                                            <span className="text-zinc-400 text-sm select-none">{expanded ? '▲' : '▼'}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Expanded detail panel */}
-                                    {expanded && (
-                                        <div className="border-t border-zinc-100 dark:border-zinc-700 px-5 py-4 grid grid-cols-2 gap-4 text-xs bg-zinc-50 dark:bg-zinc-900/40">
-                                            {event.description && (
-                                                <div className="col-span-2">
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Description</p>
-                                                    <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed">{event.description}</p>
-                                                </div>
-                                            )}
-                                            {event.match_notes && (
-                                                <div className="col-span-2">
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Match Notes</p>
-                                                    <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed">{event.match_notes}</p>
-                                                </div>
-                                            )}
-                                            {event.focus_area && (
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Focus Area</p>
-                                                    <p className="text-zinc-700 dark:text-zinc-300">{event.focus_area}</p>
-                                                </div>
-                                            )}
-                                            {event.target_audience && (
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Target Audience</p>
-                                                    <p className="text-zinc-700 dark:text-zinc-300">{event.target_audience}</p>
-                                                </div>
-                                            )}
-                                            {event.expected_attendees && (
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Expected Attendees</p>
-                                                    <p className="text-zinc-700 dark:text-zinc-300">{event.expected_attendees.toLocaleString()}+</p>
-                                                </div>
-                                            )}
-                                            {event.website_url && (
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-semibold text-zinc-400 tracking-widest mb-1">Website</p>
-                                                    <a href={event.website_url} target="_blank" rel="noopener noreferrer"
-                                                        className="text-indigo-600 dark:text-indigo-400 hover:underline break-all">
-                                                        {event.website_url}
-                                                    </a>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                        Cancel search
+                                    </button>
+                                    <Link className={button} href="/dashboard">
+                                        Continue in background
+                                    </Link>
+                                    <p className="w-full text-xs text-zinc-500 dark:text-zinc-400">
+                                        Progress is saved on the server. You can
+                                        leave or refresh this page.
+                                    </p>
                                 </div>
-                                )
-                            })}
+                            )}
+                        </section>
+                    )}
+                    {!job && (
+                        <div className="rounded-xl border border-dashed p-10 text-center space-y-3">
+                            <Search className="mx-auto text-zinc-500 dark:text-zinc-400" />
+                            <h2 className="text-lg font-medium">
+                                Make the search specific to your needs
+                            </h2>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                Choose dates, location and topics. Results
+                                explain both matching conditions and supporting
+                                evidence.
+                            </p>
                         </div>
                     )}
-                </div>
-            )}
+                    {job && (
+                        <>
+                            <div
+                                className="flex flex-wrap gap-2"
+                                role="group"
+                                aria-label="Result category"
+                            >
+                                {(
+                                    [
+                                        {
+                                            key: 'strict',
+                                            label: 'Strict Match',
+                                            icon: CheckCircle2,
+                                        },
+                                        {
+                                            key: 'verification',
+                                            label: 'Needs Verification',
+                                            icon: AlertTriangle,
+                                        },
+                                        {
+                                            key: 'excluded',
+                                            label: 'View excluded results',
+                                            icon: XCircle,
+                                        },
+                                    ] as const
+                                ).map(({ key, label, icon: Icon }) => (
+                                    <button
+                                        key={key}
+                                        className={`${button} flex gap-2 items-center ${category === key ? 'bg-lime-50 dark:bg-zinc-800 ring-1 ring-lime-500' : ''}`}
+                                        aria-pressed={category === key}
+                                        onClick={() => setCategory(key)}
+                                    >
+                                        <Icon size={16} />
+                                        {label} (
+                                        {
+                                            job.results.filter(
+                                                (r) => r.category === key,
+                                            ).length
+                                        }
+                                        )
+                                    </button>
+                                ))}
+                            </div>
+                            {!!selected.length && (
+                                <button
+                                    className={button}
+                                    onClick={() => prepareImport(selected)}
+                                >
+                                    Review {selected.length} selected events for
+                                    import
+                                </button>
+                            )}
+                            {job.results
+                                .filter((r) => r.category === category)
+                                .map((result) => {
+                                    const f = result.resolved
+                                    const existing = portfolio.find((p) =>
+                                        sameEdition(result, p),
+                                    )
+                                    const otherEdition =
+                                        !existing && result.seriesKey
+                                            ? portfolio.find(
+                                                  (p) =>
+                                                      p.metadata?.search
+                                                          ?.seriesKey ===
+                                                      result.seriesKey,
+                                              )
+                                            : null
+                                    return (
+                                        <article
+                                            key={result.id}
+                                            className="rounded-xl border bg-white dark:bg-zinc-900 p-5 space-y-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                {result.category !==
+                                                    'excluded' && (
+                                                    <input
+                                                        aria-label={`Select ${result.name}`}
+                                                        className="mt-1"
+                                                        type="checkbox"
+                                                        disabled={imported.includes(
+                                                            result.id,
+                                                        )}
+                                                        checked={selected.includes(
+                                                            result.id,
+                                                        )}
+                                                        onChange={(e) =>
+                                                            setSelected((s) =>
+                                                                e.target.checked
+                                                                    ? [
+                                                                          ...s,
+                                                                          result.id,
+                                                                      ]
+                                                                    : s.filter(
+                                                                          (
+                                                                              id,
+                                                                          ) =>
+                                                                              id !==
+                                                                              result.id,
+                                                                      ),
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className="text-lg font-semibold">
+                                                        {f.name.value ||
+                                                            result.name}
+                                                    </h3>
+                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                                        {f.start_date.value ||
+                                                            'Date unknown'}{' '}
+                                                        —{' '}
+                                                        {f.end_date.value ||
+                                                            'Date unknown'}{' '}
+                                                        ·{' '}
+                                                        {[
+                                                            f.city.value,
+                                                            f.state.value,
+                                                            f.country.value,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(', ') ||
+                                                            'Location unknown'}
+                                                    </p>
+                                                    <p className="mt-1 text-sm">
+                                                        {f.attendance.value ||
+                                                            'Attendance unknown'}{' '}
+                                                        ·{' '}
+                                                        {f.event_type.value ||
+                                                            'Type unknown'}{' '}
+                                                        ·{' '}
+                                                        {f.organizer.value ||
+                                                            'Organizer unknown'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/50 p-3 text-sm space-y-1">
+                                                <p>
+                                                    Criteria match:{' '}
+                                                    <strong>
+                                                        {
+                                                            result.criteria.filter(
+                                                                (c) =>
+                                                                    c.status ===
+                                                                    'matched',
+                                                            ).length
+                                                        }
+                                                        /
+                                                        {result.criteria.length}
+                                                    </strong>{' '}
+                                                    required checks
+                                                </p>
+                                                <p>
+                                                    Evidence status:{' '}
+                                                    <strong>
+                                                        {result.evidenceStatus}
+                                                    </strong>{' '}
+                                                    · {result.unknownCount}{' '}
+                                                    fields not confirmed
+                                                </p>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                    Last source check:{' '}
+                                                    {result.sources[0]
+                                                        ?.checkedAt
+                                                        ? new Date(
+                                                              result.sources[0]
+                                                                  .checkedAt,
+                                                          ).toLocaleString()
+                                                        : 'Not checked'}
+                                                </p>
+                                            </div>
+                                            <ul className="text-sm space-y-1">
+                                                {(result.reasons.length
+                                                    ? result.reasons
+                                                    : result.criteria
+                                                          .filter(
+                                                              (c) =>
+                                                                  c.status ===
+                                                                  'matched',
+                                                          )
+                                                          .map((c) => c.label)
+                                                )
+                                                    .slice(0, 3)
+                                                    .map((reason) => (
+                                                        <li key={reason}>
+                                                            {reason}
+                                                        </li>
+                                                    ))}
+                                            </ul>
+                                            {existing && (
+                                                <p className="text-sm text-amber-700">
+                                                    Possible Portfolio
+                                                    duplicate:{' '}
+                                                    <Link
+                                                        href={`/events/${existing.id}`}
+                                                        className="underline"
+                                                    >
+                                                        {existing.name}
+                                                    </Link>
+                                                    . Review before adding.
+                                                </p>
+                                            )}
+                                            {otherEdition && (
+                                                <p className="text-sm">
+                                                    Another edition already
+                                                    exists: {otherEdition.name}{' '}
+                                                    ({otherEdition.start_date}).
+                                                    This edition will remain
+                                                    separate.
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    className={button}
+                                                    onClick={() =>
+                                                        setDetails(result)
+                                                    }
+                                                >
+                                                    View field evidence
+                                                </button>
+                                                {result.website_url &&
+                                                    /^https?:\/\//i.test(
+                                                        result.website_url,
+                                                    ) && (
+                                                        <a
+                                                            href={
+                                                                result.website_url
+                                                            }
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={`${button} inline-flex items-center gap-2`}
+                                                        >
+                                                            Source page{' '}
+                                                            <ExternalLink
+                                                                size={14}
+                                                            />
+                                                        </a>
+                                                    )}
+                                                {result.category !==
+                                                    'excluded' &&
+                                                    [
+                                                        'completed',
+                                                        'warnings',
+                                                    ].includes(job.status) && (
+                                                        <button
+                                                            className={button}
+                                                            disabled={imported.includes(
+                                                                result.id,
+                                                            )}
+                                                            onClick={() =>
+                                                                prepareImport([
+                                                                    result.id,
+                                                                ])
+                                                            }
+                                                        >
+                                                            {imported.includes(
+                                                                result.id,
+                                                            )
+                                                                ? 'Imported'
+                                                                : 'Review for import'}
+                                                        </button>
+                                                    )}
+                                            </div>
+                                        </article>
+                                    )
+                                })}
+                            {!job.results.some(
+                                (r) => r.category === category,
+                            ) && (
+                                <div className="rounded-xl border p-6 space-y-3">
+                                    <p>
+                                        No{' '}
+                                        {category === 'strict'
+                                            ? 'strict matches'
+                                            : category === 'verification'
+                                              ? 'results awaiting verification'
+                                              : 'excluded results'}{' '}
+                                        in this search.
+                                    </p>
+                                    {category === 'strict' &&
+                                        job.counts.verification > 0 && (
+                                            <button
+                                                className={button}
+                                                onClick={() =>
+                                                    setCategory('verification')
+                                                }
+                                            >
+                                                Inspect missing evidence
+                                            </button>
+                                        )}
+                                    {Array.from(
+                                        new Set(
+                                            job.results.flatMap((r) =>
+                                                r.criteria
+                                                    .filter(
+                                                        (c) =>
+                                                            c.status ===
+                                                            'failed',
+                                                    )
+                                                    .map((c) => c.key),
+                                            ),
+                                        ),
+                                    ).map((key) => (
+                                        <button
+                                            key={key}
+                                            className={button}
+                                            disabled={running || busy}
+                                            onClick={() => {
+                                                const next = { ...job.criteria }
+                                                if (key === 'dateRange') {
+                                                    next.startDate = null
+                                                    next.endDate = null
+                                                } else if (key === 'upcoming')
+                                                    next.includePast = true
+                                                else if (key === 'attendance')
+                                                    next.attendance = 'any'
+                                                else if (
+                                                    key === 'country' ||
+                                                    key === 'state' ||
+                                                    key === 'city' ||
+                                                    key === 'organizer' ||
+                                                    key === 'audience'
+                                                )
+                                                    next[key] = ''
+                                                else if (key === 'topics') {
+                                                    next.industries = []
+                                                    next.technologies = []
+                                                } else if (
+                                                    key === 'includeAll' ||
+                                                    key === 'includeAny' ||
+                                                    key === 'exclude' ||
+                                                    key === 'eventTypes'
+                                                )
+                                                    next[key] = []
+                                                else return
+                                                setCriteria(next)
+                                                void search(next)
+                                            }}
+                                        >
+                                            Relax {key} and search again
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </main>
+            </div>
+            <Dialog
+                open={!!details}
+                onOpenChange={(open) => !open && setDetails(null)}
+            >
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>{details?.name}</DialogTitle>
+                        <DialogDescription>
+                            Field values, exact supporting excerpts and
+                            unresolved conflicts.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {details && (
+                        <>
+                            {details.warnings.map((warning) => (
+                                <p
+                                    key={warning}
+                                    className="text-sm text-amber-700"
+                                >
+                                    {warning}
+                                </p>
+                            ))}
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th className="p-2">Field</th>
+                                            <th className="p-2">
+                                                Current value
+                                            </th>
+                                            <th className="p-2">Evidence</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {SEARCH_FIELDS.map((field) => (
+                                            <tr
+                                                key={field}
+                                                className="border-t align-top"
+                                            >
+                                                <th className="p-2 font-medium">
+                                                    {field.replaceAll('_', ' ')}
+                                                </th>
+                                                <td className="p-2">
+                                                    {details.resolved[field]
+                                                        .value ?? 'Unknown'}
+                                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                        {
+                                                            details.resolved[
+                                                                field
+                                                            ].status
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td className="p-2 space-y-2">
+                                                    {details.resolved[
+                                                        field
+                                                    ].evidence.map(
+                                                        (e, index) => (
+                                                            <div key={index}>
+                                                                <p>
+                                                                    {e.value} ·{' '}
+                                                                    {e.status}
+                                                                </p>
+                                                                <blockquote className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                                    {e.quote}
+                                                                </blockquote>
+                                                                {/^https?:\/\//i.test(
+                                                                    e.sourceUrl,
+                                                                ) && (
+                                                                    <a
+                                                                        className="underline text-xs"
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        href={
+                                                                            e.sourceUrl
+                                                                        }
+                                                                    >
+                                                                        Source ·{' '}
+                                                                        {new Date(
+                                                                            e.checkedAt,
+                                                                        ).toLocaleString()}
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <h3 className="font-medium">Required conditions</h3>
+                            {details.criteria.map((c) => (
+                                <p key={c.key} className="text-sm">
+                                    {c.status} — {c.label}
+                                </p>
+                            ))}
+                            <h3 className="font-medium">Source ownership</h3>
+                            {details.sources.map((s, i) => (
+                                <p key={i} className="text-sm break-words">
+                                    {s.kind} ·{' '}
+                                    {s.accessible
+                                        ? 'Page accessible'
+                                        : 'Page unavailable'}{' '}
+                                    · {s.identityReason}
+                                </p>
+                            ))}
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={confirmImport}
+                onOpenChange={(open) => !importing && setConfirmImport(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Review Portfolio import</DialogTitle>
+                        <DialogDescription>
+                            Adding {chosen.length} event(s) with starter tasks
+                            will create up to {chosen.length * taskCount} tasks
+                            ({taskCount} per new event), based on confirmed
+                            event dates. Search alone creates no events or
+                            tasks.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-56 overflow-y-auto space-y-2">
+                        {chosen.map((r) => (
+                            <p key={r.id} className="text-sm">
+                                {r.name} —{' '}
+                                {portfolio.some((p) => sameEdition(r, p))
+                                    ? 'Possible duplicate — review existing event'
+                                    : 'New candidate'}{' '}
+                                · {r.evidenceStatus}
+                            </p>
+                        ))}
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Exact known duplicates are skipped. Unconfirmed names or
+                        types must go through Review Queue. Unknown fields stay
+                        unknown. Batch selections go to Review Queue first.
+                    </p>
+                    <button
+                        className={button}
+                        disabled={importing}
+                        onClick={() => importResults('queue', false)}
+                    >
+                        Add to Review Queue — no tasks
+                    </button>
+                    {chosen.length === 1 && (
+                        <>
+                            <button
+                                className={button}
+                                disabled={
+                                    importing ||
+                                    chosen[0]?.resolved.name.status !==
+                                        'verified' ||
+                                    !chosen[0]?.resolved.event_type.value
+                                }
+                                onClick={() =>
+                                    importResults('portfolio', false)
+                                }
+                            >
+                                Add event without tasks
+                            </button>
+                            <button
+                                className={button}
+                                disabled={
+                                    importing ||
+                                    chosen[0]?.resolved.name.status !==
+                                        'verified' ||
+                                    !chosen[0]?.resolved.event_type.value
+                                }
+                                onClick={() => importResults('portfolio', true)}
+                            >
+                                Add event and create {taskCount} tasks
+                            </button>
+                        </>
+                    )}
+                    <button
+                        className={button}
+                        disabled={importing}
+                        onClick={() => setConfirmImport(false)}
+                    >
+                        Cancel
+                    </button>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

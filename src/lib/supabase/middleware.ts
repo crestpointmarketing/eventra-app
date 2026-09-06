@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isInvalidRefreshTokenError } from './auth'
 
 export async function updateSession(request: NextRequest) {
+    // This endpoint authenticates the scheduler secret itself; it has no user session.
+    if (request.nextUrl.pathname === '/api/cron/event-search') return NextResponse.next()
     let supabaseResponse = NextResponse.next({
         request,
     })

@@ -76,24 +76,24 @@ export function TopNav() {
     return (
         <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex h-20 items-center justify-between">
+                <div className="flex min-h-20 flex-wrap items-center justify-between gap-2 py-3 sm:h-20 sm:flex-nowrap sm:py-0">
                     {/* LEFT: Logo */}
                     <Link href="/dashboard" className="flex items-center">
                         <img
                             src="/eventra-logo-light.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-14 w-auto dark:hidden"
+                            className="h-10 sm:h-14 w-auto dark:hidden"
                         />
                         <img
                             src="/eventra-logo-dark.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-14 w-auto hidden dark:block"
+                            className="h-10 sm:h-14 w-auto hidden dark:block"
                         />
                     </Link>
 
                     {/* CENTER: Primary Navigation - Only show when logged in */}
                     {user && (
-                        <div className="flex-1 flex justify-center">
+                        <div className="order-3 w-full flex justify-center sm:order-none sm:w-auto sm:flex-1">
                             <nav className="flex items-center gap-6">
                                 {primaryNavItems.map((item) => {
                                     const isActive = item.activePaths.some((activePath) => pathname?.startsWith(activePath))

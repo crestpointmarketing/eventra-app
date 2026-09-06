@@ -43,6 +43,41 @@ async function asUser(db: PGlite, id: string) {
     await db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub','${id}',false); SET ROLE authenticated;`)
 }
 
+test('search jobs isolate users, lease atomically, cancel safely and import transactionally', async () => {
+    const db = await database()
+    try {
+        await asUser(db, outsider)
+        await assert.rejects(db.query('SELECT public.create_event_search($1,$2)', [{ mode: 'discover' }, 'test']), /Membership required/)
+        await asUser(db, owner)
+        const job = (await db.query<{ id: string }>('SELECT public.create_event_search($1,$2) AS id', [{ mode: 'discover' }, 'test'])).rows[0].id
+        await assert.rejects(db.query('SELECT public.create_event_search($1,$2)', [{ mode: 'discover' }, 'test']), /already running/)
+        await assert.rejects(db.query('SELECT * FROM public.claim_event_search($1,$2)', ['test', job]), /permission denied/)
+        await asUser(db, colleague)
+        assert.equal((await db.query('SELECT * FROM public.event_search_jobs')).rows.length, 0)
+        assert.equal((await db.query<{ cancelled: boolean }>('SELECT public.cancel_event_search($1) AS cancelled', [job])).rows[0].cancelled, false)
+        await db.exec('RESET ROLE')
+        const claimed = await db.query('SELECT * FROM public.claim_event_search($1,$2)', ['test', job])
+        assert.equal(claimed.rows.length, 1)
+        assert.equal((await db.query('SELECT * FROM public.claim_event_search($1,$2)', ['test', job])).rows.length, 0)
+        const result = { id: 'result-1', name: 'Verified Test', category: 'strict', editionKey: 'series|organizer|2027', website_url: 'https://example.test', resolved: Object.fromEntries(Object.entries({ name: 'Verified Test', event_type: 'Summit', start_date: '2027-01-10', end_date: '2027-01-11', city: 'Toronto', country: 'Canada' }).map(([k, v]) => [k, { value: v, status: 'verified' }])) }
+        await db.query("UPDATE public.event_search_jobs SET status='completed',results=$1 WHERE id=$2", [[result], job])
+        await asUser(db, colleague)
+        await assert.rejects(db.query('SELECT public.import_event_search($1,$2,false,$3)', [job, 'result-1', []]), /unavailable/)
+        await asUser(db, owner)
+        await assert.rejects(db.query('SELECT public.import_event_search($1,$2,false,$3)', [job, 'result-1', [{ title: 'Invalid', priority: 'invalid' }]]), /tasks_priority_check/)
+        assert.equal((await db.query("SELECT * FROM public.events WHERE name='Verified Test'")).rows.length, 0)
+        const imported = (await db.query<{ value: { eventId: string; skipped: boolean } }>('SELECT public.import_event_search($1,$2,false,$3) AS value', [job, 'result-1', []])).rows[0].value
+        assert.equal(imported.skipped, false)
+        assert.equal((await db.query('SELECT * FROM public.tasks WHERE event_id=$1', [imported.eventId])).rows.length, 0)
+        assert.equal((await db.query<{ value: { skipped: boolean } }>('SELECT public.import_event_search($1,$2,false,$3) AS value', [job, 'result-1', []])).rows[0].value.skipped, true)
+        const queued = (await db.query<{ id: string }>("INSERT INTO public.event_discovery_queue(type,status,event_data) VALUES('NEW','PENDING','{}') RETURNING id")).rows[0].id
+        const payload = { name: 'Queue test', event_type: 'Summit' }
+        const first = (await db.query<{ id: string }>('SELECT public.approve_discovery_item($1,$2,$3) AS id', [queued, payload, []])).rows[0].id
+        const second = (await db.query<{ id: string }>('SELECT public.approve_discovery_item($1,$2,$3) AS id', [queued, payload, []])).rows[0].id
+        assert.equal(first, second)
+    } finally { await db.close() }
+})
+
 test('migrations enforce team membership, ownership, atomic deletion and shared projection', async () => {
     const db = await database()
     try {

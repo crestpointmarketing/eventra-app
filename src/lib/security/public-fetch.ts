@@ -31,7 +31,7 @@ export async function fetchPublicText(input: string, deadline = Date.now() + 800
         const transport = url.protocol === 'https:' ? https : http
         const req = transport.get(url, {
             headers: { 'User-Agent': 'Eventra/1.0', 'Accept-Encoding': 'identity', Accept: 'text/html,text/plain' },
-            lookup: (_host, _options, cb) => cb(null, pinned.address, pinned.family),
+            lookup: (_host, options, cb) => options.all ? cb(null, [pinned]) : cb(null, pinned.address, pinned.family),
         }, res => {
             if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
                 res.resume(); resolve({ status: res.statusCode, location: res.headers.location, text: '' }); return

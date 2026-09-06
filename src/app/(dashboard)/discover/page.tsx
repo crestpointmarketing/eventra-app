@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -110,6 +110,7 @@ const EVENT_STATUS_OPTIONS = [
 export default function EventPulsePage() {
     const queryClient = useQueryClient()
     const [view, setView]                   = useState<View>('portfolio')
+    useEffect(() => { const requested = new URLSearchParams(window.location.search).get('view'); if (TAB_LABELS.some(tab => tab.id === requested)) setView(requested as View) }, [])
     const [search, setSearch]               = useState('')
     const [priorityFilter, setPriority]     = useState('all')
     const [engagementFilter, setEngagement] = useState('all')
@@ -378,7 +379,7 @@ export default function EventPulsePage() {
                 </nav>
 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div>
                         <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-1">EventPulse</h1>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -400,12 +401,12 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Tab bar */}
-                <div className="flex items-center gap-0 border-b border-zinc-200 dark:border-zinc-700 mb-6">
+                <div className="flex items-center gap-0 overflow-x-auto border-b border-zinc-200 dark:border-zinc-700 mb-6">
                     {TAB_LABELS.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setView(tab.id)}
-                            className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                            onClick={() => { setView(tab.id); const url = new URL(window.location.href); url.searchParams.set('view', tab.id); window.history.replaceState(null, '', url) }}
+                            className={`shrink-0 px-3 sm:px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                                 view === tab.id
                                     ? 'border-[#CBFB45] text-zinc-900 dark:text-white'
                                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
