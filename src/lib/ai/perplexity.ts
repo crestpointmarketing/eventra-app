@@ -7,10 +7,15 @@ export function createPerplexityClient() {
         throw new Error('Missing PERPLEXITY_API_KEY. Add a valid Perplexity API key to .env.local and restart the dev server.')
     }
 
-    return new OpenAI({
+    const client = new OpenAI({
         apiKey,
+        timeout: 45000,
+        maxRetries: 1,
         baseURL: 'https://api.perplexity.ai',
     })
+    const originalCreate = client.chat.completions.create.bind(client.chat.completions)
+    client.chat.completions.create = ((...args: any[]) => (originalCreate as any)(...args).catch((error: unknown) => { throw new Error(getAIProviderErrorMessage(error)) })) as typeof client.chat.completions.create
+    return client
 }
 
 export function getAIProviderErrorMessage(error: unknown) {
@@ -22,7 +27,7 @@ export function getAIProviderErrorMessage(error: unknown) {
             return 'Invalid Perplexity API key. Update PERPLEXITY_API_KEY in .env.local and restart the dev server.'
         }
 
-        return message
+        return 'AI provider request failed. Please try again later.'
     }
 
     return 'AI provider request failed'

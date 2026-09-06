@@ -36,7 +36,7 @@ export function useLead(leadId: string) {
             // Map priority to lead_score for UI compatibility
             return {
                 ...data,
-                lead_score: priorityToScore(data.priority),
+                lead_score: data.metadata?.ai_score ?? 0,
                 lead_status: data.stage
             }
         },

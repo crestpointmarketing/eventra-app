@@ -9,11 +9,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     const { token } = await params
     const supabase = await createClient()
 
-    const { data: event } = await supabase
-        .from('events')
-        .select('*')
-        .eq('share_token', token)
-        .single()
+    const { data: event } = await supabase.rpc('get_shared_event', { token })
 
     if (!event) notFound()
 

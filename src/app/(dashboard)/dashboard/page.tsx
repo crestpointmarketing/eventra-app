@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useMemo } from 'react'
 import Link from 'next/link'
@@ -61,10 +62,9 @@ function StatCardSkeleton() {
 
 const INACTIVE = new Set(['completed', 'cancelled'])
 
-function calcProgress(event: any) {
-    if (event.progress != null) return event.progress
-    const map: Record<string, number> = { draft: 10, planning: 40, in_progress: 70, completed: 100, cancelled: 0 }
-    return map[event.status?.toLowerCase()] ?? 0
+function calcProgress(event: {id:string}, tasks: Array<{event_id:string|null,status:string}> = []) {
+    const active = tasks.filter(t => t.event_id === event.id && t.status !== 'archived')
+    return active.length ? Math.round(active.filter(t => t.status === 'done').length / active.length * 100) : 0
 }
 
 function formatCurrency(n: number) {
@@ -89,6 +89,7 @@ function isOverdue(dateStr: string | null, status: string) {
 }
 
 export default function DashboardPage() {
+    const router = useRouter()
     const { data: events, isLoading: eventsLoading } = useEvents()
     const { data: leads, isLoading: leadsLoading } = useLeads()
     const { data: tasks, isLoading: tasksLoading } = useTasks()
@@ -154,7 +155,7 @@ export default function DashboardPage() {
                             <StatCard icon={Calendar}    label="Active Events"    value={stats.activeEvents} />
                             <StatCard icon={Users}       label="Leads Captured"   value={stats.totalLeads} />
                             <StatCard icon={TrendingUp}  label="Hot Leads"        value={stats.hotLeads} sub="Score ≥ 80" />
-                            <StatCard icon={DollarSign}  label="Est. Pipeline"    value={formatCurrency(stats.pipeline)} sub="Active event budgets" />
+                            <StatCard icon={DollarSign}  label="Event Budget"    value={formatCurrency(stats.pipeline)} sub="Active event budgets" />
                         </>
                     )}
                 </div>
@@ -198,7 +199,7 @@ export default function DashboardPage() {
                                                 <tr
                                                     key={event.id}
                                                     className="border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors cursor-pointer"
-                                                    onClick={() => window.location.href = `/events/${event.id}`}
+                                                    onClick={() => router.push(`/events/${event.id}`)}
                                                 >
                                                     <td className="p-4">
                                                         <div className="font-medium text-zinc-900 dark:text-white">{event.name}</div>
@@ -215,11 +216,11 @@ export default function DashboardPage() {
                                                             <div className="w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                                                                 <div
                                                                     className="h-full bg-[#CBFB45] rounded-full transition-all"
-                                                                    style={{ width: `${calcProgress(event)}%` }}
+                                                                    style={{ width: `${calcProgress(event, tasks)}%` }}
                                                                 />
                                                             </div>
                                                             <span className="text-sm text-zinc-600 dark:text-zinc-400 w-10 text-right">
-                                                                {calcProgress(event)}%
+                                                                {calcProgress(event, tasks)}%
                                                             </span>
                                                         </div>
                                                     </td>

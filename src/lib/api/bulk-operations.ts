@@ -21,7 +21,7 @@ export async function bulkUpdateLeadStatus(
 
     const { error } = await getSupabase()
         .from('leads')
-        .update({ lead_status: newStatus })
+        .update({ stage: newStatus })
         .in('id', leadIds)
 
     if (error) {

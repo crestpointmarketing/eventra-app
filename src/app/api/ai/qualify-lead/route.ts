@@ -1,8 +1,12 @@
+import { leadForAI } from '@/lib/leads/model'
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { assessLeadQualification } from '@/lib/ai/lead-qualification-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const supabase = await createClient()
 
@@ -22,12 +26,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Fetch lead details
-        const { data: lead, error: leadError } = await supabase
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json(
                 { error: 'Lead not found' },

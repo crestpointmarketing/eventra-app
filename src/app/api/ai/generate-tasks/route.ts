@@ -1,3 +1,4 @@
+import { guardAI } from '@/lib/api/guard'
 // API Route: AI Task Generation
 // POST /api/ai/generate-tasks
 
@@ -5,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateTaskSuggestions } from '@/lib/ai/ai-task-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { eventId, userId } = await request.json()
 

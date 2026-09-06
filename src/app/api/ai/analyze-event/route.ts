@@ -1,8 +1,11 @@
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeEventProfile } from '@/lib/ai/event-intelligence-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const supabase = await createClient()
 

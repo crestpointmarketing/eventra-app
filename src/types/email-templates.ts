@@ -103,6 +103,7 @@ export interface CreateEmailTemplateInput {
 }
 
 export interface UpdateEmailTemplateInput extends Partial<CreateEmailTemplateInput> {
+    expected_version?: number
     id: string
 }
 

@@ -1,5 +1,5 @@
 // React Hooks for AI Features
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { TaskModuleId } from '@/lib/tasks/modules'
 
@@ -153,10 +153,14 @@ async function analyzeDependenciesAPI(
  * Hook to score a lead using AI
  */
 export function useScoreLead() {
+    const queryClient = useQueryClient()
     return useMutation({
         mutationFn: ({ leadId, userId }: { leadId: string; userId?: string }) =>
             scoreLeadAPI(leadId, userId),
-        onSuccess: () => {
+        onSuccess: (_result, { leadId }) => {
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
+            queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+            queryClient.invalidateQueries({ queryKey: ['ai', 'lead-score', leadId] })
             toast.success('Lead scored successfully')
         },
         onError: (error: Error) => {
@@ -182,10 +186,13 @@ export function useCachedLeadScore(leadId: string, enabled = true) {
  * Hook to generate AI summary for a lead
  */
 export function useSummarizeLead() {
+    const queryClient = useQueryClient()
     return useMutation({
         mutationFn: ({ leadId, userId }: { leadId: string; userId?: string }) =>
             summarizeLeadAPI(leadId, userId),
-        onSuccess: () => {
+        onSuccess: (_result, { leadId }) => {
+            queryClient.invalidateQueries({ queryKey: ['leads'] })
+            queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
             toast.success('Lead summary generated')
         },
         onError: (error: Error) => {

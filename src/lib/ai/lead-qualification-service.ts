@@ -1,7 +1,8 @@
+import { qualificationSchema } from './schemas'
 // Lead Qualification Service
 // Assesses lead-company fit based on industry alignment, company size, and product needs
 
-import { openai } from './openai-service'
+import { trackedChatCompletion } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
 export type { Lead } from './types'
 
@@ -111,7 +112,7 @@ Format as JSON:
             'You are a B2B sales qualification expert. Analyze leads objectively based on the company\'s specific goals and strategy. Provide actionable insights that align with the company\'s primary business goal and ICP. Be honest about fit and specific in recommendations.'
         )
 
-        const response = await openai.chat.completions.create({
+        const response = await trackedChatCompletion({
             model: 'gpt-4o-mini',
             messages: [
                 {
@@ -127,10 +128,10 @@ Format as JSON:
             response_format: { type: 'json_object' }
         })
 
-        const analysis = JSON.parse(response.choices[0].message.content || '{}')
+        const analysis: any = qualificationSchema.parse(JSON.parse(response.choices[0].message.content || '{}'))
 
         return {
-            fitScore: analysis.fitScore || 50,
+            fitScore: analysis.fitScore,
             industryMatch: analysis.industryMatch || {
                 score: 50,
                 reasoning: 'Industry information limited',
@@ -151,30 +152,7 @@ Format as JSON:
     } catch (error) {
         console.error('Error assessing lead qualification:', error)
 
-        // Return fallback qualification
-        return {
-            fitScore: 50,
-            industryMatch: {
-                score: 50,
-                reasoning: 'Unable to assess industry fit',
-                isTargetIndustry: false
-            },
-            companySizeMatch: {
-                score: 50,
-                reasoning: 'Unable to assess company size fit',
-                appropriateForProducts: true
-            },
-            painPoints: ['Requires discovery call to identify needs'],
-            opportunities: ['Learn more about their business challenges'],
-            risks: ['Limited information available'],
-            recommendations: [
-                'Schedule discovery call',
-                'Research company background',
-                'Identify key decision makers'
-            ],
-            qualification: 'medium',
-            reasoning: 'Insufficient data for complete assessment'
-        }
+        throw new Error('AI analysis unavailable. Please try again later.')
     }
 }
 

@@ -1,0 +1,10 @@
+audit-evidence
+PROJECT_AUDIT_*.md
+AI_API_STATUS_*.md
+RELEASE_REPORT_*.md
+/tests
+/supabase
+.github
+.env*
+deploy.ps1
+deploy.sh

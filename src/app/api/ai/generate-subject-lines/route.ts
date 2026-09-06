@@ -1,8 +1,13 @@
+import { leadForAI } from '@/lib/leads/model'
+import { guardAI } from '@/lib/api/guard'
+import { subjectLinesSchema } from '@/lib/ai/schemas'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { openai } from '@/lib/ai/openai-service'
+import { trackedChatCompletion } from '@/lib/ai/openai-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { leadId, templateId, emailBody, tone, count = 3 } = await request.json()
 
@@ -17,12 +22,13 @@ export async function POST(request: NextRequest) {
         const supabase = await createClient()
 
         // 2. Fetch lead data
-        const { data: lead, error: leadError } = await supabase
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json(
                 { error: 'Lead not found' },
@@ -81,7 +87,7 @@ Output ONLY valid JSON (no markdown, no code blocks):
 }`
 
         // 5. Call OpenAI
-        const completion = await openai.chat.completions.create({
+        const completion = await trackedChatCompletion({
             model: 'gpt-4o-mini',
             messages: [
                 {
@@ -102,7 +108,7 @@ Output ONLY valid JSON (no markdown, no code blocks):
             throw new Error('No response from AI')
         }
 
-        const result = JSON.parse(aiResponse)
+        const result = subjectLinesSchema.parse(JSON.parse(aiResponse))
 
         // 6. Return subject lines
         return NextResponse.json({

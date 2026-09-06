@@ -2,10 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchAssets, createAsset, deleteAsset, uploadFile } from '@/lib/api/assets'
 import type { AssetFilters, CreateAssetData } from '@/lib/api/assets'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 export function useAssets(filters?: AssetFilters) {
     return useQuery({
         queryKey: ['assets', filters],
+        refetchOnWindowFocus: true,
+        refetchInterval: 30 * 60 * 1000,
         queryFn: () => fetchAssets(filters),
     })
 }
@@ -42,7 +45,12 @@ export function useUploadAsset() {
                 title: file.name, // Default title to filename
             }
 
-            return createAsset(assetData)
+            try { return await createAsset(assetData) }
+            catch (error) {
+                const { error: cleanupError } = await createClient().storage.from('event-assets').remove([uploadResult.filePath])
+                if (cleanupError) console.error('Upload cleanup pending', { path: uploadResult.filePath })
+                throw error
+            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['assets'] })

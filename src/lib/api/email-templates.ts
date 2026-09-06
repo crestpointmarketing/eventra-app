@@ -103,142 +103,20 @@ export async function getEmailTemplateById(id: string) {
     } as EmailTemplateWithDetails
 }
 
-// Create a new template
-export async function createEmailTemplate(input: CreateEmailTemplateInput) {
-    const { subjects, blocks, cta, ...templateData } = input
-
-    // Get current user
-    const user = await safeGetUser(getSupabase())
-    if (!user) throw new Error('Not authenticated')
-
-    // Create template
-    const { data: template, error: templateError } = await getSupabase()
-        .from('email_templates')
-        .insert({
-            ...templateData,
-            created_by: user.id,
-            is_system: false,
-        })
-        .select()
-        .single()
-
-    if (templateError) throw templateError
-
-    // Create subjects
-    const { error: subjectsError } = await getSupabase()
-        .from('email_template_subjects')
-        .insert(
-            subjects.map((s) => ({
-                template_id: template.id,
-                ...s,
-            }))
-        )
-
-    if (subjectsError) throw subjectsError
-
-    // Create blocks
-    const { error: blocksError } = await getSupabase()
-        .from('email_template_blocks')
-        .insert(
-            blocks.map((b) => ({
-                template_id: template.id,
-                ...b,
-            }))
-        )
-
-    if (blocksError) throw blocksError
-
-    // Create CTA
-    const { error: ctaError } = await getSupabase()
-        .from('email_template_ctas')
-        .insert({
-            template_id: template.id,
-            ...cta,
-        })
-
-    if (ctaError) throw ctaError
-
-    return template as EmailTemplate
+async function saveTemplate(input: CreateEmailTemplateInput | UpdateEmailTemplateInput) {
+    const { data, error } = await getSupabase().rpc('save_email_template', { payload: input })
+    if (error) throw new Error(error.code === '40001' ? 'This template changed. Reload it before saving.' : error.message)
+    return data as EmailTemplate
 }
-
-// Update an existing template
-export async function updateEmailTemplate(input: UpdateEmailTemplateInput) {
-    const { id, subjects, blocks, cta, ...templateData } = input
-
-    // Get current user
-    const user = await safeGetUser(getSupabase())
-    if (!user) throw new Error('Not authenticated')
-
-    // Update template (version will auto-increment via trigger)
-    const { data: template, error: templateError } = await getSupabase()
-        .from('email_templates')
-        .update({
-            ...templateData,
-            updated_by: user.id,
-        })
-        .eq('id', id)
-        .select()
-        .single()
-
-    if (templateError) throw templateError
-
-    // Update subjects if provided
-    if (subjects) {
-        // Delete existing subjects
-        await getSupabase().from('email_template_subjects').delete().eq('template_id', id)
-
-        // Insert new subjects
-        const { error: subjectsError } = await getSupabase()
-            .from('email_template_subjects')
-            .insert(
-                subjects.map((s) => ({
-                    template_id: id,
-                    ...s,
-                }))
-            )
-
-        if (subjectsError) throw subjectsError
-    }
-
-    // Update blocks if provided
-    if (blocks) {
-        // Delete existing blocks
-        await getSupabase().from('email_template_blocks').delete().eq('template_id', id)
-
-        // Insert new blocks
-        const { error: blocksError } = await getSupabase()
-            .from('email_template_blocks')
-            .insert(
-                blocks.map((b) => ({
-                    template_id: id,
-                    ...b,
-                }))
-            )
-
-        if (blocksError) throw blocksError
-    }
-
-    // Update CTA if provided
-    if (cta) {
-        // Delete existing CTA
-        await getSupabase().from('email_template_ctas').delete().eq('template_id', id)
-
-        // Insert new CTA
-        const { error: ctaError } = await getSupabase()
-            .from('email_template_ctas')
-            .insert({
-                template_id: id,
-                ...cta,
-            })
-
-        if (ctaError) throw ctaError
-    }
-
-    return template as EmailTemplate
-}
+export async function createEmailTemplate(input: CreateEmailTemplateInput) { return saveTemplate(input) }
+export async function updateEmailTemplate(input: UpdateEmailTemplateInput) { return saveTemplate(input) }
 
 // Soft delete a template
 export async function deleteEmailTemplate(id: string) {
+    const user = await safeGetUser(getSupabase())
+    const { data: template, error: readError } = await getSupabase().from('email_templates').select('created_by,is_system').eq('id', id).single()
+    if (readError) throw readError
+    if (!user || template.is_system || template.created_by !== user.id) throw new Error('Only the template owner can delete it')
     const { error } = await getSupabase()
         .from('email_templates')
         .update({ deleted_at: new Date().toISOString() })

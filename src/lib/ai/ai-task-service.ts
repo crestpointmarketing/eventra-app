@@ -3,20 +3,14 @@
 
 import { generateChatCompletion } from './openai-service'
 import { parseAIJSON } from './utils'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { dateOnlyToLocalDate } from '@/lib/date-only'
 import {
-    decodeTaskModule,
-    inferTaskModule,
     normalizeTaskModule,
     type TaskModuleId,
 } from '@/lib/tasks/modules'
 
-let _supabase: ReturnType<typeof createClient> | null = null
-function getSupabase(): ReturnType<typeof createClient> {
-    if (!_supabase) _supabase = createClient()
-    return _supabase
-}
+async function getSupabase() { return createClient() }
 
 // ============================================
 // Types
@@ -205,7 +199,7 @@ export async function generateTaskSuggestions(params: {
         // Fetch event details if not provided
         let eventData = params
         if (!params.eventType || !params.eventDate) {
-            const { data: event, error } = await getSupabase()
+            const { data: event, error } = await (await getSupabase())
                 .from('events')
                 .select('*')
                 .eq('id', params.eventId)
@@ -230,7 +224,7 @@ export async function generateTaskSuggestions(params: {
         }
 
         // ===== NEW: Fetch existing tasks to avoid duplicates =====
-        const { data: existingTasks, error: tasksError } = await getSupabase()
+        const { data: existingTasks, error: tasksError } = await (await getSupabase())
             .from('tasks')
             .select('title, description')
             .eq('event_id', params.eventId)
@@ -388,55 +382,6 @@ Focus on creating a realistic, actionable timeline. Ensure tasks are in logical 
 /**
  * Analyze dependencies between tasks
  */
-function buildRuleBasedDependencies(tasks: Array<{
-    id: string
-    title: string
-    description: string | null
-    due_date: string | null
-}>): TaskDependency[] {
-    const prerequisiteModules: Record<TaskModuleId, TaskModuleId[]> = {
-        strategy: [],
-        budget_planning: ['strategy'],
-        marketing: ['strategy', 'budget_planning'],
-        sales: ['strategy', 'marketing'],
-        logistics_operations: ['budget_planning'],
-        execution: ['marketing', 'sales', 'logistics_operations'],
-        follow_up: ['execution', 'sales'],
-        analytics_roi: ['strategy', 'follow_up'],
-    }
-
-    const normalized = tasks.map((task, index) => {
-        const decoded = decodeTaskModule(task.description)
-        return {
-            ...task,
-            index,
-            module: decoded.module ?? inferTaskModule(task.title, decoded.description),
-            dueTime: task.due_date ? new Date(`${task.due_date}T00:00:00`).getTime() : Number.POSITIVE_INFINITY,
-        }
-    }).sort((a, b) => a.dueTime - b.dueTime || a.index - b.index)
-
-    return normalized.flatMap(task => {
-        const dependencies = prerequisiteModules[task.module]
-            .map(prerequisiteModule => normalized
-                .filter(candidate =>
-                    candidate.id !== task.id
-                    && candidate.module === prerequisiteModule
-                    && candidate.dueTime <= task.dueTime
-                )
-                .at(-1))
-            .filter((candidate): candidate is (typeof normalized)[number] => Boolean(candidate))
-            .slice(0, 3)
-
-        if (dependencies.length === 0) return []
-
-        return [{
-            taskId: task.id,
-            dependsOn: dependencies.map(dependency => dependency.id),
-            reasoning: `${task.title} follows ${dependencies.map(dependency => dependency.title).join(' and ')} in the Eventra event playbook.`,
-        }]
-    })
-}
-
 export async function analyzeTaskDependencies(params: {
     eventId: string
     taskIds?: string[]
@@ -444,7 +389,7 @@ export async function analyzeTaskDependencies(params: {
 }): Promise<{ dependencies: TaskDependency[]; error?: string }> {
     try {
         // Fetch tasks for the event
-        let query = getSupabase()
+        let query = (await getSupabase())
             .from('tasks')
             .select('id, title, description, due_date, priority, status')
             .eq('event_id', params.eventId)
@@ -461,7 +406,7 @@ export async function analyzeTaskDependencies(params: {
 
         // Build AI prompt
         const systemMessage = `You are an expert project manager specializing in task dependency analysis.
-You identify prerequisite relationships between tasks and suggest optimal execution order.`
+You identify prerequisite relationships between tasks and suggest optimal execution order. Respond ONLY with a valid JSON array, with no prose. Return [] when no dependencies exist.`
 
         const taskList = tasks
             .map((task, idx) => `${idx + 1}. [${task.id}] ${task.title}: ${task.description || 'No description'}`)
@@ -498,7 +443,7 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
         })
 
         if (aiError || !content) {
-            return { dependencies: buildRuleBasedDependencies(tasks) }
+            return { dependencies: [], error: aiError || 'Dependency analysis unavailable' }
         }
 
         try {
@@ -506,7 +451,7 @@ Only include tasks that have actual dependencies. If a task has no prerequisites
             return { dependencies }
         } catch (parseError) {
             console.error('Failed to parse dependency analysis:', parseError)
-            return { dependencies: buildRuleBasedDependencies(tasks) }
+            return { dependencies: [], error: 'Invalid dependency analysis response. Please retry.' }
         }
     } catch (error: unknown) {
         console.error('Error in analyzeTaskDependencies:', error)
@@ -528,7 +473,7 @@ export async function scoreTaskPriority(params: {
 }): Promise<PriorityScore | null> {
     try {
         // Fetch task details
-        const { data: task, error } = await getSupabase()
+        const { data: task, error } = await (await getSupabase())
             .from('tasks')
             .select('*, events(*)')
             .eq('id', params.taskId)

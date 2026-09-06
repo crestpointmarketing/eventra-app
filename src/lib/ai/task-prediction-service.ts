@@ -1,7 +1,8 @@
+import { complexitySchema } from './schemas'
 // AI Task Prediction Service
 // Provides intelligent task completion prediction, risk analysis, and bottleneck detection
 
-import { openai } from './openai-service'
+import { trackedChatCompletion } from './openai-service'
 import { getCompanyContext, createAISystemPrompt } from './company-context'
 export type { Task } from './types'
 
@@ -125,18 +126,7 @@ export async function predictTaskCompletion(
     } catch (error) {
         console.error('Error predicting task completion:', error)
 
-        // Fallback to baseline if AI fails
-        const baseline = getBaselineEstimate(task.title, eventType)
-        return {
-            estimatedDays: baseline,
-            confidence: 50,
-            reasoning: 'Using baseline estimate due to analysis error',
-            factors: {
-                complexity: 'medium',
-                dependencies: task.dependencies?.length || 0,
-                urgency: calculateUrgency(task.due_date, eventDate)
-            }
-        }
+        throw new Error('AI analysis unavailable. Please try again later.')
     }
 }
 
@@ -178,7 +168,7 @@ Format as JSON:
         'You are an expert event planner estimating task completion times based on company goals and resources. Be realistic and account for typical delays and dependencies. Consider the company\'s stage and market when estimating.'
     )
 
-    const response = await openai.chat.completions.create({
+    const response = await trackedChatCompletion({
         model: 'gpt-4o-mini',
         messages: [
             {
@@ -194,12 +184,12 @@ Format as JSON:
         response_format: { type: 'json_object' }
     })
 
-    const analysis = JSON.parse(response.choices[0].message.content || '{}')
+    const analysis: any = complexitySchema.parse(JSON.parse(response.choices[0].message.content || '{}'))
 
     return {
         estimatedDays: analysis.estimatedDays || 7,
         complexity: analysis.complexity || 'medium',
-        confidence: analysis.confidence || 60,
+        confidence: analysis.confidence,
         reasoning: analysis.reasoning || 'AI analysis completed'
     }
 }
@@ -219,6 +209,7 @@ export async function analyzeTaskRisks(
     let totalRisk = 0
 
     for (const task of tasks) {
+        if (task.status === "done" || task.status === "archived") continue
         const taskRisks: RiskFactor[] = []
 
         // Check timeline risk
@@ -232,7 +223,7 @@ export async function analyzeTaskRisks(
                     severity: 90,
                     description: `Task is ${Math.abs(daysUntilDue)} days overdue`
                 })
-            } else if (daysUntilDue < 7 && task.status !== 'completed') {
+            } else if (daysUntilDue < 7 && task.status !== 'done') {
                 taskRisks.push({
                     type: 'timeline',
                     severity: 70,
@@ -324,7 +315,7 @@ export async function detectBottlenecks(tasks: Task[]): Promise<Bottleneck[]> {
                 .filter(t => t.dependencies?.includes(taskId))
                 .map(t => t.id)
 
-            if (task && task.status !== 'completed') {
+            if (task && task.status !== 'done') {
                 bottlenecks.push({
                     type: 'dependency',
                     affectedTasks,

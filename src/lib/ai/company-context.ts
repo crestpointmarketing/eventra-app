@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/server'
 import type { CompanyIntelligence, CompanyContext } from '@/types/company-intelligence'
 import { intelligenceToContext } from '@/types/company-intelligence'
 
@@ -6,21 +7,13 @@ import { intelligenceToContext } from '@/types/company-intelligence'
  * This function should be called by all AI services before making OpenAI requests
  */
 export async function getCompanyContext(): Promise<CompanyContext> {
-    try {
-        const response = await fetch('/api/company-intelligence')
+    const db = await createClient()
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) throw new Error('Authentication required')
+    const { data, error } = await db.from('company_intelligence').select('*').eq('user_id', user.id).maybeSingle()
+    if (error) throw new Error('Company intelligence could not be loaded')
+    return data ? intelligenceToContext(data as CompanyIntelligence) : getDefaultContext()
 
-        if (!response.ok) {
-            console.warn('Failed to fetch company intelligence, using defaults')
-            return getDefaultContext()
-        }
-
-        const data = await response.json()
-        return intelligenceToContext(data.intelligence)
-
-    } catch (error) {
-        console.error('Error fetching company context:', error)
-        return getDefaultContext()
-    }
 }
 
 /**

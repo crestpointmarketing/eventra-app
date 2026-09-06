@@ -314,7 +314,7 @@ export default function EventPulsePage() {
         return Array.from(new Set(events.map(e => e.status).filter(Boolean))) as string[]
     }, [events])
 
-    const filtered = useMemo(() => {
+    const filtered = (() => {
         if (!events) return []
         return events.filter((e) => {
             if (priorityFilter !== 'all' && normalizeEventPriority(e.discovery_priority) !== priorityFilter) return false
@@ -335,7 +335,7 @@ export default function EventPulsePage() {
             }
             return true
         })
-    }, [events, priorityFilter, engagementFilter, sectorFilter, sourceFilter, statusFilter, typeFilter, monthFilter, search])
+    })()
 
     const highCount = events?.filter((e) => normalizeEventPriority(e.discovery_priority) === 'High').length ?? 0
     const aiCount = events?.filter((e) => e.source === 'ai_discovered').length ?? 0

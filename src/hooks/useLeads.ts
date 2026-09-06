@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/api/pagination'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 
@@ -17,21 +18,11 @@ export function useLeads() {
     return useQuery({
         queryKey: ['leads'],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from('leads')
-                .select(`
-          *,
-          events (
-            name
-          )
-        `)
-                .order('created_at', { ascending: false })
-
-            if (error) throw error
+            const data = await fetchAllRows<any>((from, to) => supabase.from('leads').select('*, events(name)').is('deleted_at', null).order('created_at', { ascending: false }).order('id').range(from, to))
 
             return data?.map((lead) => ({
                 ...lead,
-                lead_score: priorityToScore(lead.priority),
+                lead_score: lead.metadata?.ai_score ?? 0,
                 lead_status: lead.stage,
             }))
         },

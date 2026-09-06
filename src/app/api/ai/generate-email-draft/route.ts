@@ -1,8 +1,13 @@
+import { draftSchema } from '@/lib/ai/schemas'
+import { leadForAI } from '@/lib/leads/model'
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { openai } from '@/lib/ai/openai-service'
+import { trackedChatCompletion } from '@/lib/ai/openai-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { leadId, templateId, tone, language, personalizationPoints } = await request.json()
 
@@ -15,12 +20,13 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient()
 
-        const { data: lead, error: leadError } = await supabase
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
         }
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
             extractVariables(block.content).forEach((v: string) => allVariables.add(v))
         })
         template.subjects?.forEach((subject: any) => {
-            extractVariables(subject.text).forEach((v: string) => allVariables.add(v))
+            extractVariables(subject.subject).forEach((v: string) => allVariables.add(v))
         })
 
         const prompt = `You are an expert sales email writer. Generate a personalized email for this lead.
@@ -80,17 +86,20 @@ Template Information:
 - Name: ${template.name}
 - Goal: ${template.goal}
 - Tone: ${tone || template.tone || 'professional'}
-- Language: ${language || 'English'}
+- Language: ${language || template.language || 'en'}
+
+Maximum words: ${template.max_words || 250}
+Forbidden claims: ${(template.forbidden_claims || []).join("; ")}
 
 Email Structure:
 ${template.blocks?.map((block: any, idx: number) => `
-Block ${idx + 1} (${block.type}):
+Block ${idx + 1} (${block.block_type}):
 ${block.content}
 `).join('\n')}
 
 ${template.ctas && template.ctas.length > 0 ? `
 Call-to-Action Options:
-${template.ctas.map((cta: any) => `- ${cta.text} (${cta.url || 'no URL'})`).join('\n')}
+${template.ctas.map((cta: any) => `- ${cta.cta_text} (${cta.cta_url || 'no URL'})`).join('\n')}
 ` : ''}
 
 Variables to Fill:
@@ -130,7 +139,7 @@ Output ONLY valid JSON (no markdown, no code blocks):
   "selectedCta": "CTA text if applicable"
 }`
 
-        const completion = await openai.chat.completions.create({
+        const completion = await trackedChatCompletion({
             model: 'gpt-4o-mini',
             messages: [
                 {
@@ -147,21 +156,23 @@ Output ONLY valid JSON (no markdown, no code blocks):
         const aiResponse = completion.choices[0]?.message?.content
         if (!aiResponse) throw new Error('No response from AI')
 
-        const draft = JSON.parse(aiResponse)
+        const draft = draftSchema.parse(JSON.parse(aiResponse))
 
-        await supabase.from('lead_activities').insert({
+        const { error: activityError } = await supabase.from('lead_activities').insert({
             lead_id: leadId,
             activity_type: 'email_drafted',
             activity_data: {
                 template_id: templateId,
                 template_name: template.name,
                 tone: tone || template.tone,
-                language: language || 'English',
+                language: language || template.language || 'en',
                 tokens_used: completion.usage?.total_tokens || 0,
                 subject_length: draft.subject?.length || 0,
                 body_length: draft.body?.length || 0,
             }
         })
+
+        if (activityError) throw new Error('Unable to save draft history')
 
         return NextResponse.json({
             subject: draft.subject,
@@ -172,7 +183,7 @@ Output ONLY valid JSON (no markdown, no code blocks):
                 templateName: template.name,
                 templateGoal: template.goal,
                 tone: tone || template.tone,
-                language: language || 'English',
+                language: language || template.language || 'en',
                 leadName: `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
                 leadCompany: lead.company,
                 tokensUsed: completion.usage?.total_tokens || 0

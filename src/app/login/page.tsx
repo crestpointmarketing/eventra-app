@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { ForgotPasswordModal } from '@/components/auth/forgot-password-modal'
 
@@ -19,7 +18,6 @@ export default function LoginPage() {
     const [error, setError] = useState('')
     const [mode, setMode] = useState<'login' | 'signup'>('login')
     const [message, setMessage] = useState('')
-    const router = useRouter()
     const supabase = createClient()
 
     const handleAuth = async (e: React.FormEvent) => {
@@ -37,8 +35,10 @@ export default function LoginPage() {
 
                 if (error) throw error
 
-                router.push('/dashboard')
-                router.refresh()
+                // Start a fresh server request after browser auth cookies are written.
+                // A prefetched guest redirect must not survive a successful sign-in.
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- authentication requires clearing the guest router cache
+                window.location.assign('/dashboard')
             } else {
                 const { data, error } = await supabase.auth.signUp({
                     email,
@@ -51,7 +51,7 @@ export default function LoginPage() {
                 if (error) throw error
 
                 if (data.user) {
-                    setMessage('Account created successfully! You can now sign in.')
+                    setMessage('Account created. Check your email to confirm it, then ask your workspace owner to grant team access.')
                     setMode('login')
                 }
             }
@@ -60,13 +60,6 @@ export default function LoginPage() {
         } finally {
             setLoading(false)
         }
-    }
-
-    const createTestUser = async () => {
-        setEmail('test@eventra.com')
-        setPassword('TestPassword123!')
-        setMode('signup')
-        setMessage('Click "Sign up" to create this test account')
     }
 
     return (
@@ -127,6 +120,7 @@ export default function LoginPage() {
                             />
                             <button
                                 type="button"
+                                aria-label={showPassword ? "Hide password" : "Show password"}
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                             >

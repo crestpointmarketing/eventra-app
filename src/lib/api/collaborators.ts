@@ -66,6 +66,8 @@ export async function removeCollaborator(collaboratorId: string) {
         .from('task_collaborators')
         .delete()
         .eq('id', collaboratorId)
+        .select('id')
+        .single()
 
     if (error) throw error
 }

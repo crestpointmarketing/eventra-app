@@ -1,3 +1,6 @@
+import { leadScoreSchema } from '@/lib/ai/schemas'
+import { leadForAI } from '@/lib/leads/model'
+import { guardAI } from '@/lib/api/guard'
 // API Route: AI Lead Scoring
 // POST /api/ai/score-lead
 
@@ -6,6 +9,8 @@ import { generateChatCompletion, storeAIInsight } from '@/lib/ai/openai-service'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { leadId, userId } = await request.json()
 
@@ -17,12 +22,13 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = await createClient()
-        const { data: lead, error: leadError } = await supabase
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json(
                 { error: 'Lead not found' },
@@ -82,7 +88,7 @@ Provide your response in the following JSON format:
         // Parse AI response
         let aiResponse
         try {
-            aiResponse = JSON.parse(content)
+            aiResponse = leadScoreSchema.parse(JSON.parse(content))
         } catch (parseError) {
             console.error('Failed to parse AI response:', content)
             return NextResponse.json(
@@ -92,7 +98,7 @@ Provide your response in the following JSON format:
         }
 
         // Store insight in database (expires in 24 hours)
-        await storeAIInsight({
+        const stored = await storeAIInsight({
             entityType: 'lead',
             entityId: leadId,
             insightType: 'score',
@@ -105,6 +111,9 @@ Provide your response in the following JSON format:
             expiresInHours: 24,
         })
 
+        if (stored.error) return NextResponse.json({ error: 'AI result could not be saved. Please retry.' }, { status: 503 })
+        const { error: saveError } = await supabase.from('leads').update({ metadata: { ...(lead.metadata || {}), ai_score: aiResponse.score, ai_scored_at: new Date().toISOString() } }).eq('id', leadId)
+        if (saveError) return NextResponse.json({ error: 'Score could not be saved' }, { status: 503 })
         return NextResponse.json({
             success: true,
             score: aiResponse.score,
@@ -130,6 +139,8 @@ Provide your response in the following JSON format:
 
 // GET: Retrieve cached lead score
 export async function GET(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { searchParams } = new URL(request.url)
         const leadId = searchParams.get('leadId')

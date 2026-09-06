@@ -1,8 +1,13 @@
+import { leadForAI } from '@/lib/leads/model'
+import { recommendationSchema } from '@/lib/ai/schemas'
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { openai } from '@/lib/ai/openai-service'
+import { trackedChatCompletion } from '@/lib/ai/openai-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { leadId } = await request.json()
 
@@ -12,12 +17,13 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient()
 
-        const { data: lead, error: leadError } = await supabase
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
         }
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
             ? Math.floor((Date.now() - lastContactedAt.getTime()) / (1000 * 60 * 60 * 24))
             : 999
 
-        const eventDate = event?.event_date ? new Date(event.event_date) : null
+        const eventDate = event?.start_date ? new Date(event.start_date) : null
         const daysSinceEvent = eventDate
             ? Math.floor((Date.now() - eventDate.getTime()) / (1000 * 60 * 60 * 24))
             : 999
@@ -121,7 +127,7 @@ Output ONLY valid JSON (no markdown, no code blocks):
   "riskFlags": ["optional warning if any"]
 }`
 
-        const completion = await openai.chat.completions.create({
+        const completion = await trackedChatCompletion({
             model: 'gpt-4o-mini',
             messages: [
                 {
@@ -137,24 +143,10 @@ Output ONLY valid JSON (no markdown, no code blocks):
         const aiResponse = completion.choices[0]?.message?.content
         if (!aiResponse) throw new Error('No response from AI')
 
-        const recommendation = JSON.parse(aiResponse)
+        const recommendation = recommendationSchema.parse(JSON.parse(aiResponse))
 
-        let recommendedTemplates = recommendation.recommendedTemplates || []
-        let primaryTemplateId = recommendation.primaryRecommendation || recommendation.recommendedTemplateId
-
-        // Support legacy single-template format from older AI responses
-        if (!recommendedTemplates.length && recommendation.recommendedTemplateId) {
-            const template = templates.find(t => t.id === recommendation.recommendedTemplateId)
-            if (template) {
-                recommendedTemplates = [{
-                    templateId: template.id,
-                    templateName: template.name,
-                    score: 90,
-                    reasons: recommendation.reasons || []
-                }]
-                primaryTemplateId = template.id
-            }
-        }
+        let recommendedTemplates: any[] = recommendation.recommendedTemplates
+        let primaryTemplateId = recommendation.primaryRecommendation
 
         recommendedTemplates = recommendedTemplates
             .map((rec: any) => {
@@ -169,20 +161,10 @@ Output ONLY valid JSON (no markdown, no code blocks):
             .filter(Boolean)
             .slice(0, 3)
 
-        if (recommendedTemplates.length === 0 && templates.length > 0) {
-            const fallbackTemplate = templates[0]
-            recommendedTemplates = [{
-                templateId: fallbackTemplate.id,
-                templateName: fallbackTemplate.name,
-                score: 70,
-                reasons: ['Default template selected'],
-                goal: fallbackTemplate.goal,
-                tone: fallbackTemplate.tone
-            }]
-            primaryTemplateId = fallbackTemplate.id
-        }
+        if (recommendedTemplates.length === 0) throw new Error('AI returned no valid template recommendations')
+        if (!recommendedTemplates.some(t => t.templateId === primaryTemplateId)) primaryTemplateId = recommendedTemplates[0].templateId
 
-        await supabase.from('lead_activities').insert({
+        const { error: activityError } = await supabase.from('lead_activities').insert({
             lead_id: leadId,
             activity_type: 'email_recommended',
             activity_data: {
@@ -198,6 +180,8 @@ Output ONLY valid JSON (no markdown, no code blocks):
                 contact_frequency: contactFrequency
             }
         })
+
+        if (activityError) throw new Error('Unable to save recommendation history')
 
         return NextResponse.json({
             shouldSend: recommendation.shouldSend,

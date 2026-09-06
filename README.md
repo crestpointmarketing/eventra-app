@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Eventra
 
-## Getting Started
+Team event planning, lead management, task tracking and AI assistance built with Next.js, Supabase and Vercel.
 
-First, run the development server:
+## Connected services
 
-```bash
+- GitHub: https://github.com/crestpointmarketing/eventra-app
+- Supabase project: https://supabase.com/dashboard/project/tbicyyhprqbhimhrihgn
+- Vercel project: https://vercel.com/crestpointmarketings-projects/eventra-app
+
+## Development
+
+Use Node.js 22 (22.15 or newer within 22.x).
+
+```sh
+npm ci
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the intended Supabase project. Set server-only `OPENAI_API_KEY` for content, email, lead and task AI; set `PERPLEXITY_API_KEY` for researched event discovery and analysis. Never put provider secrets in a `NEXT_PUBLIC_` variable or commit environment files. Browser requests use the signed-in user's session and database policies.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Team access
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Business records are shared among explicit members in `public.eventra_members`. A registered Auth account alone does not grant access. An administrator must verify an account and add its Auth user ID to this table through the Supabase dashboard. The application cannot grant itself membership. Owner/assignee/uploader fields determine deletion rights; members cannot take ownership of each other's records.
 
-## Learn More
+The initial migration enrolls existing Auth users already associated with project records. Imported rows in `public.users` are profile records, not authenticated accounts. Shared event links expire after 30 days and return a restricted public projection. Uploaded files are private and accessed with temporary signed URLs.
 
-To learn more about Next.js, take a look at the following resources:
+## Checks and releases
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sh
+npm run check
+npm audit
+npx supabase db push --linked --dry-run
+npx supabase db push --linked
+npx vercel deploy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`npm run check` runs lint, TypeScript, Node tests (including migration/RLS/transaction tests in PGlite) and the production build. GitHub Actions repeats these checks. Link and verify the intended Supabase and Vercel projects before any release. Database migrations are under `supabase/migrations`; apply reviewed migrations before dependent application code. For production deployment use `deploy.ps1 -Environment Production` or `deploy.sh --prod` after verification. Environment variables must also be configured in Vercel for the deployment's environment.
 
-## Deploy on Vercel
+`tests/production-smoke.mjs <deployment-url>` is a manual integration check requiring authenticated Supabase and Vercel CLIs. It creates isolated synthetic fixtures, invokes deployed routes through Vercel protection, and removes its fixtures in a finally block. It writes credential-free evidence to `audit-evidence`. Do not run this check automatically for untrusted pull requests.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Operational behavior
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+AI requests require team membership, bounded JSON bodies, and database-backed quotas (20 per minute and 500 per UTC day per member). Provider failures surface as errors; generated material remains subject to user review. The email composer records manually sent emails; it does not deliver emails itself. CSV imports accept up to 1,000 rows / 5 MB and report individual failures; optional AI processing runs in the browser, so keep the tab open. For larger imports, a durable background job queue is a future improvement.
+
+Audit reports and release evidence are stored locally in `audit-evidence` and dated report files. They are excluded from Git and deployment uploads because they may contain internal operational details.

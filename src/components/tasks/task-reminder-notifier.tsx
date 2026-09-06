@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 
 import { useEffect } from 'react'
 import { toast } from 'sonner'
@@ -7,6 +8,7 @@ import { useTasks } from '@/hooks/useTasks'
 const STORAGE_KEY = 'eventra-shown-task-reminders'
 
 export function TaskReminderNotifier() {
+    const router = useRouter()
     const { data: tasks } = useTasks()
 
     useEffect(() => {
@@ -27,7 +29,7 @@ export function TaskReminderNotifier() {
                     duration: 10000,
                     action: {
                         label: 'Open',
-                        onClick: () => { window.location.href = `/tasks/${task.id}` },
+                        onClick: () => { router.push(`/tasks/${task.id}`) },
                     },
                 })
                 shown.add(reminderKey)
@@ -39,7 +41,7 @@ export function TaskReminderNotifier() {
         checkReminders()
         const interval = window.setInterval(checkReminders, 30_000)
         return () => window.clearInterval(interval)
-    }, [tasks])
+    }, [tasks, router])
 
     return null
 }

@@ -30,13 +30,22 @@ export async function updateSession(request: NextRequest) {
 
     // Refresh session if expired. Clear stale auth cookies instead of surfacing
     // Supabase refresh-token errors to the Next.js dev overlay.
-    const { error } = await supabase.auth.getUser()
+    const { data: { user }, error } = await supabase.auth.getUser()
     if (error && isInvalidRefreshTokenError(error)) {
         await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
     }
 
-    // Auth redirect temporarily disabled for development
-    // Will be enabled when login page is created
+    const path = request.nextUrl.pathname
+    const isPublic = path === '/' || path === '/login' || path === '/reset-password' ||
+        path === '/contact' || path.startsWith('/auth/') || path.startsWith('/share/') ||
+        /\.(?:png|jpg|svg|ico|woff2?)$/.test(path)
+    if (!isPublic && !user) {
+        const response = path.startsWith('/api/')
+            ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            : NextResponse.redirect(new URL('/login', request.url))
+        for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie)
+        return response
+    }
 
     return supabaseResponse
 }

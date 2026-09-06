@@ -107,6 +107,8 @@ export async function deleteChecklistItem(itemId: string) {
         .from('task_checklist_items')
         .delete()
         .eq('id', itemId)
+        .select('id')
+        .single()
 
     if (error) throw error
 }

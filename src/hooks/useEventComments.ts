@@ -54,6 +54,8 @@ export function useDeleteComment(eventId: string) {
                 .from('event_comments')
                 .delete()
                 .eq('id', commentId)
+                .select('id')
+                .single()
             if (error) throw error
         },
         onSuccess: () => {

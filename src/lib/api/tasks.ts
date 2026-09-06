@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/api/pagination'
 import { createClient } from '@/lib/supabase/client'
 import {
     decodeTaskModule,
@@ -114,7 +115,8 @@ export async function fetchTasks(filters?: TaskFilters) {
 
     // Apply filters
     if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+        const search = filters.search.replace(/[(),.%_]/g, " ").trim()
+        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
     if (filters?.eventIds && filters.eventIds.length > 0) {
@@ -145,19 +147,7 @@ export async function fetchTasks(filters?: TaskFilters) {
     query = query.is('archived_at', null)
 
     console.log('🟡 Executing query...')
-    const { data, error } = await query
-
-    if (error) {
-        console.error('🔴 fetchTasks error:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-        })
-        throw error
-    }
-
-    console.log('🟢 fetchTasks success:', { count: data?.length, data })
+    const data = await fetchAllRows<any>((from, to) => query.order("id").range(from, to))
     return (data ?? []).map(normalizeTask) as Task[]
 }
 
@@ -264,6 +254,8 @@ export async function deleteTask(taskId: string) {
         .from('tasks')
         .delete()
         .eq('id', taskId)
+        .select('id')
+        .single()
 
     if (error) throw error
 }

@@ -31,10 +31,10 @@ export function calculateBasicAnalytics(events: any[], leads: any[]): AnalyticsD
     const totalEvents = events?.length || 0
     const totalLeads = leads?.length || 0
     const avgLeadsPerEvent = totalEvents > 0 ? Math.round(totalLeads / totalEvents) : 0
-    const hotLeads = leads?.filter((lead: any) => lead.lead_score >= 80).length || 0
+    const hotLeads = leads?.filter((lead: any) => lead.priority === 'hot' || lead.lead_score >= 80).length || 0
 
-    // Conversion rate: % of leads that are "hot"
-    const conversionRate = totalLeads > 0 ? Math.round((hotLeads / totalLeads) * 100) : 0
+    // Conversion rate: converted leads, independent of AI or priority score.
+    const conversionRate = totalLeads > 0 ? Math.round((leads.filter(lead => (lead.stage ?? lead.lead_status) === 'converted').length / totalLeads) * 100) : 0
 
     return {
         totalEvents,
@@ -61,8 +61,8 @@ export function analyzeLeadsByPriority(leads: any[]): PriorityDistribution {
     if (!leads) return { hot: 0, warm: 0, cold: 0 }
 
     return leads.reduce((acc, lead) => {
-        if (lead.lead_score >= 80) acc.hot++
-        else if (lead.lead_score >= 50) acc.warm++
+        if (lead.priority === 'hot' || lead.lead_score >= 80) acc.hot++
+        else if (lead.priority === 'warm' || lead.lead_score >= 50) acc.warm++
         else acc.cold++
         return acc
     }, { hot: 0, warm: 0, cold: 0 })

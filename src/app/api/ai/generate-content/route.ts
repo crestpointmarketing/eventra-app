@@ -1,3 +1,4 @@
+import { guardAI } from '@/lib/api/guard'
 // API Route: AI Content Generation
 // POST /api/ai/generate-content
 
@@ -5,8 +6,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateChatCompletion } from '@/lib/ai/openai-service'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
-        const { type, context, userId } = await request.json()
+        const { type, context = {}, userId } = await request.json()
 
         if (!type) {
             return NextResponse.json(

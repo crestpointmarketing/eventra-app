@@ -1,9 +1,12 @@
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectBottlenecks } from '@/lib/ai/task-prediction-service'
 import { dateOnlyToLocalDate } from '@/lib/date-only'
 
 export async function GET(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const supabase = await createClient()
 
@@ -42,6 +45,8 @@ export async function GET(request: NextRequest) {
             .from('tasks')
             .select('*')
             .eq('event_id', eventId)
+            .is('archived_at', null)
+            .neq('status', 'archived')
 
         if (tasksError) {
             return NextResponse.json(
@@ -62,7 +67,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Calculate completion metrics
-        const completedTasks = tasks.filter(t => t.status === 'completed').length
+        const completedTasks = tasks.filter(t => t.status === 'done').length
         const completionRate = Math.round((completedTasks / tasks.length) * 100)
 
         // Detect bottlenecks
@@ -75,7 +80,7 @@ export async function GET(request: NextRequest) {
 
         // Simple risk calculation: tasks with due dates within 7 days or overdue
         const atRiskTasks = tasks.filter((t) => {
-            if (t.status === 'completed') return false
+            if (t.status === 'done') return false
             if (!t.due_date) return false
 
             const dueDate = new Date(t.due_date)

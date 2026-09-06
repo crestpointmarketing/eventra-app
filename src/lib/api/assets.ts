@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/api/pagination'
 import { createClient } from '@/lib/supabase/client'
 
 let _supabase: ReturnType<typeof createClient> | null = null
@@ -51,6 +52,18 @@ export interface CreateAssetData {
     tags?: string[]
 }
 
+export function assetStoragePath(url: string) {
+    const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/event-assets\/([^?]+)/)
+    return match ? decodeURIComponent(match[1]) : null
+}
+async function signAsset(asset: Asset): Promise<Asset> {
+    const path = assetStoragePath(asset.file_url)
+    if (!path) return asset
+    const { data, error } = await getSupabase().storage.from('event-assets').createSignedUrl(path, 3600)
+    if (error) throw new Error('Unable to access this file. Please sign in again.')
+    return { ...asset, file_url: data.signedUrl }
+}
+
 // ============================================
 // Fetch Assets (with filters)
 // ============================================
@@ -66,7 +79,8 @@ export async function fetchAssets(filters?: AssetFilters) {
 
     // Apply filters
     if (filters?.search) {
-        query = query.or(`filename.ilike.%${filters.search}%,title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+        const search = filters.search.replace(/[(),.%_]/g, " ").trim()
+        query = query.or(`filename.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
     if (filters?.fileTypes && filters.fileTypes.length > 0) {
@@ -81,10 +95,8 @@ export async function fetchAssets(filters?: AssetFilters) {
         query = query.eq('task_id', filters.taskId)
     }
 
-    const { data, error } = await query
-
-    if (error) throw error
-    return data as Asset[]
+    const data = await fetchAllRows<any>((from, to) => query.order('id').range(from, to))
+    return Promise.all(data.map(signAsset))
 }
 
 // ============================================
@@ -102,7 +114,7 @@ export async function fetchAsset(assetId: string) {
         .single()
 
     if (error) throw error
-    return data as Asset
+    return signAsset(data)
 }
 
 // ============================================
@@ -138,80 +150,32 @@ export async function updateAsset(assetId: string, updates: Partial<CreateAssetD
 // Delete Asset (and file from storage)
 // ============================================
 export async function deleteAsset(assetId: string) {
-    console.log('🟡 Delete attempt for asset:', assetId)
-
-    // First get asset details
-    const { data: asset, error: fetchError } = await getSupabase()
-        .from('assets')
-        .select('*')
-        .eq('id', assetId)
-        .single()
-
-    if (fetchError) {
-        console.error('🔴 Error fetching asset:', fetchError)
-        throw fetchError
+    const db = getSupabase()
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) throw new Error('Please sign in again')
+    const { data: asset, error: fetchError } = await db.from('assets').select('file_url,uploaded_by').eq('id', assetId).single()
+    if (fetchError) throw fetchError
+    if (asset.uploaded_by !== user.id) throw new Error('Only the uploader can delete this file')
+    const path = asset.file_url?.split('/storage/v1/object/public/event-assets/')[1]
+    if (path) {
+        const { error } = await db.storage.from('event-assets').remove([path])
+        if (error) throw new Error('File removal failed. Its metadata has been kept; please retry.')
     }
-
-    console.log('🟡 Asset to delete:', asset)
-
-    // Delete from storage if file exists
-    if (asset?.file_url) {
-        // Extract file path from URL
-        const urlParts = asset.file_url.split('/storage/v1/object/public/event-assets/')
-        if (urlParts.length > 1) {
-            const filePath = urlParts[1]
-            console.log('🟡 Deleting from storage, path:', filePath)
-
-            // Delete from storage
-            const { error: storageError } = await getSupabase().storage
-                .from('event-assets')
-                .remove([filePath])
-
-            if (storageError) {
-                console.error('🔴 Storage delete error:', storageError)
-                // Continue with database deletion even if storage delete fails
-            } else {
-                console.log('🟢 Storage file deleted successfully')
-            }
-        }
-    }
-
-    // Delete from database
-    console.log('🟡 Deleting from database...')
-    const { error } = await getSupabase()
-        .from('assets')
-        .delete()
-        .eq('id', assetId)
-
-    if (error) {
-        console.error('🔴 Database delete error:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-        })
-        throw error
-    }
-
-    console.log('🟢 Asset deleted successfully from database')
+    const { error } = await db.from('assets').delete().eq('id', assetId).select('id').single()
+    if (error) throw new Error('File removal needs another attempt to clear its metadata. Please retry.')
 }
 
 // ============================================
 // Upload File to Storage
 // ============================================
 export async function uploadFile(file: File, userId: string) {
-    console.log('🔵 Upload attempt:', {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        userId
-    })
-
+    if (file.size > 25 * 1024 * 1024) throw new Error('File must be smaller than 25 MB')
+    const { data: { user } } = await getSupabase().auth.getUser()
+    if (!user || user.id !== userId) throw new Error('Please sign in again')
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
     const filePath = `${userId}/${fileName}`
 
-    console.log('🔵 Upload path:', filePath)
 
     const { data, error } = await getSupabase().storage
         .from('event-assets')
@@ -229,14 +193,12 @@ export async function uploadFile(file: File, userId: string) {
         throw error
     }
 
-    console.log('🟢 Upload success:', data)
 
     // Get public URL
     const { data: { publicUrl } } = getSupabase().storage
         .from('event-assets')
         .getPublicUrl(filePath)
 
-    console.log('🟢 Public URL:', publicUrl)
 
     return {
         filePath: data.path,

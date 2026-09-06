@@ -85,7 +85,7 @@ export function EditTemplateDialog({
         e.preventDefault()
         if (!formData.id) return
 
-        updateMutation.mutate(formData as UpdateEmailTemplateInput, {
+        updateMutation.mutate({ ...formData, expected_version: template?.version } as UpdateEmailTemplateInput, {
             onSuccess: () => {
                 onOpenChange(false)
             },

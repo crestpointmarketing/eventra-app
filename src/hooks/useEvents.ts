@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/api/pagination'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 
@@ -7,12 +8,7 @@ export function useEvents() {
     return useQuery({
         queryKey: ['events'],
         queryFn: async () => {
-            const { data: events, error: eventsError } = await supabase
-                .from('events')
-                .select('*')
-                .order('start_date', { ascending: false })
-
-            if (eventsError) throw eventsError
+            const events = await fetchAllRows<any>((from, to) => supabase.from('events').select('*, leads(count)').is('deleted_at', null).order('start_date', { ascending: false }).order('id').range(from, to))
 
             if (!events || events.length === 0) return []
 
@@ -38,6 +34,7 @@ export function useEvents() {
             // Merge owner data
             return events.map(event => ({
                 ...event,
+                actual_leads: event.leads?.[0]?.count ?? 0,
                 owner: userMap.get(event.owner_id)
             }))
         },

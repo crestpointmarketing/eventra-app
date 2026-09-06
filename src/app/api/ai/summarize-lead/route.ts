@@ -1,11 +1,16 @@
+import { summarySchema } from '@/lib/ai/schemas'
+import { leadForAI } from '@/lib/leads/model'
+import { guardAI } from '@/lib/api/guard'
 // API Route: AI Lead Summary
 // POST /api/ai/summarize-lead
 
 import { NextRequest, NextResponse } from 'next/server'
 import { generateChatCompletion, storeAIInsight } from '@/lib/ai/openai-service'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+    const denied = await guardAI(request)
+    if (denied) return denied
     try {
         const { leadId, userId } = await request.json()
 
@@ -17,13 +22,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Fetch lead data
-        const supabase = createClient()
-        const { data: lead, error: leadError } = await supabase
+        const supabase = await createClient()
+        const { data: leadRow, error: leadError } = await supabase
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single()
 
+        const lead = leadRow ? leadForAI(leadRow) : null
         if (leadError || !lead) {
             return NextResponse.json(
                 { error: 'Lead not found' },
@@ -104,20 +110,20 @@ Provide a JSON response with this EXACT structure:
 
             if (start !== -1 && end !== -1) {
                 const jsonStr = content.substring(start, end + 1);
-                intelligence = JSON.parse(jsonStr);
+                intelligence = summarySchema.parse(JSON.parse(jsonStr));
             } else {
                 throw new Error('No JSON object found in response');
             }
         } catch (parseError) {
-            console.error('Failed to parse AI summary. Raw Content:', content)
+            console.error('Failed to validate AI summary')
             return NextResponse.json(
-                { error: 'Invalid AI response format', details: content.substring(0, 100) + '...' },
+                { error: 'Invalid AI response format. Please retry.' },
                 { status: 500 }
             )
         }
 
         // 1. Store insight in history (expires in 7 days)
-        await storeAIInsight({
+        const stored = await storeAIInsight({
             entityType: 'lead',
             entityId: leadId,
             insightType: 'summary',
@@ -151,6 +157,7 @@ Provide a JSON response with this EXACT structure:
             )
         }
 
+        if (stored.error) return NextResponse.json({ error: 'AI result could not be saved. Please retry.' }, { status: 503 })
         return NextResponse.json({
             success: true,
             ...intelligence,

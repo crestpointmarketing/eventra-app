@@ -2,13 +2,9 @@
 // Wrapper around OpenAI API with error handling, cost tracking, and rate limiting
 
 import OpenAI from 'openai'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
-let _supabase: ReturnType<typeof createClient> | null = null
-function getSupabase(): ReturnType<typeof createClient> {
-    if (!_supabase) _supabase = createClient()
-    return _supabase
-}
+async function getSupabase() { return createClient() }
 
 // OpenAI Configuration — lazy singleton to avoid build-time initialization errors
 let _openai: OpenAI | null = null
@@ -18,7 +14,7 @@ function getOpenAIInstance(): OpenAI {
         if (!process.env.OPENAI_API_KEY) {
             throw new Error('OPENAI_API_KEY is not configured')
         }
-        _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+        _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY.trim(), timeout: 45000, maxRetries: 1 })
     }
     return _openai
 }
@@ -89,17 +85,20 @@ function calculateCost(
  */
 async function trackUsage(usage: AIUsageRecord): Promise<void> {
     try {
-        const { error } = await getSupabase()
+        const db = await getSupabase()
+        const { data: { user } } = await db.auth.getUser()
+        if (!user) return
+        const { error } = await db
             .from('ai_usage')
             .insert({
-                user_id: usage.user_id,
+                user_id: user.id,
                 feature: usage.feature,
                 model: usage.model,
                 prompt_tokens: usage.prompt_tokens,
                 completion_tokens: usage.completion_tokens,
                 total_tokens: usage.total_tokens,
                 estimated_cost: usage.estimated_cost,
-                request_data: usage.request_data,
+                request_data: {},
                 response_time_ms: usage.response_time_ms,
                 status: usage.status,
                 error_message: usage.error_message,
@@ -116,35 +115,10 @@ async function trackUsage(usage: AIUsageRecord): Promise<void> {
 /**
  * Check rate limits for user
  */
-async function checkRateLimits(userId?: string): Promise<boolean> {
-    if (!userId) return true // Skip rate limiting for anonymous requests
-
-    try {
-        // Check daily limit
-        const oneDayAgo = new Date()
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1)
-
-        const { count, error } = await getSupabase()
-            .from('ai_usage')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .gte('created_at', oneDayAgo.toISOString())
-
-        if (error) {
-            console.error('Error checking rate limits:', error)
-            return true // Allow on error
-        }
-
-        if (count && count >= RATE_LIMITS.maxRequestsPerDay) {
-            console.warn(`User ${userId} exceeded daily rate limit`)
-            return false
-        }
-
-        return true
-    } catch (error) {
-        console.error('Error in rate limit check:', error)
-        return true // Allow on error
-    }
+async function checkRateLimits(): Promise<boolean> {
+    const db = await getSupabase()
+    const { data: { user }, error } = await db.auth.getUser()
+    return !error && !!user // Atomic quota is enforced at the API boundary.
 }
 
 /**
@@ -168,7 +142,7 @@ export async function generateChatCompletion(params: {
 
     try {
         // Check rate limits
-        const withinLimits = await checkRateLimits(params.userId)
+        const withinLimits = await checkRateLimits()
         if (!withinLimits) {
             const error = 'Rate limit exceeded'
             await trackUsage({
@@ -191,7 +165,7 @@ export async function generateChatCompletion(params: {
         const completion = await openai.chat.completions.create({
             model,
             messages: params.messages,
-            max_tokens: params.maxTokens || 1000,
+            max_tokens: Math.min(params.maxTokens || 1000, RATE_LIMITS.maxTokensPerRequest),
             temperature: params.temperature ?? 0.7,
         })
 
@@ -273,7 +247,7 @@ export async function storeAIInsight(params: {
             ? new Date(Date.now() + params.expiresInHours * 60 * 60 * 1000)
             : null
 
-        const { error } = await getSupabase()
+        const { error } = await (await getSupabase())
             .from('ai_insights')
             .insert({
                 entity_type: params.entityType,
@@ -306,7 +280,7 @@ export async function getAIInsight(params: {
     insightType?: 'score' | 'summary' | 'recommendation' | 'prediction'
 }): Promise<any | null> {
     try {
-        let query = getSupabase()
+        let query = (await getSupabase())
             .from('ai_insights')
             .select('*')
             .eq('entity_type', params.entityType)
@@ -345,7 +319,7 @@ export async function getAIUsageStats(userId: string, days: number = 7): Promise
         const startDate = new Date()
         startDate.setDate(startDate.getDate() - days)
 
-        const { data, error } = await getSupabase()
+        const { data, error } = await (await getSupabase())
             .from('ai_usage')
             .select('*')
             .eq('user_id', userId)
@@ -387,4 +361,20 @@ export async function getAIUsageStats(userId: string, days: number = 7): Promise
             byFeature: {},
         }
     }
+}
+
+/** Used by AI features that need the SDK response shape. */
+export async function trackedChatCompletion(params: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming) {
+    const db = await createClient()
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) throw new Error('Authentication required')
+    const started = Date.now()
+    const response = await openai.chat.completions.create({ ...params, max_tokens: Math.min(params.max_tokens ?? 1500, 2000) }).catch((error: { status?: number }) => {
+        throw new Error(error.status === 429 ? 'AI provider quota reached. Please try later.' : 'AI provider unavailable. Please check its configuration or try later.')
+    })
+    if (response.usage) await trackUsage({ user_id: user.id, feature: 'chat_assistant', model: params.model,
+        prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens,
+        total_tokens: response.usage.total_tokens, estimated_cost: calculateCost(params.model === 'gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini', response.usage.prompt_tokens, response.usage.completion_tokens),
+        response_time_ms: Date.now()-started, status: 'success' })
+    return response
 }

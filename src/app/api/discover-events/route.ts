@@ -1,3 +1,5 @@
+import { fetchPublicText } from '@/lib/security/public-fetch'
+import { guardAI } from '@/lib/api/guard'
 import { NextRequest, NextResponse } from 'next/server'
 import { createPerplexityClient, getAIProviderErrorMessage } from '@/lib/ai/perplexity'
 import { normalizeEventPriority } from '@/lib/events/priority'
@@ -36,19 +38,11 @@ function extractUrls(input: string) {
 
 async function getKnownUrlExcerpt(url: string) {
     try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 8000)
-        const res = await fetch(url, {
-            method: 'GET',
-            signal: controller.signal,
-            redirect: 'follow',
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Eventra/1.0)' },
-        })
-        clearTimeout(timer)
+        const res = await fetchPublicText(url)
 
-        if (!res.ok) return null
+        if (res.status !== 200) return null
 
-        const html = await res.text()
+        const html = res.text
         const text = html
             .replace(/<script[\s\S]*?<\/script>/gi, ' ')
             .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -66,23 +60,14 @@ async function getKnownUrlExcerpt(url: string) {
 async function validateUrl(url: string | null): Promise<boolean> {
     if (!url) return false
     try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 8000)
-
-        const res = await fetch(url, {
-            method: 'GET',
-            signal: controller.signal,
-            redirect: 'follow',
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Eventra/1.0)' },
-        })
-        clearTimeout(timer)
+        const res = await fetchPublicText(url)
 
         if (res.status !== 200) return false
 
         const finalUrl = res.url.toLowerCase()
         if (PARKING_DOMAINS.some(d => finalUrl.includes(d))) return false
 
-        const text = (await res.text()).slice(0, 3000).toLowerCase()
+        const text = (res.text).slice(0, 3000).toLowerCase()
         if (PARKING_PHRASES.some(p => text.includes(p))) return false
 
         return true
@@ -224,6 +209,8 @@ async function resolveKnownEventFallback(knownDetailsText: string): Promise<Disc
 }
 
 export async function POST(req: NextRequest) {
+    const denied = await guardAI(req)
+    if (denied) return denied
     try {
         const perplexity = createPerplexityClient()
         const { topics, years, regions, knownDetails, directSync } = await req.json()
@@ -237,7 +224,7 @@ export async function POST(req: NextRequest) {
 
         const yearConstraint   = years?.length   ? `Focus on events occurring in: ${years.join(' or ')}.` : 'Focus on upcoming events in 2026.'
         const regionConstraint = regions?.length ? `Only include events held in: ${regions.join(', ')}.`   : 'Include events from any region globally.'
-        const knownDetailUrls = extractUrls(knownDetailsText)
+        const knownDetailUrls = extractUrls(knownDetailsText).slice(0, 3)
         const knownDetailsHasUrl = knownDetailUrls.length > 0
         const knownUrlExcerpts = knownDetailsHasUrl
             ? (await Promise.all(knownDetailUrls.map(getKnownUrlExcerpt))).filter(Boolean)
@@ -321,7 +308,7 @@ Return ONLY a valid JSON array. No markdown, no explanation, no extra text.`
 
         // Validate all URLs in parallel — nullify any that fail
         const verified = await Promise.all(
-            events.map(async (event) => {
+            events.slice(0, 12).map(async (event) => {
                 const urlOk = await validateUrl(event.website_url ?? null)
                 const confidence = typeof event.confidence === 'number'
                     ? Math.max(0, Math.min(100, Math.round(event.confidence)))

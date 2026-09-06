@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
@@ -87,7 +88,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
 
             // Log activity
             const supabase = createClient()
-            await supabase.from('lead_activities').insert({
+            const { error: activityError } = await supabase.from('lead_activities').insert({
                 lead_id: leadId,
                 activity_type: 'email_copied',
                 activity_data: {
@@ -96,32 +97,16 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
                 }
             })
 
-            alert('Email copied to clipboard!')
+            if (activityError) toast.warning('Copied, but activity could not be saved.')
+            else toast.success('Email copied to clipboard!')
         }
     }
 
     const handleMarkAsSent = async () => {
-        if (editableDraft) {
-            // Log activity
-            const supabase = createClient()
-            await supabase.from('lead_activities').insert({
-                lead_id: leadId,
-                activity_type: 'email_sent',
-                activity_data: {
-                    subject: editableDraft.subject,
-                    sent_to: lead.email,
-                    sent_via: 'manual',
-                }
-            })
-
-            // Update lead's last_contacted_at
-            await supabase
-                .from('leads')
-                .update({ last_contacted_at: new Date().toISOString() })
-                .eq('id', leadId)
-
-            alert('Email marked as sent! Lead contact date updated.')
-        }
+        if (!editableDraft) return
+        const { error } = await createClient().rpc('mark_lead_sent', { lead_id: leadId, subject: editableDraft.subject })
+        if (error) { toast.error('Could not record the email. Please retry.'); return }
+        toast.success('Email manually marked as sent; contact date updated.')
     }
 
     return (

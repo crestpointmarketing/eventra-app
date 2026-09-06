@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Papa from 'papaparse'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -31,7 +32,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [successCount, setSuccessCount] = useState(0)
-    const [autoGenerateAI, setAutoGenerateAI] = useState(true)
+    const [autoGenerateAI, setAutoGenerateAI] = useState(false)
     const [importedLeadIds, setImportedLeadIds] = useState<string[]>([])
 
     const { mutateAsync: createLead } = useCreateLead()
@@ -61,48 +62,15 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
     }
 
     const parseCSV = (text: string) => {
-        const lines = text.split('\n')
-        if (lines.length < 2) return [] // Header + at least 1 row
-
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-        const results: any[] = []
-
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue
-
-            // Simple split handling quotes roughly - for robust parsing consider a library like papaparse
-            // This is a naive implementation assuming simple CSVs
-            const currentLine = lines[i]
-            // logical split on comma unless inside quotes
-            const values: string[] = []
-            let inQuote = false
-            let val = ''
-
-            for (let char of currentLine) {
-                if (char === '"') {
-                    inQuote = !inQuote
-                } else if (char === ',' && !inQuote) {
-                    values.push(val.trim().replace(/^"|"$/g, ''))
-                    val = ''
-                } else {
-                    val += char
-                }
-            }
-            values.push(val.trim().replace(/^"|"$/g, '')) // last value
-
-            if (values.length === headers.length || values.length > 0) {
-                const entry: any = {}
-                headers.forEach((header, index) => {
-                    entry[header] = values[index] || ''
-                })
-                results.push(entry)
-            }
-        }
-        return results
+        const result = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: 'greedy', transformHeader: h => h.replace(/^\uFEFF/, '').trim() })
+        if (result.errors.length) throw new Error(`CSV row ${result.errors[0].row ?? 0}: ${result.errors[0].message}`)
+        if (result.data.length > 1000) throw new Error('Please import at most 1,000 leads per file')
+        return result.data
     }
 
     const handleUpload = async () => {
         if (!file) return
+        if (file.size > 5 * 1024 * 1024) { setError("Please use a CSV smaller than 5 MB"); return }
 
         setIsLoading(true)
         setError(null)
@@ -122,14 +90,16 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
 
                 let count = 0
                 const createdLeadIds: string[] = []
+                const failures: string[] = []
                 for (const record of records) {
                     // Basic mapping - assumes CSV headers match DTO or similar
                     // Expected headers: first_name, last_name, email, company, title, phone
                     if (!record.first_name || !record.email) {
-                        console.warn('Skipping record without name/email', record)
+                        failures.push('A row is missing first_name or email')
                         continue
                     }
 
+                    try {
                     const newLead = await createLead({
                         first_name: record.first_name,
                         last_name: record.last_name || '',
@@ -137,14 +107,16 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                         company: record.company,
                         job_title: record.job_title || record.title,
                         phone: record.phone,
-                        status: 'New'
+                        stage: 'new'
                     })
                     count++
                     if (newLead?.id) {
                         createdLeadIds.push(newLead.id)
                     }
+                    } catch (error) { failures.push(`${record.email}: ${error instanceof Error ? error.message : "Import failed"}`) }
                 }
 
+                if (failures.length) setError(`${failures.length} rows failed: ${failures.slice(0, 5).join("; ")}`)
                 setSuccessCount(count)
                 setImportedLeadIds(createdLeadIds)
 
@@ -161,7 +133,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                             console.error(`AI generation failed for lead ${leadId}`, err)
                         }
                         // Small delay to avoid rate limits
-                        await new Promise(resolve => setTimeout(resolve, 500))
+                        await new Promise(resolve => setTimeout(resolve, 3200))
                     }
 
                     toast.dismiss(toastId)
@@ -170,13 +142,11 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                     }
                 }
 
-                setTimeout(() => {
-                    handleOpenChange(false)
-                }, 1500)
+                if (!failures.length) setTimeout(() => { handleOpenChange(false) }, 1500)
 
             } catch (err) {
                 console.error(err)
-                setError('Failed to process CSV file. Please check the format.')
+                setError(err instanceof Error ? err.message : 'Failed to process CSV file.')
             } finally {
                 setIsLoading(false)
             }

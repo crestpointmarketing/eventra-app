@@ -1,3 +1,4 @@
+import { eventProfileSchema } from './schemas'
 // Event Intelligence Service
 // Analyzes events to identify target audience, suitable industries, budget recommendations, and ROI insights
 
@@ -125,7 +126,7 @@ Return ONLY valid JSON. Use real data from your search — do NOT use generic pl
         const raw = response.choices[0].message.content || '{}'
         const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
         const match = cleaned.match(/\{[\s\S]*\}/)
-        const analysis = JSON.parse(match ? match[0] : cleaned)
+        const analysis: any = eventProfileSchema.parse(JSON.parse(match ? match[0] : cleaned))
 
         return {
             targetAudience: analysis.targetAudience || {
@@ -143,31 +144,7 @@ Return ONLY valid JSON. Use real data from your search — do NOT use generic pl
     } catch (error) {
         console.error('Error analyzing event profile:', error)
 
-        // Return fallback analysis
-        return {
-            targetAudience: {
-                demographics: ['Business professionals', 'Industry specialists'],
-                jobRoles: ['Managers', 'Directors', 'Executives'],
-                interests: ['Networking', 'Professional development'],
-                companySize: ['All sizes']
-            },
-            suitableIndustries: [
-                {
-                    industry: 'General Business',
-                    fitScore: 70,
-                    reasoning: 'Broadly applicable event type'
-                }
-            ],
-            budgetBreakdown: getDefaultBudgetBreakdown(),
-            roiInsights: getDefaultROIInsights(),
-            recommendations: [
-                'Define clear event objectives',
-                'Identify and segment target audience',
-                'Develop comprehensive marketing plan',
-                'Establish measurable success metrics'
-            ],
-            summary: `${event.event_type} event: ${event.name}`
-        }
+        throw new Error('AI analysis unavailable. Please try again later.')
     }
 }
 
