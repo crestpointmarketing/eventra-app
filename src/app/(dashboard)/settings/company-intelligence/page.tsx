@@ -67,14 +67,14 @@ export default function CompanyIntelligencePage() {
 
     if (isLoading) {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
                 <p className="text-zinc-600 dark:text-white/70">Loading...</p>
             </div>
         )
     }
 
     return (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-3">
@@ -82,7 +82,7 @@ export default function CompanyIntelligencePage() {
                         <Brain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-semibold text-zinc-900 dark:text-white">
+                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
                             Company Intelligence
                         </h1>
                         <p className="text-zinc-600 dark:text-white/60 mt-1">
@@ -162,7 +162,7 @@ export default function CompanyIntelligencePage() {
             )}
 
             {/* Save Buttons - Bottom - Conditional rendering based on isEditMode */}
-            <div className="sticky bottom-8 mt-8 flex justify-end gap-3 bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg">
+            <div className="sticky bottom-8 mt-8 flex justify-end gap-3 bg-white dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 {isEditMode ? (
                     <>
                         {hasChanges && (
@@ -182,7 +182,7 @@ export default function CompanyIntelligencePage() {
                         <Button
                             onClick={handleSave}
                             disabled={isUpdating}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="bg-primary text-primary-foreground hover:bg-lime-500"
                         >
                             <Save className="w-4 h-4 mr-2" />
                             Save

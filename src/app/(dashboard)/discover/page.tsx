@@ -365,8 +365,8 @@ export default function EventPulsePage() {
     const hasActiveFilters = search || priorityFilter !== 'all' || engagementFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all'
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+            <div className="max-w-[1600px] mx-auto">
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 uppercase mb-6">
                     <span>Workspace</span>
@@ -392,7 +392,7 @@ export default function EventPulsePage() {
                         </span>
                         <Link
                             href="/events/new"
-                            className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                            className="workspace-action"
                         >
                             <Plus className="h-4 w-4" />
                             Add Event
@@ -402,13 +402,14 @@ export default function EventPulsePage() {
 
                 {/* Tab bar */}
                 <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden border-b border-zinc-200 dark:border-zinc-700 mb-6">
+                    <Link href="/dashboard" className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium text-muted-foreground sm:px-5">Overview</Link>
                     {TAB_LABELS.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => { setView(tab.id); const url = new URL(window.location.href); url.searchParams.set('view', tab.id); window.history.replaceState(null, '', url) }}
                             className={`shrink-0 px-3 sm:px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                                 view === tab.id
-                                    ? 'border-[#CBFB45] text-zinc-900 dark:text-white'
+                                    ? 'border-lime-400 text-zinc-900 dark:text-white'
                                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
                             }`}
                         >
@@ -467,7 +468,7 @@ export default function EventPulsePage() {
                                             </span>
                                         </Link>
                                     )) : (
-                                        <div className="px-5 py-8 text-sm text-zinc-500">No events in the next 30 days.</div>
+                                        <div className="px-5 py-6 text-sm text-zinc-500">No events in the next 30 days.</div>
                                     )}
                                 </div>
                             </div>
@@ -478,7 +479,7 @@ export default function EventPulsePage() {
                                     {[
                                         { label: 'AI Discovered', value: aiCount, total: events?.length ?? 0, color: 'bg-violet-500' },
                                         { label: 'Manually Created', value: (events?.length ?? 0) - aiCount, total: events?.length ?? 0, color: 'bg-zinc-500' },
-                                        { label: 'Upcoming', value: upcomingCount, total: events?.length ?? 0, color: 'bg-[#CBFB45]' },
+                                        { label: 'Upcoming', value: upcomingCount, total: events?.length ?? 0, color: 'bg-lime-400' },
                                     ].map(item => (
                                         <div key={item.label}>
                                             <div className="flex items-center justify-between text-sm mb-1">
@@ -523,7 +524,7 @@ export default function EventPulsePage() {
                                             </div>
                                         </div>
                                     )) : (
-                                        <p className="px-5 py-8 text-sm text-zinc-400 dark:text-zinc-500">No likely duplicates detected.</p>
+                                        <p className="px-5 py-6 text-sm text-zinc-400 dark:text-zinc-500">No likely duplicates detected.</p>
                                     )}
                                 </div>
                             </div>
@@ -546,7 +547,7 @@ export default function EventPulsePage() {
                                 onClick={() => setSourceFilter(option.value)}
                                 className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                                     sourceFilter === option.value
-                                        ? 'border-[#CBFB45] bg-[#CBFB45] text-zinc-900'
+                                        ? 'border-lime-400 bg-lime-400 text-zinc-900'
                                         : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:text-white'
                                 }`}
                             >
@@ -664,7 +665,21 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-x-auto">
+                <div className="space-y-3 md:hidden">
+                    {isLoading ? <Skeleton className="h-40" /> : filtered.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">No events match these filters.</p> : <>
+                        <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={filtered.every(e => checkedIds.has(e.id))} onChange={() => toggleAll(filtered.map(e => e.id))} />Select all events</label>
+                        {filtered.map(event => <article key={event.id} className="space-y-3 rounded-xl border border-border bg-card p-4">
+                            <div className="flex items-start gap-3">
+                                <input type="checkbox" className="mt-1" aria-label={`Select ${event.name}`} checked={checkedIds.has(event.id)} onChange={() => toggleCheck(event.id)} />
+                                <button className="min-w-0 text-left font-semibold" onClick={() => { setSelectedEvent(event); setSheetOpen(true) }}>{event.name}</button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{event.start_date ? formatDateOnly(event.start_date) : 'Date unknown'} · {event.location || 'Location unknown'}</p>
+                            <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-md bg-muted px-2 py-1">{normalizeEventType(event.event_type)}</span><span className="rounded-md bg-muted px-2 py-1">{normalizeEngagementType(event.engagement_type)}</span></div>
+                            <Link className="workspace-secondary w-full" href={`/events/${event.id}`}>Open event</Link>
+                        </article>)}
+                    </>}
+                </div>
+                <div className="hidden md:block bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-x-auto">
                     <table className="w-full min-w-[1180px] table-fixed">
                         <colgroup>
                             <col className="w-12" />

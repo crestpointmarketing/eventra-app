@@ -284,7 +284,7 @@ export function SearchFilters({
     return (
         <aside
             aria-label="Search filters"
-            className="min-w-0 self-start rounded-xl border border-zinc-200 bg-white px-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="min-w-0 self-start rounded-xl border border-zinc-200 bg-white px-4 dark:border-zinc-700 dark:bg-zinc-900"
         >
             <div className="flex items-center justify-between gap-2 py-4">
                 <h2 className="text-lg font-semibold">Filters</h2>
@@ -652,7 +652,7 @@ export function SearchFilters({
                                     </button>
                                     <button
                                         type="button"
-                                        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-zinc-900"
+                                        className="workspace-action"
                                         onClick={() => {
                                             const next = { ...criteria }
                                             for (const key of advancedKeys)
@@ -691,7 +691,7 @@ export function SearchFilters({
                         type="button"
                         disabled={disabled}
                         onClick={onSearch}
-                        className="w-full rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+                        className="w-full workspace-action w-full"
                     >
                         Apply filters & search
                     </button>

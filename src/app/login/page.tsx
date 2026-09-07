@@ -63,10 +63,10 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-            <Card className="w-full max-w-md p-8 border border-zinc-200">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+            <Card className="w-full max-w-md p-6 sm:p-8 border border-border">
                 <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-medium text-zinc-900 mb-2">
+                    <h1 className="text-2xl font-semibold text-zinc-900 mb-2">
                         {mode === 'login' ? 'Sign in to Eventra' : 'Create Eventra Account'}
                     </h1>
                     <p className="text-zinc-600">

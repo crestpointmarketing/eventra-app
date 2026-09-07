@@ -780,7 +780,7 @@ export default function TaskDetailPage() {
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                                        <p className="text-center py-6 text-zinc-500 dark:text-zinc-400">
                                             No assets uploaded yet
                                         </p>
                                     )}

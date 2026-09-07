@@ -156,7 +156,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                     Back to Event
                 </Link>
                 <div className="flex items-center justify-between">
-                    <h1 className="text-5xl font-medium text-zinc-900 dark:text-white">Edit Event</h1>
+                    <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">Edit Event</h1>
                     {isDirty && (
                         <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
                             <div className="w-2 h-2 bg-orange-500 rounded-full"></div>

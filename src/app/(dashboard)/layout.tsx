@@ -18,10 +18,10 @@ export default async function DashboardLayout({
     const { data: member, error } = await db.rpc('is_eventra_member')
     if (error || !member) return <TeamAccessNotice email={user.email ?? 'Unknown account'} unavailable={!!error} />
     return (
-        <div className="min-h-screen bg-white dark:bg-zinc-950">
+        <div className="eventra-workspace min-h-screen bg-background text-foreground">
             <TopNav />
             <TaskReminderNotifier />
-            <main className="bg-zinc-50 dark:bg-zinc-950">
+            <main className="min-w-0 bg-background">
                 {children}
                 <NavigationControls />
             </main>

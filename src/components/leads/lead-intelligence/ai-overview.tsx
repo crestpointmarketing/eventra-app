@@ -99,7 +99,7 @@ export function AILeadOverview({ lead }: AILeadOverviewProps) {
                         <Button
                             onClick={handleGenerate}
                             disabled={isPending}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            className="bg-primary text-primary-foreground hover:bg-lime-500 text-white"
                         >
                             {isPending ? (
                                 <>

@@ -357,7 +357,7 @@ export function SearchImportDialog({
                                         createTasks,
                                 )
                             }
-                            className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+                            className="workspace-action"
                         >
                             {importing && (
                                 <Loader2 size={14} className="animate-spin" />

@@ -129,8 +129,8 @@ export default function DashboardPage() {
     )
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+            <div className="max-w-[1600px] mx-auto">
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 uppercase mb-6">
                     <span>Workspace</span>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                                                         <div className="flex items-center justify-end gap-3">
                                                             <div className="w-20 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                                                                 <div
-                                                                    className="h-full bg-[#CBFB45] rounded-full transition-all"
+                                                                    className="h-full bg-lime-400 rounded-full transition-all"
                                                                     style={{ width: `${calcProgress(event, tasks)}%` }}
                                                                 />
                                                             </div>

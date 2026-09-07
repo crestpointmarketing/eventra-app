@@ -81,7 +81,7 @@ export function LeadAISummary({ leadId, leadName, leadData }: LeadAISummaryProps
                         <Brain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                         <h2 className="text-2xl font-medium text-zinc-900 dark:text-white">AI Summary</h2>
                     </div>
-                    <Button onClick={handleAnalyze} size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                    <Button onClick={handleAnalyze} size="sm" className="bg-primary text-primary-foreground hover:bg-lime-500">
                         <Sparkles className="w-4 h-4 mr-2" />
                         Generate Insights
                     </Button>

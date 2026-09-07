@@ -94,12 +94,12 @@ export default function NewTaskPage() {
     }
 
     return (
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6">
             <Link href="/tasks" className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white text-sm mb-4 inline-block">
                 ← Back to Tasks
             </Link>
 
-            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Create New Task</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-8">Create New Task</h1>
 
             <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">

@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/card'
 import { formatDateOnly } from '@/lib/date-only'
 import { normalizeEventPriority } from '@/lib/events/priority'
 import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
+import { TASK_MODULES } from '@/lib/tasks/modules'
 
 const COLORS = {
     hot: '#a3e635',
@@ -25,17 +26,10 @@ const COLORS = {
     cold: '#d4d4d8',
 }
 
-const MOCK_PREPARATION_PROGRESS: Record<string, number> = {
-    'Strategy & Planning': 85,
-    Outreach: 60,
-    'Creative Assets': 42,
-    Logistics: 25,
-}
-
 export default function EventOverviewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const { data: event, isLoading } = useEvent(id)
-    const { data: eventTasks } = useEventTasks(id)
+    const { data: eventTasks, isLoading: tasksLoading, isError: tasksError } = useEventTasks(id)
     const searchParams = useSearchParams()
     const view = searchParams.get('view') || 'overview'
 
@@ -92,7 +86,12 @@ export default function EventOverviewPage({ params }: { params: Promise<{ id: st
     if (isLoading || !event) return null
 
     const eventUrl = event.website_url ?? event.url
-    const openTasks = (eventTasks ?? []).filter((task: any) => task.status !== 'completed')
+    const openTasks = (eventTasks ?? []).filter(task => task.status !== 'done' && task.status !== 'archived')
+    const preparationProgress = TASK_MODULES.map(module => {
+        const tasks = (eventTasks ?? []).filter(task => task.module === module.id && task.status !== 'archived')
+        const done = tasks.filter(task => task.status === 'done').length
+        return { label: module.label, total: tasks.length, done, percent: tasks.length ? Math.round(done / tasks.length * 100) : 0 }
+    }).filter(module => module.total > 0)
     const nextTasks = openTasks.slice(0, 4)
     const leadTarget = event.target_leads || 0
     const leadProgress = leadTarget > 0 ? Math.round((leadAnalytics.total / leadTarget) * 100) : 0
@@ -118,14 +117,17 @@ export default function EventOverviewPage({ params }: { params: Promise<{ id: st
                         PREPARATION PROGRESS
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {Object.entries(MOCK_PREPARATION_PROGRESS).map(([key, value]) => (
-                            <div key={key}>
+                        {tasksLoading && <p className="text-sm text-muted-foreground">Loading task progress…</p>}
+                        {tasksError && <p role="alert" className="text-sm text-red-600">Task progress could not be loaded. Refresh to try again.</p>}
+                        {!tasksLoading && !tasksError && preparationProgress.length === 0 && <p className="text-sm text-muted-foreground">No active tasks yet. Add tasks to track preparation.</p>}
+                        {!tasksLoading && !tasksError && preparationProgress.map(({ label, percent, done, total }) => (
+                            <div key={label}>
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{key}</span>
-                                    <span className="text-sm text-zinc-500 dark:text-zinc-400">{value}%</span>
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+                                    <span className="text-xs text-muted-foreground">{done}/{total} done · {percent}%</span>
                                 </div>
                                 <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#CBFB45] rounded-full transition-all" style={{ width: `${value}%` }} />
+                                    <div className="h-full bg-lime-400 rounded-full transition-all" style={{ width: `${percent}%` }} />
                                 </div>
                             </div>
                         ))}
@@ -302,7 +304,7 @@ export default function EventOverviewPage({ params }: { params: Promise<{ id: st
                                 <span>{leadAnalytics.total} / {leadTarget}</span>
                             </div>
                             <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700">
-                                <div className="h-full rounded-full bg-[#CBFB45]" style={{ width: `${Math.min(leadProgress, 100)}%` }} />
+                                <div className="h-full rounded-full bg-lime-400" style={{ width: `${Math.min(leadProgress, 100)}%` }} />
                             </div>
                         </div>
                     </Card>

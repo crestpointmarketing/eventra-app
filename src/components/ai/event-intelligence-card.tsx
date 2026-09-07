@@ -67,7 +67,7 @@ export function EventIntelligenceCard({ eventId, eventName }: EventIntelligenceC
                         onClick={handleAnalyze}
                         disabled={isPending}
                         size="sm"
-                        className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                        className="bg-primary text-primary-foreground hover:bg-lime-500 dark:bg-indigo-500 dark:hover:bg-indigo-600"
                     >
                         {isPending ? (
                             <>
