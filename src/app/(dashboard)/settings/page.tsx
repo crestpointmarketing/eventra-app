@@ -19,25 +19,25 @@ export default function SettingsPage() {
             title: 'Account Settings',
             description: 'Manage your profile and preferences',
             icon: User,
-            href: '#',
+            href: '/settings/account',
             color: 'blue',
-            available: false
+            available: true
         },
         {
             title: 'Notifications',
-            description: 'Configure email and push notifications',
+            description: 'Manage in-app task reminders on this browser',
             icon: Bell,
-            href: '#',
+            href: '/settings/notifications',
             color: 'green',
-            available: false
+            available: true
         },
         {
-            title: 'Security & Privacy',
-            description: 'Manage security settings and data privacy',
+            title: 'Security & Access',
+            description: 'Manage your password, session and team access',
             icon: Shield,
-            href: '#',
+            href: '/settings/security',
             color: 'red',
-            available: false
+            available: true
         }
     ]
 

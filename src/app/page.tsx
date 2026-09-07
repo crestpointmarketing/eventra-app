@@ -138,7 +138,7 @@ export default function LandingPage() {
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Company</h3>
                 <ul className="space-y-2">
                   <li>
-                    <Link href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                    <Link href="/about" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
                       About
                     </Link>
                   </li>
@@ -148,13 +148,13 @@ export default function LandingPage() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-                      Privacy Policy
+                    <Link href="/help" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                      Help &amp; Getting Started
                     </Link>
                   </li>
                   <li>
-                    <Link href="#" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-                      Terms
+                    <Link href="/contact" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                      Privacy &amp; terms inquiries
                     </Link>
                   </li>
                 </ul>

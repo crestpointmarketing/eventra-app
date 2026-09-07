@@ -70,6 +70,7 @@ export function TopNav() {
         { href: '/assets', label: 'Assets' },
         { href: '/analytics', label: 'Analytics' },
         { href: '/settings', label: 'Settings' },
+        { href: '/help', label: 'Help & Getting Started' },
         { href: '/contact', label: 'Feedback' },
     ]
 
@@ -160,9 +161,9 @@ export function TopNav() {
                         {user ? (
                             // Authenticated user controls
                             <>
-                                <Link href="/contact"
+                                <Link href="/help"
                                     className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                    aria-label="Help and feedback"
+                                    aria-label="Help and getting started"
                                 >
                                     <MessageSquare className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
                                 </Link>

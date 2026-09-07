@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { useTasks } from '@/hooks/useTasks'
+import { remindersEnabled, REMINDER_PREFERENCE_EVENT } from '@/lib/task-reminder-preferences'
 
 const STORAGE_KEY = 'eventra-shown-task-reminders'
 
@@ -15,7 +16,13 @@ export function TaskReminderNotifier() {
         if (!tasks?.length) return
 
         const checkReminders = () => {
-            const shown = new Set<string>(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'))
+            if (!remindersEnabled()) return
+            let previous: string[] = []
+            try {
+                const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+                if (Array.isArray(stored)) previous = stored.filter((value): value is string => typeof value === 'string')
+            } catch { /* A blocked or stale browser cache must not crash the workspace. */ }
+            const shown = new Set<string>(previous)
 
             tasks.forEach(task => {
                 if (!task.reminder_at || task.status === 'done' || task.status === 'archived') return
@@ -35,12 +42,13 @@ export function TaskReminderNotifier() {
                 shown.add(reminderKey)
             })
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(shown).slice(-200)))
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(shown).slice(-200))) } catch { /* Storage can be disabled by the browser. */ }
         }
 
         checkReminders()
         const interval = window.setInterval(checkReminders, 30_000)
-        return () => window.clearInterval(interval)
+        window.addEventListener(REMINDER_PREFERENCE_EVENT, checkReminders)
+        return () => { window.clearInterval(interval); window.removeEventListener(REMINDER_PREFERENCE_EVENT, checkReminders) }
     }, [tasks, router])
 
     return null
