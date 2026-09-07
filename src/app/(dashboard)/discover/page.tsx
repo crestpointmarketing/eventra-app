@@ -401,9 +401,9 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Tab bar */}
-                <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden border-b border-zinc-200 dark:border-zinc-700 mb-6">
+                <div className="flex flex-wrap items-center gap-y-2 border-b border-zinc-200 dark:border-zinc-700 mb-6 pb-2 sm:pb-0">
                     <Link href="/dashboard" className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium text-muted-foreground sm:px-5">Overview</Link>
-                    {TAB_LABELS.map(tab => (
+                    {TAB_LABELS.filter(tab => tab.id !== 'discover').map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => { setView(tab.id); const url = new URL(window.location.href); url.searchParams.set('view', tab.id); window.history.replaceState(null, '', url) }}
@@ -416,6 +416,15 @@ export default function EventPulsePage() {
                             {tab.label}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        aria-pressed={view === 'discover'}
+                        onClick={() => { setView('discover'); const url = new URL(window.location.href); url.searchParams.set('view', 'discover'); window.history.replaceState(null, '', url) }}
+                        className="workspace-action ml-auto sm:my-1"
+                    >
+                        <Search className="h-4 w-4" aria-hidden="true" />
+                        Discover
+                    </button>
                 </div>
 
                 {/* Discover view */}
