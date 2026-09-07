@@ -4,30 +4,49 @@
 
 :root {
   --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
+  --foreground: 221 39% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 221 39% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
+  --primary: 83 78% 67%;
+  --primary-foreground: 140 60% 20%;
+  --secondary: 220 23% 97%;
   --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
+  --muted: 220 23% 97%;
+  --muted-foreground: 215 14% 34%;
   --accent: 240 4.8% 95.9%;
   --accent-foreground: 240 5.9% 10%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 221 39% 11%;
   --radius: 0.5rem;
+}
+
+.dark {
+  --background: 224 24% 8%;
+  --foreground: 210 20% 96%;
+  --card: 221 24% 11%;
+  --card-foreground: 210 20% 96%;
+  --popover: 221 24% 11%;
+  --popover-foreground: 210 20% 96%;
+  --secondary: 220 18% 16%;
+  --secondary-foreground: 210 20% 96%;
+  --muted: 220 18% 16%;
+  --muted-foreground: 218 11% 70%;
+  --accent: 220 18% 19%;
+  --accent-foreground: 210 20% 96%;
+  --border: 218 17% 24%;
+  --input: 218 17% 24%;
+  --ring: 83 78% 67%;
 }
 
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Required field indicator */
@@ -37,7 +56,35 @@ body {
   font-weight: 500;
 }
 @layer base {
+  * { border-color: hsl(var(--border)); }
   b, strong {
     font-weight: 600;
+  }
+}
+
+@layer components {
+  /* Shared workspace density, adapted from the supplied Figma Make export. */
+  .eventra-workspace { font-size: 14px; line-height: 1.5; }
+  .eventra-workspace h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .eventra-workspace h2 { font-size: 18px; line-height: 26px; font-weight: 600; }
+  .eventra-workspace table { font-size: 13px; }
+  .eventra-workspace thead { background: hsl(var(--muted)); }
+  .eventra-workspace th { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+  .eventra-workspace input:not([type=checkbox]):not([type=radio]),
+  .eventra-workspace select,
+  .eventra-workspace textarea { border-radius: 8px; }
+  .eventra-workspace button:focus-visible,
+  .eventra-workspace a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+  .workspace-action {
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-transparent bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-lime-500 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .workspace-secondary {
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50;
+  }
+  @media (max-width: 640px) {
+    .eventra-workspace h1 { font-size: 22px; line-height: 30px; }
+    .eventra-workspace input:not([type=checkbox]):not([type=radio]),
+    .eventra-workspace select, .eventra-workspace textarea { font-size: 16px; }
+    .workspace-action, .workspace-secondary { min-height: 44px; }
   }
 }

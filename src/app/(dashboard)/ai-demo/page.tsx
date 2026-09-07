@@ -99,7 +99,7 @@ export default function AIFeaturesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-5xl font-medium text-zinc-900 dark:text-white flex items-center gap-3">
+                        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white flex items-center gap-3">
                             <Brain className="w-12 h-12 text-purple-600" />
                             AI Features Demo
                         </h1>
@@ -112,7 +112,7 @@ export default function AIFeaturesPage() {
                 {/* Feature Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Lead Scoring */}
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col" onClick={handleScoreDemo}>
+                    <Card className="hover:shadow-sm transition-shadow cursor-pointer flex flex-col" onClick={handleScoreDemo}>
                         <CardHeader className="flex-grow">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
@@ -132,7 +132,7 @@ export default function AIFeaturesPage() {
                     </Card>
 
                     {/* Lead Summary */}
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col" onClick={handleSummaryDemo}>
+                    <Card className="hover:shadow-sm transition-shadow cursor-pointer flex flex-col" onClick={handleSummaryDemo}>
                         <CardHeader className="flex-grow">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
@@ -152,7 +152,7 @@ export default function AIFeaturesPage() {
                     </Card>
 
                     {/* Content Generation */}
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col" onClick={handleGenerateEmail}>
+                    <Card className="hover:shadow-sm transition-shadow cursor-pointer flex flex-col" onClick={handleGenerateEmail}>
                         <CardHeader className="flex-grow">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">

@@ -47,7 +47,7 @@ export default function LeadIntelligencePage({ params }: { params: Promise<{ id:
     const isHot = score >= 80
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-20">
+        <div className="min-h-screen bg-background pb-20">
             {/* Top Bar / Navigation */}
             <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 px-6 py-3 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-4">
@@ -95,7 +95,7 @@ export default function LeadIntelligencePage({ params }: { params: Promise<{ id:
                     }}>
                         <Calendar className="w-4 h-4 mr-2" /> Schedule
                     </Button>
-                    <Button size="sm" className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900" onClick={() => setCreateTaskOpen(true)}>
+                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-lime-500" onClick={() => setCreateTaskOpen(true)}>
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Create Task
                     </Button>
                 </div>

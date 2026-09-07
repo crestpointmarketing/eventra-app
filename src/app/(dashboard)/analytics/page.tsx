@@ -36,8 +36,8 @@ export default function AnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
+            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
+                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-8">Analytics</h1>
                 <StatsLoadingGrid />
             </div>
         )
@@ -68,8 +68,8 @@ export default function AnalyticsPage() {
 
     return (
         <PageTransition>
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Analytics</h1>
+            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
+                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-8">Analytics</h1>
 
                 {/* Key Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -79,9 +79,9 @@ export default function AnalyticsPage() {
                         transition={{ duration: 0.3, delay: 0 }}
                         whileHover={{ scale: 1.05, y: -4 }}
                     >
-                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-sm transition-shadow">
                             <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Events</p>
-                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{analytics.totalEvents}</p>
                         </Card>
                     </motion.div>
 
@@ -91,9 +91,9 @@ export default function AnalyticsPage() {
                         transition={{ duration: 0.3, delay: 0.1 }}
                         whileHover={{ scale: 1.05, y: -4 }}
                     >
-                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-sm transition-shadow">
                             <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Total Leads</p>
-                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{analytics.totalLeads}</p>
                         </Card>
                     </motion.div>
 
@@ -103,9 +103,9 @@ export default function AnalyticsPage() {
                         transition={{ duration: 0.3, delay: 0.2 }}
                         whileHover={{ scale: 1.05, y: -4 }}
                     >
-                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-sm transition-shadow">
                             <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Hot Leads</p>
-                            <p className="text-5xl font-medium text-lime-400">{analytics.hotLeads}</p>
+                            <p className="text-2xl font-semibold text-lime-400">{analytics.hotLeads}</p>
                         </Card>
                     </motion.div>
 
@@ -115,9 +115,9 @@ export default function AnalyticsPage() {
                         transition={{ duration: 0.3, delay: 0.3 }}
                         whileHover={{ scale: 1.05, y: -4 }}
                     >
-                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-lg transition-shadow">
+                        <Card className="p-8 border border-zinc-200 dark:border-zinc-800 text-center bg-white dark:bg-zinc-900 hover:shadow-sm transition-shadow">
                             <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-2">Conversion Rate</p>
-                            <p className="text-5xl font-medium text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{analytics.conversionRate}%</p>
                         </Card>
                     </motion.div>
                 </div>
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <p className="text-zinc-600 text-center py-12">No event types to display</p>
+                            <p className="text-zinc-600 text-center py-6">No event types to display</p>
                         )}
                     </Card>
 
@@ -175,7 +175,7 @@ export default function AnalyticsPage() {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <p className="text-zinc-600 text-center py-12">No leads to display</p>
+                            <p className="text-zinc-600 text-center py-6">No leads to display</p>
                         )}
                     </Card>
                 </div>

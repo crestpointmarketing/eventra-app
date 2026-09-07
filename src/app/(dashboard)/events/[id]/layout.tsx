@@ -63,8 +63,8 @@ export default function EventLayout({
         { name: 'Tasks', icon: ListChecks, href: `/events/${id}?view=tasks`, count: eventTasks?.length, active: isTasks },
         { name: 'Leads', icon: Users, href: `/events/${id}/leads`, count: event?.leads?.length, active: isLeads },
         { name: 'Email', icon: Mail, href: `/events/${id}?view=email`, active: isEmail },
-        { name: 'Assets', icon: FileText, href: `/events/${id}/assets`, count: 0, active: isAssets },
-        { name: 'Notes', icon: AlertTriangle, href: `/events/${id}?view=notes`, count: 1, active: isNotes },
+        { name: 'Assets', icon: FileText, href: `/events/${id}/assets`, active: isAssets },
+        { name: 'Risks', icon: AlertTriangle, href: `/events/${id}?view=notes`, active: isNotes },
         { name: 'Insights', icon: BarChart3, href: `/events/${id}?view=insights`, active: isInsights },
     ]
 
@@ -152,8 +152,8 @@ export default function EventLayout({
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+                <div className="max-w-[1600px] mx-auto">
                     <p className="text-zinc-600 dark:text-zinc-400">Loading event...</p>
                 </div>
             </div>
@@ -162,8 +162,8 @@ export default function EventLayout({
 
     if (error || !event) {
         return (
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+                <div className="max-w-[1600px] mx-auto">
                     <p className="text-red-500">Event not found</p>
                     <Link href="/discover">
                         <Button className="mt-4">Back to EventPulse</Button>
@@ -176,8 +176,8 @@ export default function EventLayout({
     const eventUrl = event.website_url ?? event.url
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+            <div className="max-w-[1600px] mx-auto">
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 uppercase mb-6">
                     <span>WORKSPACE</span>
@@ -253,7 +253,7 @@ export default function EventLayout({
                         <Button
                             onClick={handleShare}
                             disabled={sharing}
-                            className="bg-[#CBFB45] hover:bg-[#b8e33d] text-zinc-900 uppercase text-xs font-medium flex items-center gap-2"
+                            className="bg-lime-400 hover:bg-[#b8e33d] text-zinc-900 uppercase text-xs font-medium flex items-center gap-2"
                         >
                             {copied
                                 ? <><Check className="w-3.5 h-3.5" /> COPIED!</>

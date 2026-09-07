@@ -49,7 +49,7 @@ export function EventRisksTab({ eventId }: { eventId: string }) {
                     Use our AI to analyze your event tasks, identifying potential timeline conflicts,
                     dependency issues, and resource bottlenecks.
                 </p>
-                <Button onClick={handleAnalyze} size="lg" className="mt-4 bg-purple-600 hover:bg-purple-700">
+                <Button onClick={handleAnalyze} size="lg" className="mt-4 bg-primary text-primary-foreground hover:bg-lime-500">
                     <Brain className="w-4 h-4 mr-2" />
                     Analyze Risks
                 </Button>

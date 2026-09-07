@@ -223,7 +223,7 @@ export default function TasksPage() {
 
     return (
         <PageTransition>
-            <div className="container mx-auto p-8 space-y-8 bg-zinc-50/50 dark:bg-black/5 min-h-screen">
+            <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 space-y-6 bg-background min-h-screen">
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                     <span>WORKSPACE</span>
@@ -237,10 +237,10 @@ export default function TasksPage() {
                 <div className="flex items-end justify-between">
                     <div>
                         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight mb-2">
-                            Global Workviews
+                            Tasks
                         </h1>
                         <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl">
-                            Aggregate view of tasks and deliverables across all active client events.
+                            Plan, assign, and track work across your events.
                         </p>
                     </div>
                     <Link href="/tasks/new">
@@ -266,7 +266,7 @@ export default function TasksPage() {
                     </div>
 
                     {/* Right Filters */}
-                    <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                         <Select value="all">
                             <SelectTrigger className="w-[110px] h-9 text-xs border-zinc-200 bg-white dark:bg-zinc-800">
                                 <SelectValue placeholder="All Dates" />
@@ -349,7 +349,7 @@ export default function TasksPage() {
                                 </div>
                             </div>
                             <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-2">
-                                No workviews found
+                                No tasks found
                             </h3>
                             <p className="text-zinc-500 dark:text-zinc-400 mb-6">
                                 Try adjusting your filters or create a new task
@@ -360,7 +360,22 @@ export default function TasksPage() {
                         </div>
                     ) : (
                         <div>
-                            <Table>
+                            <div className="divide-y divide-border md:hidden">
+                                <label className="flex items-center gap-3 bg-muted px-4 py-3 text-sm"><Checkbox checked={isAllSelected} onCheckedChange={toggleAll} aria-label="Select all tasks" />Select all tasks</label>
+                                {groupedTasks.map(({ module, tasks: moduleTasks }) => <section key={module.id}>
+                                    <h2 className="bg-muted px-4 py-3 text-sm">{module.label} <span className="text-muted-foreground">({moduleTasks.length})</span></h2>
+                                    {moduleTasks.map(task => <article key={task.id} className="space-y-3 border-t border-border p-4">
+                                        <div className="flex items-start gap-3">
+                                            <Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleItem(task.id)} aria-label={`Select ${task.title}`} />
+                                            <button className="min-w-0 text-left text-sm font-medium" onClick={() => handleQuickView(task)}>{task.title}</button>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{task.events?.name || 'Event unavailable'}</p>
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs"><span>{task.due_date ? formatDateOnly(task.due_date) : 'No due date'}</span>{getStatusBadge(task.status)}</div>
+                                        <Link className="workspace-secondary w-full" href={`/tasks/${task.id}`}>Open task</Link>
+                                    </article>)}
+                                </section>)}
+                            </div>
+                            <Table className="hidden md:table">
                                 <TableHeader className="bg-white dark:bg-zinc-900">
                                     <TableRow className="hover:bg-transparent border-b border-zinc-100 dark:border-zinc-800">
                                         <TableHead className="w-[4%] pl-6 py-4">

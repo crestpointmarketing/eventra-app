@@ -302,8 +302,8 @@ export default function LeadsPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+                <div className="max-w-[1600px] mx-auto">
                     <TableLoadingSkeleton />
                 </div>
             </div>
@@ -312,8 +312,8 @@ export default function LeadsPage() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+                <div className="max-w-[1600px] mx-auto">
                     <Card className="p-12 text-center border-red-200 bg-red-50">
                         <div className="mb-4">
                             <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
@@ -331,8 +331,8 @@ export default function LeadsPage() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-8">
-                <div className="max-w-7xl mx-auto">
+            <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+                <div className="max-w-[1600px] mx-auto">
                     {/* Breadcrumb */}
                     <nav className="flex items-center gap-2 text-xs text-zinc-500 uppercase mb-6">
                         <span>Workspace</span>
@@ -388,13 +388,13 @@ export default function LeadsPage() {
                                     <Filter className="h-4 w-4 mr-2" />
                                     Filters
                                     {activeFilterCount > 0 && (
-                                        <Badge variant="secondary" className="ml-2 bg-[#CBFB45] text-zinc-900 hover:bg-[#CBFB45]">
+                                        <Badge variant="secondary" className="ml-2 bg-lime-400 text-zinc-900 hover:bg-lime-400">
                                             {activeFilterCount}
                                         </Badge>
                                     )}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-lg">
+                            <PopoverContent className="w-96 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <div className="space-y-6">
                                     <div><h4 className="font-medium text-sm mb-4 text-zinc-900 dark:text-white">Advanced Filters</h4></div>
 
@@ -510,7 +510,16 @@ export default function LeadsPage() {
                             {/* List Pane */}
                             <div className={`flex-1 flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden transition-all duration-300 ${selectedLeadId ? 'hidden lg:flex' : 'flex'}`}>
                                 <div className="flex-1 overflow-auto">
-                                    <table className="w-full">
+                                    <div className="divide-y divide-border md:hidden">
+                                        {paginatedLeads.map((lead: any) => <article key={lead.id} className="space-y-2 p-4">
+                                            <div className="flex items-start gap-3"><Checkbox checked={selectedIds.has(lead.id)} onCheckedChange={() => toggleItem(lead.id)} aria-label={`Select ${lead.first_name} ${lead.last_name}`} /><button className="text-left font-medium" onClick={() => setSelectedLeadId(lead.id)}>{lead.first_name} {lead.last_name}</button></div>
+                                            <p className="text-sm text-muted-foreground">{lead.company || 'Company not provided'} · {lead.job_title || 'Role not provided'}</p>
+                                            <p className="break-all text-xs text-muted-foreground">{lead.email}</p>
+                                            <p className="text-xs text-muted-foreground">{lead.events?.name || 'No linked event'}</p>
+                                            <button className="workspace-secondary w-full" onClick={() => setSelectedLeadId(lead.id)}>View lead</button>
+                                        </article>)}
+                                    </div>
+                                    <table className="hidden w-full md:table">
                                         <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
                                             <tr>
                                                 <th className="w-12 p-4">
@@ -614,11 +623,11 @@ export default function LeadsPage() {
                             <AnimatePresence>
                                 {selectedLeadId && (
                                     <motion.div
-                                        initial={{ opacity: 0, x: 20, width: 0 }}
-                                        animate={{ opacity: 1, x: 0, width: 'auto' }}
-                                        exit={{ opacity: 0, x: 20, width: 0 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
                                         transition={{ duration: 0.2 }}
-                                        className="flex-shrink-0 w-full lg:w-[450px] xl:w-[500px] h-full"
+                                        className="min-w-0 flex-shrink-0 w-full lg:w-[450px] xl:w-[500px] h-full"
                                     >
                                         <LeadDetailPanel
                                             lead={leads?.find((l: any) => l.id === selectedLeadId)}

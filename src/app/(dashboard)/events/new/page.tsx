@@ -11,7 +11,8 @@ import Link from 'next/link'
 import { UserSelect } from '@/components/users/user-select'
 import { EVENT_PRIORITIES } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, EVENT_TYPES } from '@/lib/events/taxonomy'
-import { seedDefaultEventTasks } from '@/lib/events/default-tasks'
+import { buildDefaultEventTasks, seedDefaultEventTasks } from '@/lib/events/default-tasks'
+import { toast } from 'sonner'
 
 export default function NewEventPage() {
     const router = useRouter()
@@ -19,6 +20,8 @@ export default function NewEventPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [ownerId, setOwnerId] = useState<string | null>(null)
+    const [createTasks, setCreateTasks] = useState(false)
+    const taskCount = buildDefaultEventTasks('preview').length
 
     // Get a real user ID from the database on mount
     useEffect(() => {
@@ -73,7 +76,13 @@ export default function NewEventPage() {
 
             if (insertError) throw insertError
 
-            await seedDefaultEventTasks(supabase, data.id, data.start_date)
+            if (createTasks) {
+                try {
+                    await seedDefaultEventTasks(supabase, data.id, data.start_date)
+                } catch {
+                    toast.error('Event created, but starter tasks could not be created. Open the event to review its tasks.')
+                }
+            }
 
             router.push(`/events/${data.id}`)
         } catch (err: any) {
@@ -84,12 +93,12 @@ export default function NewEventPage() {
     }
 
     return (
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6">
             <Link href="/events" className="text-zinc-600 hover:text-zinc-900 dark:text-white/60 dark:hover:text-[#cbfb45] text-sm mb-4 inline-block">
                 ← Back to Events
             </Link>
 
-            <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-8">Create New Event</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-8">Create New Event</h1>
 
             <Card className="p-8 border border-zinc-200 dark:bg-slate-900 dark:border-white/10">
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -242,9 +251,15 @@ export default function NewEventPage() {
                         </div>
                     )}
 
-                    <div className="flex gap-4">
+                    <section className="rounded-xl border border-border bg-muted p-4">
+                        <label className="flex cursor-pointer items-start gap-3 text-sm font-medium">
+                            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-lime-600" checked={createTasks} onChange={e => setCreateTasks(e.target.checked)} />
+                            <span>Create {taskCount} starter tasks<span className="mt-1 block text-xs font-normal text-muted-foreground">Tasks will be scheduled from the event date. Leave unchecked to create only the event.</span></span>
+                        </label>
+                    </section>
+                    <div className="flex flex-col gap-3 sm:flex-row">
                         <Button type="submit" disabled={loading || !ownerId} className="flex-1">
-                            {loading ? 'Creating...' : 'Create Event'}
+                            {loading ? 'Creating...' : createTasks ? `Create event & ${taskCount} tasks` : 'Create event without tasks'}
                         </Button>
                         <Link href="/events" className="flex-1">
                             <Button type="button" variant="outline" className="w-full">

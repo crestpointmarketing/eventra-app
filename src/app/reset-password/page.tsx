@@ -82,7 +82,7 @@ export default function ResetPasswordPage() {
 
   if (sessionValid === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+      <div className="flex min-h-screen items-center justify-center bg-background dark:bg-zinc-900">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
 
   if (sessionValid === false) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+      <div className="flex min-h-screen items-center justify-center bg-background dark:bg-zinc-900">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-950 mx-auto mb-4 flex items-center justify-center">
@@ -117,11 +117,11 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+    <div className="flex min-h-screen items-center justify-center bg-background dark:bg-zinc-900">
       <Card className="w-full max-w-md p-8 border border-zinc-200 dark:border-zinc-800">
         {!success ? (
           <>
-            <h1 className="text-3xl font-medium text-zinc-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-2">
               Set New Password
             </h1>
             <p className="text-zinc-600 dark:text-zinc-400 mb-6">

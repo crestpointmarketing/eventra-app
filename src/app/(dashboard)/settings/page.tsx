@@ -43,8 +43,8 @@ export default function SettingsPage() {
 
     return (
         <PageTransition>
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-                <h1 className="text-5xl font-medium text-zinc-900 dark:text-white mb-3">Settings</h1>
+            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
+                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">Settings</h1>
                 <p className="text-zinc-600 dark:text-white/60 mb-8">
                     Manage your account settings and preferences
                 </p>
@@ -87,7 +87,7 @@ export default function SettingsPage() {
 
                         return (
                             <Link key={section.title} href={section.href}>
-                                <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-pointer hover:shadow-md">
+                                <Card className="p-6 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-pointer hover:border-zinc-300">
                                     <div className="flex items-start gap-4">
                                         <div className={`p-3 rounded-lg ${colorClasses[section.color as keyof typeof colorClasses]}`}>
                                             <Icon className="w-6 h-6" />

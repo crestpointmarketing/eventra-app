@@ -54,20 +54,20 @@ export function LeadDetailPanel({ lead: initialLead, onClose }: LeadDetailPanelP
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-md">
             {/* Header */}
             <div className="p-6 pb-2">
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex gap-4">
+                <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
+                    <div className="flex min-w-0 gap-4">
                         <Avatar className="h-14 w-14 bg-indigo-50 text-indigo-600 border border-indigo-100">
                             <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${initials}`} />
                             <AvatarFallback className="bg-indigo-50 text-indigo-600">{initials}</AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="min-w-0 break-words">
                             <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                                 {lead.first_name} {lead.last_name}
                             </h2>
                             <p className="text-sm text-zinc-500 mb-2">
                                 {lead.job_title} at {lead.company}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <Badge variant="secondary" className="bg-white border border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300 font-normal rounded-full px-2 py-0.5 h-6 flex items-center gap-1">
                                     <MapPin className="w-3 h-3 text-zinc-400" /> {lead.location || 'San Francisco'}
                                 </Badge>
@@ -78,6 +78,7 @@ export function LeadDetailPanel({ lead: initialLead, onClose }: LeadDetailPanelP
                         </div>
                     </div>
                     <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" aria-label="Close lead details" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-zinc-200 dark:border-zinc-700" onClick={() => window.location.href = `mailto:${lead.email}`}>
                             <Mail className="w-4 h-4 text-zinc-500" />
                         </Button>
@@ -192,7 +193,7 @@ export function LeadDetailPanel({ lead: initialLead, onClose }: LeadDetailPanelP
                         <Send className="w-4 h-4" />
                     </Button>
                 </div>
-                <div className="flex items-center gap-4 mt-3 ml-1">
+                <div className="flex flex-wrap items-center gap-4 mt-3 ml-1">
                     <button className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors" onClick={() => router.push(`/leads/${lead.id}?tab=email`)}>
                         <Mail className="w-3.5 h-3.5 text-[#65a30d]" />
                         Draft Email

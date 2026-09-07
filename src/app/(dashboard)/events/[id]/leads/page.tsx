@@ -43,7 +43,7 @@ export default function EventLeadsPage({ params }: { params: Promise<{ id: strin
                 </Card>
             ))}
             {(!event.leads || event.leads.length === 0) && (
-                <div className="col-span-3 text-center py-12">
+                <div className="col-span-3 text-center py-6">
                     <p className="text-zinc-500 dark:text-zinc-400">No leads associated with this event yet.</p>
                 </div>
             )}

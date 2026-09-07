@@ -9,22 +9,22 @@ import { tapScale } from "@/lib/motion-config"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-zinc-900 text-white shadow hover:bg-zinc-800 dark:bg-lime-400 dark:text-zinc-900 dark:hover:bg-lime-500",
-        secondary: "bg-white border-2 border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white",
+        default: "bg-primary text-primary-foreground hover:bg-lime-500",
+        secondary: "bg-card border border-border text-card-foreground hover:bg-muted",
         lime: "bg-lime-400 text-zinc-900 hover:bg-lime-500",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600",
-        outline: "border border-zinc-300 bg-white hover:bg-zinc-100 dark:bg-slate-900 dark:border-white/20 dark:text-white dark:hover:bg-slate-800",
-        ghost: "hover:bg-zinc-100",
-        link: "text-zinc-900 underline-offset-4 hover:underline",
+        outline: "border border-border bg-card text-card-foreground hover:bg-muted",
+        ghost: "text-foreground hover:bg-muted",
+        link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-12 px-8",
-        lg: "h-14 px-10 text-lg",
-        sm: "h-10 px-6 text-sm",
+        default: "h-10 px-4",
+        lg: "h-12 px-6 text-base",
+        sm: "h-9 px-3 text-sm",
         icon: "h-10 w-10",
       },
     },

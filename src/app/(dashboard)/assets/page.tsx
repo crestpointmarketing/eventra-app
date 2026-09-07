@@ -197,7 +197,7 @@ export default function AssetsPage() {
 
     return (
         <PageTransition>
-            <div className="container mx-auto p-8 space-y-8 bg-zinc-50/50 dark:bg-black/5 min-h-screen">
+            <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 space-y-6 bg-background min-h-screen">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -352,7 +352,7 @@ export default function AssetsPage() {
                                     const isNew = asset.created_at && (new Date().getTime() - new Date(asset.created_at).getTime()) < 3 * 24 * 60 * 60 * 1000 // 3 days new
 
                                     return (
-                                        <Card key={asset.id} className="group overflow-hidden border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-zinc-900">
+                                        <Card key={asset.id} className="group overflow-hidden border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 transition-all cursor-pointer bg-white dark:bg-zinc-900">
                                             <div className="aspect-[4/3] bg-zinc-50 dark:bg-zinc-800/50 relative flex items-center justify-center group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-colors">
                                                 {asset.file_type === 'image' && asset.file_url ? (
                                                     <img src={asset.file_url} alt={asset.filename} className="w-full h-full object-cover" />
@@ -362,7 +362,7 @@ export default function AssetsPage() {
                                                     </div>
                                                 )}
                                                 {isNew && (
-                                                    <span className="absolute top-3 right-3 bg-[#CBFB45] text-black text-[10px] font-semibold px-2 py-0.5 rounded shadow-sm">
+                                                    <span className="absolute top-3 right-3 bg-lime-400 text-black text-[10px] font-semibold px-2 py-0.5 rounded shadow-sm">
                                                         NEW
                                                     </span>
                                                 )}
@@ -395,7 +395,7 @@ export default function AssetsPage() {
                         <section>
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">All Materials</h2>
-                                <Button variant="link" className="text-[#8B5CF6] hover:text-[#7C3AED] p-0 h-auto font-medium text-xs uppercase" onClick={() => setViewMode('list')}>
+                                <Button variant="link" className="text-[#7657D6] hover:text-[#7C3AED] p-0 h-auto font-medium text-xs uppercase" onClick={() => setViewMode('list')}>
                                     View All
                                 </Button>
                             </div>

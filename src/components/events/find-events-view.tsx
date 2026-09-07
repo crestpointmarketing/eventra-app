@@ -372,7 +372,7 @@ export function FindEventsView() {
                 <main className="min-w-0 space-y-5">
                     <section
                         aria-label="Search query"
-                        className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                        className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900"
                     >
                         <div
                             className="flex flex-wrap gap-2"
@@ -384,7 +384,7 @@ export function FindEventsView() {
                                     key={mode}
                                     aria-pressed={criteria.mode === mode}
                                     onClick={() => set('mode', mode)}
-                                    className={`${button} inline-flex items-center gap-2 ${criteria.mode === mode ? 'border-lime-300 bg-lime-50 dark:bg-lime-950' : ''}`}
+                                    className={`${button} inline-flex items-center gap-2 ${criteria.mode === mode ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : ''}`}
                                 >
                                     {mode === 'discover' ? (
                                         <Search size={17} />
@@ -433,7 +433,7 @@ export function FindEventsView() {
                             <button
                                 disabled={busy || running}
                                 onClick={() => search()}
-                                className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+                                className="workspace-action sm:px-5"
                             >
                                 {busy && (
                                     <Loader2
@@ -450,7 +450,7 @@ export function FindEventsView() {
                                     key={chip.id}
                                     onClick={chip.remove}
                                     aria-label={`Remove condition: ${chip.label}`}
-                                    className="inline-flex max-w-full items-center gap-2 rounded-md border border-lime-200 bg-lime-50 px-2.5 py-1.5 text-xs dark:border-lime-900 dark:bg-lime-950"
+                                    className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground"
                                 >
                                     <span className="break-words">
                                         {chip.label}
@@ -776,7 +776,7 @@ export function FindEventsView() {
                                 return (
                                     <article
                                         key={result.id}
-                                        className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                                        className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900"
                                     >
                                         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
                                             <div className="flex min-w-0 items-start gap-3">
@@ -1043,7 +1043,7 @@ export function FindEventsView() {
                                                     'warnings',
                                                 ].includes(job.status) && (
                                                     <button
-                                                        className={`${button} bg-zinc-900 text-white dark:bg-white dark:text-zinc-900`}
+                                                        className={`workspace-action`}
                                                         disabled={imported.includes(
                                                             result.id,
                                                         )}

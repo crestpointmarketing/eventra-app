@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-    Bell, Map, LogOut, ChevronDown,
+    MessageSquare, LogOut, ChevronDown,
     Settings, LayoutDashboard
 } from 'lucide-react'
 
@@ -60,13 +60,13 @@ export function TopNav() {
     }
 
     const primaryNavItems = [
-        { href: '/discover', label: 'EventPulse', activePaths: ['/discover', '/events'] },
+        { href: '/discover', label: 'EventPulse', activePaths: ['/discover', '/events', '/dashboard'] },
         { href: '/leads', label: 'Leads', activePaths: ['/leads'] },
         { href: '/tasks', label: 'Tasks', activePaths: ['/tasks'] },
     ]
 
     const secondaryNavItems = [
-        { href: '/email-templates', label: 'Email' },
+        { href: '/email-templates', label: 'Email Templates' },
         { href: '/assets', label: 'Assets' },
         { href: '/analytics', label: 'Analytics' },
         { href: '/settings', label: 'Settings' },
@@ -75,33 +75,33 @@ export function TopNav() {
 
     return (
         <nav className="sticky top-0 z-40 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex min-h-20 flex-wrap items-center justify-between gap-2 py-3 sm:h-20 sm:flex-nowrap sm:py-0">
+            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
+                <div className="flex min-h-16 flex-wrap items-center justify-between gap-2 py-3 sm:h-16 sm:flex-nowrap sm:py-0">
                     {/* LEFT: Logo */}
                     <Link href="/dashboard" className="flex items-center">
                         <img
                             src="/eventra-logo-light.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-10 sm:h-14 w-auto dark:hidden"
+                            className="h-9 sm:h-10 w-auto dark:hidden"
                         />
                         <img
                             src="/eventra-logo-dark.png"
                             alt="Eventra - Leads to Revenue"
-                            className="h-10 sm:h-14 w-auto hidden dark:block"
+                            className="h-9 sm:h-10 w-auto hidden dark:block"
                         />
                     </Link>
 
                     {/* CENTER: Primary Navigation - Only show when logged in */}
                     {user && (
                         <div className="order-3 w-full flex justify-center sm:order-none sm:w-auto sm:flex-1">
-                            <nav className="flex items-center gap-6">
+                            <nav className="flex items-center gap-4 sm:gap-6">
                                 {primaryNavItems.map((item) => {
                                     const isActive = item.activePaths.some((activePath) => pathname?.startsWith(activePath))
                                     return (
                                         <Link
                                             key={item.href}
                                             href={item.href}
-                                            className={`relative py-2 px-1 text-base transition-colors ${isActive
+                                            className={`relative py-2 px-1 text-sm transition-colors ${isActive
                                                 ? 'font-semibold text-zinc-900 dark:text-white'
                                                 : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                                                 }`}
@@ -109,7 +109,7 @@ export function TopNav() {
                                             {item.label}
                                             {/* Active indicator - Neon Green underline */}
                                             {isActive && (
-                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CBFB45] rounded-sm" />
+                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-lime-400 rounded-sm" />
                                             )}
                                         </Link>
                                     )
@@ -117,7 +117,7 @@ export function TopNav() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <button
-                                            className={`relative flex items-center gap-1 py-2 px-1 text-base transition-colors ${
+                                            className={`relative flex items-center gap-1 py-2 px-1 text-sm transition-colors ${
                                                 secondaryNavItems.some((item) => pathname?.startsWith(item.href))
                                                     ? 'font-semibold text-zinc-900 dark:text-white'
                                                     : 'font-normal text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
@@ -127,7 +127,7 @@ export function TopNav() {
                                             More
                                             <ChevronDown className="h-4 w-4" />
                                             {secondaryNavItems.some((item) => pathname?.startsWith(item.href)) && (
-                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#CBFB45] rounded-sm" />
+                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-lime-400 rounded-sm" />
                                             )}
                                         </button>
                                     </DropdownMenuTrigger>
@@ -160,23 +160,19 @@ export function TopNav() {
                         {user ? (
                             // Authenticated user controls
                             <>
-                                {/* Notifications */}
-                                <button
+                                <Link href="/contact"
                                     className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                    aria-label="Notifications"
+                                    aria-label="Help and feedback"
                                 >
-                                    <Bell className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
-                                    {/* Notification badge */}
-                                    <span className="absolute top-1 right-1 h-2 w-2 bg-indigo-600 rounded-full"></span>
-                                </button>
+                                    <MessageSquare className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+                                </Link>
 
-                                {/* Map Icon */}
-                                <button
+                                <Link href="/settings"
                                     className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                    aria-label="Map View"
+                                    aria-label="Settings"
                                 >
-                                    <Map className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
-                                </button>
+                                    <Settings className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+                                </Link>
 
                                 {/* Theme Toggle */}
                                 <ThemeToggle />
@@ -185,7 +181,7 @@ export function TopNav() {
                                 <div className="relative" ref={menuRef}>
                                     <button
                                         onClick={() => setShowUserMenu(!showUserMenu)}
-                                        className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white font-medium hover:opacity-90 transition-opacity"
+                                        className="flex items-center justify-center h-10 w-10 rounded-full bg-[#7657D6] text-white font-medium hover:opacity-90 transition-opacity"
                                         aria-label="User menu"
                                     >
                                         {user.email?.[0].toUpperCase() || 'U'}
