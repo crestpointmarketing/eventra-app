@@ -623,11 +623,11 @@ export default function LeadsPage() {
                             <AnimatePresence>
                                 {selectedLeadId && (
                                     <motion.div
-                                        initial={{ opacity: 0, x: 20, width: 0 }}
-                                        animate={{ opacity: 1, x: 0, width: 'auto' }}
-                                        exit={{ opacity: 0, x: 20, width: 0 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
                                         transition={{ duration: 0.2 }}
-                                        className="flex-shrink-0 w-full lg:w-[450px] xl:w-[500px] h-full"
+                                        className="min-w-0 flex-shrink-0 w-full lg:w-[450px] xl:w-[500px] h-full"
                                     >
                                         <LeadDetailPanel
                                             lead={leads?.find((l: any) => l.id === selectedLeadId)}
