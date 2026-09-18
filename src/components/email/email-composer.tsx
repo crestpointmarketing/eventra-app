@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useState } from 'react'
+import { TemplateDetailDialog } from '@/components/email-templates/template-detail-dialog'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +41,7 @@ interface EmailComposerProps {
 
 export function EmailComposer({ leadId, lead }: EmailComposerProps) {
     const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+    const [previewTemplate, setPreviewTemplate] = useState<string | null>(null)
     const [tone, setTone] = useState<string>('professional')
     const [language, setLanguage] = useState<string>('English')
     const [editableDraft, setEditableDraft] = useState<{ subject: string; body: string } | null>(null)
@@ -111,6 +113,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
 
     return (
         <div className="space-y-6">
+            <TemplateDetailDialog templateId={previewTemplate} open={!!previewTemplate} onOpenChange={open => { if (!open) setPreviewTemplate(null) }} />
             {/* Loading State */}
             {isLoadingRecommendation && (
                 <Card className="p-6">
@@ -258,7 +261,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
                                         variant="outline"
                                         className="w-full justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                         onClick={() => {
-                                            // TODO: Open template detail dialog
+                                            setPreviewTemplate(recommendation.recommendedTemplateId)
                                         }}
                                     >
                                         <span className="text-sm text-green-700 dark:text-green-400">{recommendation.recommendedTemplateName}</span>

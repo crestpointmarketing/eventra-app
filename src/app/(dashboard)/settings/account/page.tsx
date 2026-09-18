@@ -30,6 +30,10 @@ export default function AccountPage() {
         try {
             const { error } = await db.auth.updateUser({ data: { full_name: name.trim() } })
             if (error) throw error
+            const { data: { user } } = await db.auth.getUser()
+            if (!user) throw new Error('Session expired')
+            const { error: profileError } = await db.from('users').update({ name: name.trim() }).eq('id', user.id).select('id').single()
+            if (profileError) { setFailed(true); setMessage('Account name saved, but the team profile could not be synchronized. Save again to retry.'); return }
             setMessage('Profile saved.')
         } catch { setFailed(true); setMessage('Your profile could not be saved. Please try again.') }
         finally { setBusy(false) }

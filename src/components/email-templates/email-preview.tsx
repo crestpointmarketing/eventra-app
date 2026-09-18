@@ -4,6 +4,7 @@ import { Mail } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import type { EmailTemplateWithDetails } from '@/types/email-templates'
+import { escapePreviewText } from '@/lib/safe-preview'
 
 // Sample data for preview
 const SAMPLE_DATA: Record<string, string> = {
@@ -41,7 +42,7 @@ interface EmailPreviewProps {
 export function EmailPreview({ template, className }: EmailPreviewProps) {
     // Replace variables in text with sample data
     const replaceVariables = (text: string): string => {
-        let result = text
+        let result = escapePreviewText(text)
         Object.entries(SAMPLE_DATA).forEach(([key, value]) => {
             // Escape dots for regex
             const escapedKey = key.replace(/\./g, '\\.')
@@ -56,7 +57,7 @@ export function EmailPreview({ template, className }: EmailPreviewProps) {
     const processedSubject = replaceVariables(sampleSubject)
 
     // Assemble email body from blocks
-    const emailBody = template.blocks
+    const emailBody = [...template.blocks]
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((block) => replaceVariables(block.content))
         .join('\n\n')

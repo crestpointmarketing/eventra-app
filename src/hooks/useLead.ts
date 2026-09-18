@@ -32,10 +32,12 @@ export function useLead(leadId: string) {
                 .single()
 
             if (error) throw error
+            const owner = data.owner_id ? await supabase.from('users').select('name,email').eq('id', data.owner_id).maybeSingle() : null
 
             // Map priority to lead_score for UI compatibility
             return {
                 ...data,
+                owner_name: owner?.data?.name || owner?.data?.email || null,
                 lead_score: data.metadata?.ai_score ?? 0,
                 lead_status: data.stage
             }

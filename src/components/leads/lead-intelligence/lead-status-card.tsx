@@ -1,45 +1,7 @@
 'use client'
-
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-
-interface LeadStatusCardProps {
-    lead: any
-}
-
-export function LeadStatusCard({ lead }: LeadStatusCardProps) {
-    return (
-        <Card>
-            <CardContent className="flex items-center justify-between p-4 h-full">
-                <div className="flex-1 px-4">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1">Status</span>
-                    <span className="text-sm font-medium text-amber-600 dark:text-amber-500">
-                        {lead.lead_status || 'Contacted'}
-                    </span>
-                </div>
-                <Separator orientation="vertical" className="h-8" />
-                <div className="flex-1 px-4">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1">Owner</span>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                        {lead.owner_name || 'Vivian'}
-                    </span>
-                </div>
-                <Separator orientation="vertical" className="h-8" />
-                <div className="flex-1 px-4">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1">Stage</span>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                        Disc
-                    </span>
-                </div>
-                <Separator orientation="vertical" className="h-8" />
-                <div className="flex-1 px-4">
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1">Last Contact</span>
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                        2h ago
-                    </span>
-                </div>
-            </CardContent>
-        </Card>
-    )
+export function LeadStatusCard({ lead }: { lead: any }) {
+    return <Card><CardContent className="grid grid-cols-2 gap-4 p-4">{[
+        ['Status',lead.lead_status || 'Unknown'],['Owner',lead.owner_name || 'Not available'],['Stage',lead.stage || 'Unknown'],['Last contact',lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : 'Not recorded'],
+    ].map(([label,value])=><div key={label} className="min-w-0 break-words"><p className="text-xs text-muted-foreground">{label}</p><p className="text-sm font-medium">{value}</p></div>)}</CardContent></Card>
 }
