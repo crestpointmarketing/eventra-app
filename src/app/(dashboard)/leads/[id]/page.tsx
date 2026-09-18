@@ -159,5 +159,3 @@ export default function LeadIntelligencePage({ params }: { params: Promise<{ id:
         </div>
     )
 }
-
-
