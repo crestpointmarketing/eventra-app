@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { UserSelect } from '@/components/users/user-select' // Ensure this path is correct based on previous steps
 import { TASK_MODULES, type TaskModuleId } from '@/lib/tasks/modules'
+import { useEvents } from '@/hooks/useEvents'
 
 interface CreateTaskDialogProps {
     eventId: string
@@ -33,6 +34,8 @@ interface CreateTaskDialogProps {
 
 export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '', initialDescription = '' }: CreateTaskDialogProps) {
     const { mutate: createTask, isPending } = useCreateTask()
+    const { data: events = [] } = useEvents()
+    const [selectedEvent, setSelectedEvent] = useState(eventId)
     const [title, setTitle] = useState(initialTitle)
     const [description, setDescription] = useState(initialDescription)
     const [status, setStatus] = useState<'pending' | 'in_progress' | 'review' | 'done'>('pending')
@@ -45,16 +48,18 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
     // Reset/Sync form when dialog opens
     useEffect(() => {
         if (open) {
+            setSelectedEvent(eventId)
             setTitle(initialTitle)
             setDescription(initialDescription)
         }
-    }, [open, initialTitle, initialDescription])
+    }, [open, initialTitle, initialDescription, eventId])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!selectedEvent || isPending) return
 
         createTask({
-            event_id: eventId,
+            event_id: selectedEvent,
             title,
             description: description || undefined,
             status,
@@ -87,6 +92,7 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    {!eventId && <div className="space-y-2"><Label htmlFor="task-event">Event (required)</Label><select id="task-event" required value={selectedEvent} onChange={e => setSelectedEvent(e.target.value)} className="h-10 w-full rounded-lg border border-input bg-card px-3"><option value="">Select an event</option>{events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}</select><p className="text-xs text-muted-foreground">Choose the event this follow-up task belongs to.</p></div>}
                     <div className="space-y-2">
                         <Label htmlFor="title">Task Title</Label>
                         <Input

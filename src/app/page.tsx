@@ -41,10 +41,7 @@ export default function LandingPage() {
               Get Started
             </Button>
           </Link>
-          <Button size="lg" variant="outline" className="px-8">
-            <Play className="mr-2 h-4 w-4" />
-            Watch Demo
-          </Button>
+          <Button size="lg" variant="outline" className="px-8" asChild><Link href="/help">Explore the guide</Link></Button>
         </div>
       </section>
 

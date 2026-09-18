@@ -156,7 +156,7 @@ export async function deleteAsset(assetId: string) {
     const { data: asset, error: fetchError } = await db.from('assets').select('file_url,uploaded_by').eq('id', assetId).single()
     if (fetchError) throw fetchError
     if (asset.uploaded_by !== user.id) throw new Error('Only the uploader can delete this file')
-    const path = asset.file_url?.split('/storage/v1/object/public/event-assets/')[1]
+    const path = assetStoragePath(asset.file_url)
     if (path) {
         const { error } = await db.storage.from('event-assets').remove([path])
         if (error) throw new Error('File removal failed. Its metadata has been kept; please retry.')

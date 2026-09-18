@@ -330,10 +330,6 @@ export default function TasksPage() {
                                 ))}
                             </SelectContent>
                         </Select>
-
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-500">
-                            <Filter className="w-4 h-4" />
-                        </Button>
                     </div>
                 </div>
 

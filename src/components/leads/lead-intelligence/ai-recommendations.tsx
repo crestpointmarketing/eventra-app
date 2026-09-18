@@ -45,14 +45,7 @@ export function AIRecommendations({ lead }: AIRecommendationsProps) {
                                                 </Badge>
                                             )}
                                         </h4>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-green-600">
-                                                <ThumbsUp className="w-3 h-3" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-red-600">
-                                                <ThumbsDown className="w-3 h-3" />
-                                            </Button>
-                                        </div>
+
                                     </div>
 
                                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
