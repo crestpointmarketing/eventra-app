@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
+import { eventInsert } from '../src/lib/events/write'
 
 const owner = '10000000-0000-4000-8000-000000000001'
 const colleague = '10000000-0000-4000-8000-000000000002'
@@ -35,13 +36,36 @@ async function database() {
         INSERT INTO public.tasks(id,event_id,title,assigned_to,status) VALUES('${task}','${event}','Task','${colleague}','done');
         INSERT INTO public.task_checklist_items(task_id,title) VALUES('${task}','Checklist');
     `)
-    for (const file of readdirSync('supabase/migrations').filter(f=>f.startsWith('20260906')).sort()) await db.exec(readFileSync(`supabase/migrations/${file}`,'utf8'))
+    for (const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql') && f > '20260813010000_eventra_production_baseline.sql').sort()) await db.exec(readFileSync(`supabase/migrations/${file}`,'utf8'))
     await db.exec("SET row_security=on")
     return db
 }
 async function asUser(db: PGlite, id: string) {
     await db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub','${id}',false); SET ROLE authenticated;`)
 }
+
+test('new and duplicated events belong to the caller and can be deleted by that caller', async () => {
+    const db = await database()
+    try {
+        await asUser(db, colleague)
+        await assert.rejects(db.query(
+            'INSERT INTO public.events(name,event_type,owner_id) VALUES($1,$2,$3)',
+            ['Old form default', 'Summit', owner],
+        ), /Owner must be current user/)
+        const source = (await db.query<Record<string, unknown>>('SELECT * FROM public.events WHERE id=$1', [event])).rows[0]
+        const input = eventInsert({ ...source, name: 'Copy', owner: { id: owner }, leads: [], share_token: 'old-token' }, colleague)
+        const columns = Object.keys(input)
+        const copied = (await db.query<{ id: string; owner_id: string; share_token: string | null }>(
+            `INSERT INTO public.events (${columns.join(',')}) VALUES (${columns.map((_, i) => `$${i + 1}`).join(',')}) RETURNING id,owner_id,share_token`,
+            Object.values(input),
+        )).rows[0]
+        assert.equal(copied.owner_id, colleague)
+        assert.equal(copied.share_token, null)
+        assert.notEqual(copied.id, event)
+        assert.equal((await db.query<{ n: number }>('SELECT public.delete_events_atomic($1::uuid[]) AS n', [[copied.id]])).rows[0].n, 1)
+        assert.equal((await db.query('SELECT id FROM public.events WHERE id=$1', [event])).rows.length, 1)
+    } finally { await db.close() }
+})
 
 test('search jobs isolate users, lease atomically, cancel safely and import transactionally', async () => {
     const db = await database()
@@ -146,5 +170,30 @@ test('template edits roll back on child failure and reject stale versions', asyn
         await asUser(db,colleague)
         assert.equal((await db.query('SELECT * FROM public.email_templates')).rows.length,1)
         await assert.rejects(db.query('SELECT * FROM public.save_email_template($1::jsonb)',[JSON.stringify({...payload,id:row.id,expected_version:updated.version})]),/Owner required/)
+    } finally { await db.close() }
+})
+
+test('template soft deletion hides rows, is idempotent and rejects other members and system templates', async () => {
+    const db = await database()
+    try {
+        await asUser(db, owner)
+        const payload = { name: 'Delete test', category: 'follow_up', goal: 'book_meeting' }
+        const template = (await db.query<{ id: string }>('SELECT * FROM public.save_email_template($1::jsonb)', [JSON.stringify(payload)])).rows[0]
+        await asUser(db, colleague)
+        await assert.rejects(db.query('SELECT public.soft_delete_email_template($1)', [template.id]), /Only the template owner/)
+        await asUser(db, outsider)
+        await assert.rejects(db.query('SELECT public.soft_delete_email_template($1)', [template.id]), /Membership required/)
+        await asUser(db, owner)
+        for (let i = 0; i < 2; i++) {
+            assert.equal((await db.query<{ ok: boolean }>('SELECT public.soft_delete_email_template($1) AS ok', [template.id])).rows[0].ok, true)
+        }
+        assert.equal((await db.query('SELECT * FROM public.email_templates WHERE id=$1', [template.id])).rows.length, 0)
+        await db.exec('RESET ROLE')
+        const deleted = (await db.query<{ deleted_at: string; version: number }>('SELECT deleted_at,version FROM public.email_templates WHERE id=$1', [template.id])).rows[0]
+        assert.ok(deleted.deleted_at)
+        assert.equal(deleted.version, 2)
+        await db.query('UPDATE public.email_templates SET is_system=true,deleted_at=NULL WHERE id=$1', [template.id])
+        await asUser(db, owner)
+        await assert.rejects(db.query('SELECT public.soft_delete_email_template($1)', [template.id]), /Only the template owner/)
     } finally { await db.close() }
 })

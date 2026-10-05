@@ -16,10 +16,13 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import Link from 'next/link'
+import { insertAssignedTask } from '@/lib/tasks/write'
+import { useQueryClient } from '@tanstack/react-query'
 import { TASK_MODULES, encodeTaskModule, encodeTaskReminder, type TaskModuleId } from '@/lib/tasks/modules'
 
 export default function NewTaskPage() {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -62,28 +65,22 @@ export default function NewTaskPage() {
         const formData = new FormData(e.currentTarget)
 
         try {
-            const { data, error: insertError } = await supabase
-                .from('tasks')
-                .insert([
-                    {
-                        event_id: selectedEventId,
-                        title: formData.get('title') as string,
-                        description: encodeTaskReminder(
-                            encodeTaskModule(formData.get('description') as string || null, module),
-                            reminderAt || null
-                        ),
-                        status: status,
-                        priority: priority,
-                        due_date: formData.get('due_date') as string || null,
-                        estimated_cost: parseFloat(formData.get('estimated_cost') as string) || null,
-                        vendor_company: formData.get('vendor_company') as string || null,
-                        contact_person: formData.get('contact_person') as string || null,
-                    }
-                ])
-                .select()
-                .single()
-
-            if (insertError) throw insertError
+            const data = await insertAssignedTask(supabase, {
+                event_id: selectedEventId,
+                title: formData.get('title') as string,
+                description: encodeTaskReminder(
+                    encodeTaskModule(formData.get('description') as string || null, module),
+                    reminderAt || null
+                ),
+                status: status,
+                priority: priority,
+                due_date: formData.get('due_date') as string || null,
+                estimated_cost: parseFloat(formData.get('estimated_cost') as string) || null,
+                vendor_company: formData.get('vendor_company') as string || null,
+                contact_person: formData.get('contact_person') as string || null,
+            })
+            await queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            await queryClient.invalidateQueries({ queryKey: ['eventpulse-task-summary'] })
 
             router.push(`/tasks/${data.id}`)
         } catch (err: any) {

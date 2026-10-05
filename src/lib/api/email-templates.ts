@@ -117,12 +117,11 @@ export async function deleteEmailTemplate(id: string) {
     const { data: template, error: readError } = await getSupabase().from('email_templates').select('created_by,is_system').eq('id', id).single()
     if (readError) throw readError
     if (!user || template.is_system || template.created_by !== user.id) throw new Error('Only the template owner can delete it')
-    const { error } = await getSupabase()
-        .from('email_templates')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-
-    if (error) throw error
+    const { data, error } = await getSupabase().rpc('soft_delete_email_template', { template_id: id })
+    if (error) throw new Error(error.code === 'PGRST202'
+        ? 'Template deletion requires the latest Eventra database migration. Contact your administrator.'
+        : error.message)
+    if (data !== true) throw new Error('Template was not deleted. Please reload and try again.')
 }
 
 // Duplicate a template (uses RPC function)

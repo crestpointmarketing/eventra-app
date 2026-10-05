@@ -29,6 +29,8 @@ import {
     Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { insertOwnedEvent } from '@/lib/events/write'
+import { useQueryClient } from '@tanstack/react-query'
 import { formatEventDateRange } from '@/lib/utils/event-status'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -47,6 +49,8 @@ export default function EventLayout({
     const searchParams = useSearchParams()
     const currentView = searchParams.get('view')
     const router = useRouter()
+    const queryClient = useQueryClient()
+    const [duplicating, setDuplicating] = useState(false)
     const supabase = createClient()
 
     // Determine active tab
@@ -69,29 +73,20 @@ export default function EventLayout({
     ]
 
     const handleDuplicate = async () => {
-        if (!event) return
-
+        if (!event || duplicating) return
+        setDuplicating(true)
         try {
-            const { id: _, created_at, updated_at, leads, ...eventData } = event as any
-
-            const newEvent = {
-                ...eventData,
-                name: `${eventData.name} (Copy)`,
-            }
-
-            const { data, error } = await supabase
-                .from('events')
-                .insert(newEvent)
-                .select()
-                .single()
-
-            if (error) throw error
-
-            if (data) {
-                router.push(`/events/${data.id}`)
-            }
+            const data = await insertOwnedEvent(supabase, {
+                ...event,
+                name: `${event.name} (Copy)`,
+            })
+            await queryClient.invalidateQueries({ queryKey: ['events'] })
+            await queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            router.push(`/events/${data.id}`)
         } catch (error) {
-            console.error('Error duplicating event:', error)
+            toast.error(error instanceof Error ? error.message : 'Unable to duplicate event. Please try again.')
+        } finally {
+            setDuplicating(false)
         }
     }
 
@@ -237,7 +232,7 @@ export default function EventLayout({
                                 <DropdownMenuItem asChild>
                                     <Link href={`/events/${id}/edit`}>Edit Event</Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDuplicate}>
+                                <DropdownMenuItem onClick={handleDuplicate} disabled={duplicating}>
                                     Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleExport}>

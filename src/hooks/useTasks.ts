@@ -65,7 +65,7 @@ export function useCreateTask() {
         },
         onError: (error) => {
             console.error('Error creating task:', error)
-            toast.error('Failed to create task')
+            toast.error(`Failed to create task: ${error.message}`)
         },
     })
 }
@@ -103,7 +103,7 @@ export function useDeleteTask() {
         },
         onError: (error) => {
             console.error('Error deleting task:', error)
-            toast.error('Failed to delete task')
+            toast.error(`Failed to delete task: ${error.message}`)
         },
     })
 }

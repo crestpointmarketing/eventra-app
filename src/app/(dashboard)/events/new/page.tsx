@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { UserSelect } from '@/components/users/user-select'
+import { insertOwnedEvent } from '@/lib/events/write'
+import { useQueryClient } from '@tanstack/react-query'
 import { EVENT_PRIORITIES } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, EVENT_TYPES } from '@/lib/events/taxonomy'
 import { buildDefaultEventTasks, seedDefaultEventTasks } from '@/lib/events/default-tasks'
@@ -16,36 +17,15 @@ import { toast } from 'sonner'
 
 export default function NewEventPage() {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [ownerId, setOwnerId] = useState<string | null>(null)
     const [createTasks, setCreateTasks] = useState(false)
     const taskCount = buildDefaultEventTasks('preview').length
 
-    // Get a real user ID from the database on mount
-    useEffect(() => {
-        async function getDefaultUser() {
-            const { data } = await supabase
-                .from('users')
-                .select('id')
-                .limit(1)
-                .single()
-
-            if (data) {
-                setOwnerId(data.id)
-            }
-        }
-        getDefaultUser()
-    }, [supabase])
-
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
-
-        if (!ownerId) {
-            setError('Unable to determine owner. Please try again.')
-            return
-        }
 
         setLoading(true)
         setError('')
@@ -53,28 +33,18 @@ export default function NewEventPage() {
         const formData = new FormData(e.currentTarget)
 
         try {
-            const { data, error: insertError } = await supabase
-                .from('events')
-                .insert([
-                    {
-                        name: formData.get('name') as string,
-                        event_type: formData.get('event_type') as string,
-                        discovery_priority: formData.get('discovery_priority') as string,
-                        engagement_type: formData.get('engagement_type') as string,
-                        start_date: formData.get('start_date') as string,
-                        end_date: formData.get('end_date') as string,
-                        location: formData.get('location') as string,
-                        total_budget: parseFloat(formData.get('total_budget') as string) || 0,
-                        target_leads: parseInt(formData.get('target_leads') as string) || 0,
-                        url: formData.get('url') as string,
-                        owner_id: ownerId,
-                        source: 'manual',
-                    }
-                ])
-                .select()
-                .single()
-
-            if (insertError) throw insertError
+            const data = await insertOwnedEvent(supabase, {
+                name: formData.get('name') as string,
+                event_type: formData.get('event_type') as string,
+                discovery_priority: formData.get('discovery_priority') as string,
+                engagement_type: formData.get('engagement_type') as string,
+                start_date: formData.get('start_date') as string || null,
+                end_date: formData.get('end_date') as string || null,
+                location: formData.get('location') as string,
+                total_budget: parseFloat(formData.get('total_budget') as string) || 0,
+                target_leads: parseInt(formData.get('target_leads') as string) || 0,
+                url: formData.get('url') as string,
+            })
 
             if (createTasks) {
                 try {
@@ -84,6 +54,8 @@ export default function NewEventPage() {
                 }
             }
 
+            await queryClient.invalidateQueries({ queryKey: ['events'] })
+            await queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
             router.push(`/events/${data.id}`)
         } catch (err: any) {
             setError(err.message || 'Failed to create event')
@@ -207,15 +179,7 @@ export default function NewEventPage() {
                         </div>
                     </div>
 
-                    <div>
-                        <Label>Owner *</Label>
-                        <div className="mt-1">
-                            <UserSelect
-                                value={ownerId || ''}
-                                onValueChange={setOwnerId}
-                            />
-                        </div>
-                    </div>
+                    <p className="text-sm text-muted-foreground">You will be the owner of this event.</p>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -258,7 +222,7 @@ export default function NewEventPage() {
                         </label>
                     </section>
                     <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button type="submit" disabled={loading || !ownerId} className="flex-1">
+                        <Button type="submit" disabled={loading} className="flex-1">
                             {loading ? 'Creating...' : createTasks ? `Create event & ${taskCount} tasks` : 'Create event without tasks'}
                         </Button>
                         <Link href="/events" className="flex-1">

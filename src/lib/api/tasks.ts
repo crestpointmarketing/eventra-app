@@ -1,5 +1,6 @@
 import { fetchAllRows } from '@/lib/api/pagination'
 import { createClient } from '@/lib/supabase/client'
+import { insertAssignedTask } from '@/lib/tasks/write'
 import {
     decodeTaskModule,
     decodeTaskReminder,
@@ -191,13 +192,7 @@ export async function fetchTask(taskId: string) {
 // Create Task
 // ============================================
 export async function createTask(taskData: CreateTaskData) {
-    const { data, error } = await getSupabase()
-        .from('tasks')
-        .insert(prepareTaskWrite(taskData))
-        .select()
-        .single()
-
-    if (error) throw error
+    const data = await insertAssignedTask(getSupabase(), prepareTaskWrite(taskData))
     return normalizeTask(data) as Task
 }
 
