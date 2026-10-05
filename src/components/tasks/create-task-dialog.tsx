@@ -186,6 +186,7 @@ export function CreateTaskDialog({ eventId, open, onOpenChange, initialTitle = '
                     <div className="space-y-2">
                         <Label>Assigned To</Label>
                         <UserSelect
+                            placeholder="Assign to me (default)"
                             value={assignedTo}
                             onValueChange={setAssignedTo}
                         />

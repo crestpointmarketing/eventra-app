@@ -1,0 +1,61 @@
+{
+  "at": "2026-09-27T15:37:26.093Z",
+  "project": "tbicyyhprqbhimhrihgn.supabase.co",
+  "authUsers": 3,
+  "members": 2,
+  "tables": [
+    {
+      "table": "events",
+      "total": 102,
+      "active": 102,
+      "currentMemberOwner": 9,
+      "noAuthOwner": 93,
+      "nullOwner": 0,
+      "system": 0
+    },
+    {
+      "table": "leads",
+      "total": 95,
+      "active": 95,
+      "currentMemberOwner": 0,
+      "noAuthOwner": 95,
+      "nullOwner": 0,
+      "system": 0
+    },
+    {
+      "table": "tasks",
+      "total": 112,
+      "active": 112,
+      "currentMemberOwner": 0,
+      "noAuthOwner": 3,
+      "nullOwner": 109,
+      "system": 0
+    },
+    {
+      "table": "assets",
+      "total": 5,
+      "active": 5,
+      "currentMemberOwner": 1,
+      "noAuthOwner": 4,
+      "nullOwner": 0,
+      "system": 0
+    },
+    {
+      "table": "email_templates",
+      "total": 12,
+      "active": 12,
+      "currentMemberOwner": 0,
+      "noAuthOwner": 0,
+      "nullOwner": 12,
+      "system": 12
+    }
+  ],
+  "tasksDeletableByAnyCurrentMember": 56,
+  "postTestCounts": {
+    "events": 102,
+    "leads": 95,
+    "tasks": 112,
+    "assets": 5,
+    "eventra_members": 2
+  }
+}

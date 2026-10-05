@@ -1,0 +1,64 @@
+{
+  "at": "2026-09-27T15:40:23.703Z",
+  "results": [
+    {
+      "name": "nonmember cannot create events",
+      "passed": true
+    },
+    {
+      "name": "event edit persists",
+      "passed": true
+    },
+    {
+      "name": "another member cannot delete an event",
+      "passed": true
+    },
+    {
+      "name": "task creation without assignee reproduces deletion denial for its creator",
+      "passed": true
+    },
+    {
+      "name": "assigned task create/edit/delete and checklist/collaborator CRUD",
+      "passed": true
+    },
+    {
+      "name": "lead create/edit, note CRUD and owner delete",
+      "passed": true
+    },
+    {
+      "name": "event comments create/delete",
+      "passed": true
+    },
+    {
+      "name": "private file upload/read, metadata edit and owner delete",
+      "passed": true
+    },
+    {
+      "name": "template create/edit/duplicate",
+      "passed": true
+    },
+    {
+      "name": "template legacy soft-delete (known production defect)",
+      "passed": false,
+      "error": "42501: new row violates row-level security policy for table \"email_templates\""
+    },
+    {
+      "name": "template fixed soft-delete RPC (requires migration)",
+      "passed": false,
+      "error": "PGRST202: Could not find the function public.soft_delete_email_template(template_id) in the schema cache"
+    },
+    {
+      "name": "production frontend version observation",
+      "passed": true,
+      "containsOldOwnerDefault": true
+    },
+    {
+      "name": "production authenticated event page and deletion endpoint",
+      "passed": true
+    },
+    {
+      "name": "remove all temporary data and accounts",
+      "passed": true
+    }
+  ]
+}
