@@ -9,30 +9,8 @@ import { useLeads } from '@/hooks/useLeads'
 import { useTasks, useMarkTaskAsDone } from '@/hooks/useTasks'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EventCalendar } from '@/components/dashboard/event-calendar'
-
-// Status badge component
-function StatusBadge({ status }: { status: string }) {
-    const styles: Record<string, string> = {
-        upcoming:    'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-        active:      'bg-green-100  text-green-700  dark:bg-green-900/30  dark:text-green-400',
-        planning:    'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400',
-        in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-        prep:        'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-        draft:       'bg-zinc-100   text-zinc-700   dark:bg-zinc-700      dark:text-zinc-300',
-        completed:   'bg-zinc-100   text-zinc-500   dark:bg-zinc-700      dark:text-zinc-400',
-        cancelled:   'bg-red-100    text-red-700    dark:bg-red-900/30    dark:text-red-400',
-    }
-    const labels: Record<string, string> = {
-        upcoming: 'Upcoming', active: 'Active', planning: 'Planning', in_progress: 'Confirmed',
-        prep: 'Prep', draft: 'Draft', completed: 'Completed', cancelled: 'Cancelled',
-    }
-    const key = status?.toLowerCase() ?? ''
-    return (
-        <span className={`inline-flex shrink-0 px-2 py-1 rounded text-xs font-medium ${styles[key] ?? styles.draft}`}>
-            {labels[key] ?? status}
-        </span>
-    )
-}
+import { EngagementPill } from '@/components/events/portfolio-parts'
+import { eventEngagement, isCommittedEvent } from '@/lib/events/taxonomy'
 
 const TONES = {
     blue:   { card: 'bg-blue-50/70 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/40',             icon: 'text-blue-600 dark:text-blue-400' },
@@ -123,13 +101,19 @@ export default function DashboardPage() {
         }
     }, [events, leads])
 
+    // The home page only shows events we are committed to; the engagement drives their color.
+    const committedEvents = useMemo(() =>
+        (events ?? []).filter(isCommittedEvent).map((e: any) => ({ ...e, engagement_type: eventEngagement(e) })),
+        [events]
+    )
+
     const upcomingEvents = useMemo(() => {
         const today = format(new Date(), 'yyyy-MM-dd')
-        return (events ?? [])
+        return committedEvents
             .filter((e: any) => e.start_date && e.start_date.slice(0, 10) >= today && !INACTIVE.has(e.status?.toLowerCase()))
             .sort((a: any, b: any) => a.start_date.localeCompare(b.start_date))
             .slice(0, 5)
-    }, [events])
+    }, [committedEvents])
 
     const thisWeekTasks = useMemo(() =>
         (tasks ?? [])
@@ -176,7 +160,7 @@ export default function DashboardPage() {
                     <div className="lg:col-span-2 min-w-0">
                         {eventsLoading
                             ? <Skeleton className="h-[640px] w-full rounded-lg" />
-                            : <EventCalendar events={events ?? []} />}
+                            : <EventCalendar events={committedEvents} />}
                     </div>
 
                     {/* Right Column: Widgets */}
@@ -190,7 +174,7 @@ export default function DashboardPage() {
                                         {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
                                     </div>
                                 ) : upcomingEvents.length === 0 ? (
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">No upcoming events</p>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-6">No upcoming Sponsor, Exhibit or Attend events</p>
                                 ) : (
                                     upcomingEvents.map((event: any) => {
                                         const [y, m, d] = event.start_date.slice(0, 10).split('-').map(Number)
@@ -205,7 +189,7 @@ export default function DashboardPage() {
                                                     <div className="text-sm font-medium text-zinc-900 dark:text-white truncate">{event.name}</div>
                                                     <div className="text-xs text-zinc-500 truncate">{event.location || '—'}</div>
                                                 </div>
-                                                <StatusBadge status={event.status} />
+                                                <EngagementPill type={event.engagement_type} />
                                             </Link>
                                         )
                                     })

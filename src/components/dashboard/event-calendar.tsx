@@ -8,7 +8,7 @@ import {
     endOfYear, format, isSameMonth, isToday, startOfMonth, startOfWeek, startOfYear,
 } from 'date-fns'
 import { ArrowRight, ChevronLeft, ChevronRight, Download } from 'lucide-react'
-import { normalizeEventType, type EventType } from '@/lib/events/taxonomy'
+import { ENGAGEMENT_TYPES, eventEngagement, type EngagementType } from '@/lib/events/taxonomy'
 import { downloadIcs, type IcsEvent } from '@/lib/events/ics'
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -16,21 +16,18 @@ import {
 
 type View = 'week' | 'month' | 'year'
 
-type CalendarEvent = IcsEvent
+type CalendarEvent = IcsEvent & { discovery_priority?: string | null }
 
-// Chip and dot colors per event type; similar formats share a hue.
-const TYPE_STYLES: Record<EventType, { dot: string; chip: string }> = {
-    'Conference': { dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200' },
-    'Summit': { dot: 'bg-violet-500', chip: 'bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200' },
-    'Trade Show': { dot: 'bg-orange-500', chip: 'bg-orange-50 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200' },
-    'Expo': { dot: 'bg-fuchsia-500', chip: 'bg-fuchsia-50 text-fuchsia-900 dark:bg-fuchsia-900/30 dark:text-fuchsia-200' },
-    'Workshop': { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200' },
-    'Training': { dot: 'bg-teal-500', chip: 'bg-teal-50 text-teal-900 dark:bg-teal-900/30 dark:text-teal-200' },
-    'Webinar': { dot: 'bg-cyan-500', chip: 'bg-cyan-50 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200' },
-    'Networking': { dot: 'bg-rose-500', chip: 'bg-rose-50 text-rose-900 dark:bg-rose-900/30 dark:text-rose-200' },
-    'Roadshow': { dot: 'bg-pink-500', chip: 'bg-pink-50 text-pink-900 dark:bg-pink-900/30 dark:text-pink-200' },
-    'Hackathon': { dot: 'bg-lime-500', chip: 'bg-lime-50 text-lime-900 dark:bg-lime-900/30 dark:text-lime-200' },
+// Chip and dot colors per engagement, matching the EventPulse engagement pills.
+const ENGAGEMENT_STYLES: Record<EngagementType, { dot: string; chip: string }> = {
+    Sponsor:  { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200' },
+    Exhibit:  { dot: 'bg-orange-500',  chip: 'bg-orange-50 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200' },
+    Attend:   { dot: 'bg-violet-500',  chip: 'bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200' },
+    Speaking: { dot: 'bg-pink-500',    chip: 'bg-pink-50 text-pink-900 dark:bg-pink-900/30 dark:text-pink-200' },
+    Follow:   { dot: 'bg-blue-500',    chip: 'bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200' },
 }
+
+const styleOf = (event: CalendarEvent) => ENGAGEMENT_STYLES[eventEngagement(event)]
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})/
 const MAX_SPAN_DAYS = 60
@@ -54,12 +51,12 @@ function visibleRange(view: View, cursor: Date) {
 }
 
 function EventChip({ event, wrap }: { event: CalendarEvent; wrap?: boolean }) {
-    const style = TYPE_STYLES[normalizeEventType(event.event_type)]
+    const style = styleOf(event)
     const location = shortLocation(event.location)
     return (
         <Link
             href={`/events/${event.id}`}
-            title={`${event.name}${location ? ` · ${location}` : ''}`}
+            title={`${event.name} · ${eventEngagement(event)}${location ? ` · ${location}` : ''}`}
             className={`block rounded-md px-2 py-1 text-left transition hover:brightness-95 dark:hover:brightness-125 ${style.chip}`}
         >
             <span className={`flex gap-1.5 min-w-0 ${wrap ? "items-start" : "items-center"}`}>
@@ -100,8 +97,8 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
     }, [events, range, view, cursor])
 
     const legend = useMemo(() => {
-        const types = new Set([...shown].map(e => normalizeEventType(e.event_type)))
-        return (Object.keys(TYPE_STYLES) as EventType[]).filter(t => types.has(t))
+        const types = new Set([...shown].map(eventEngagement))
+        return ENGAGEMENT_TYPES.filter(t => types.has(t))
     }, [shown])
 
     const step = (dir: 1 | -1) => setCursor(c =>
@@ -239,7 +236,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                                     {days.map(day => {
                                         if (!isSameMonth(day, month)) return <span key={dayKey(day)} />
                                         const list = byDay.get(dayKey(day)) ?? []
-                                        const first = list[0] && TYPE_STYLES[normalizeEventType(list[0].event_type)]
+                                        const first = list[0] && styleOf(list[0])
                                         return (
                                             <button
                                                 key={dayKey(day)}
@@ -265,7 +262,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400">
                 {legend.map(type => (
                     <span key={type} className="inline-flex items-center gap-1.5">
-                        <span className={`h-2.5 w-2.5 rounded-full ${TYPE_STYLES[type].dot}`} />{type}
+                        <span className={`h-2.5 w-2.5 rounded-full ${ENGAGEMENT_STYLES[type].dot}`} />{type}
                     </span>
                 ))}
                 <span className="ml-auto text-zinc-500">{shown.size} event{shown.size === 1 ? '' : 's'} shown</span>

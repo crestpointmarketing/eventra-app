@@ -23,6 +23,18 @@ export const ENGAGEMENT_TYPES = [
 
 export type EngagementType = (typeof ENGAGEMENT_TYPES)[number]
 
+/** Engagements where we are actually present at the event (shown on the dashboard). */
+export const COMMITTED_ENGAGEMENTS = ['Sponsor', 'Exhibit', 'Attend'] as const satisfies readonly EngagementType[]
+
+/** Legacy rows stored the engagement in discovery_priority; fall back to it like the portfolio does. */
+export function eventEngagement(event: { engagement_type?: string | null; discovery_priority?: string | null }) {
+    return normalizeEngagementType(event.engagement_type ?? event.discovery_priority)
+}
+
+export function isCommittedEvent(event: { engagement_type?: string | null; discovery_priority?: string | null }) {
+    return (COMMITTED_ENGAGEMENTS as readonly EngagementType[]).includes(eventEngagement(event))
+}
+
 export function normalizeEventType(value?: string | null): EventType {
     const normalized = (value ?? '').trim().toLowerCase()
     switch (normalized) {
