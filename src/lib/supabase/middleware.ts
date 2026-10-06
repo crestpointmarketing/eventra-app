@@ -40,7 +40,7 @@ export async function updateSession(request: NextRequest) {
 
     const path = request.nextUrl.pathname
     const isPublic = path === '/' || path === '/login' || path === '/reset-password' ||
-        path === '/contact' || path.startsWith('/auth/') || path.startsWith('/share/') ||
+        path === '/contact' || path === '/about' || path === '/help' || path.startsWith('/auth/') || path.startsWith('/share/') ||
         /\.(?:png|jpg|svg|ico|woff2?)$/.test(path)
     if (!isPublic && !user) {
         const response = path.startsWith('/api/')
