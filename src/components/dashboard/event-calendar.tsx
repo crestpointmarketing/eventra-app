@@ -19,12 +19,12 @@ type View = 'week' | 'month' | 'year'
 type CalendarEvent = IcsEvent & { discovery_priority?: string | null }
 
 // Chip and dot colors per engagement, matching the EventPulse engagement pills.
-const ENGAGEMENT_STYLES: Record<EngagementType, { dot: string; chip: string }> = {
-    Sponsor:  { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200' },
-    Exhibit:  { dot: 'bg-orange-500',  chip: 'bg-orange-50 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200' },
-    Attend:   { dot: 'bg-violet-500',  chip: 'bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200' },
-    Speaking: { dot: 'bg-pink-500',    chip: 'bg-pink-50 text-pink-900 dark:bg-pink-900/30 dark:text-pink-200' },
-    Follow:   { dot: 'bg-blue-500',    chip: 'bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200' },
+const ENGAGEMENT_STYLES: Record<EngagementType, { dot: string; chip: string; border: string }> = {
+    Sponsor:  { dot: 'bg-emerald-600', border: 'border-emerald-500', chip: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200' },
+    Exhibit:  { dot: 'bg-orange-600',  border: 'border-orange-500',  chip: 'bg-orange-50 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200' },
+    Attend:   { dot: 'bg-violet-600',  border: 'border-violet-500',  chip: 'bg-violet-50 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200' },
+    Speaking: { dot: 'bg-pink-600',    border: 'border-pink-500',    chip: 'bg-pink-50 text-pink-900 dark:bg-pink-900/30 dark:text-pink-200' },
+    Follow:   { dot: 'bg-blue-600',    border: 'border-blue-500',    chip: 'bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200' },
 }
 
 const styleOf = (event: CalendarEvent) => ENGAGEMENT_STYLES[eventEngagement(event)]
@@ -52,18 +52,21 @@ function visibleRange(view: View, cursor: Date) {
 
 function EventChip({ event, wrap }: { event: CalendarEvent; wrap?: boolean }) {
     const style = styleOf(event)
+    const engagement = eventEngagement(event)
     const location = shortLocation(event.location)
     return (
         <Link
             href={`/events/${event.id}`}
-            title={`${event.name} · ${eventEngagement(event)}${location ? ` · ${location}` : ''}`}
-            className={`block rounded-md px-2 py-1 text-left transition hover:brightness-95 dark:hover:brightness-125 ${style.chip}`}
+            title={`${event.name} · ${engagement}${location ? ` · ${location}` : ''}`}
+            className={`block rounded-md border-l-[3px] px-2 py-1 text-left transition hover:brightness-95 dark:hover:brightness-125 ${style.chip} ${style.border}`}
         >
             <span className={`flex gap-1.5 min-w-0 ${wrap ? "items-start" : "items-center"}`}>
-                <span className={`h-2 w-2 shrink-0 rounded-full ${wrap ? "mt-1" : ""} ${style.dot}`} />
                 <span className={`text-xs font-medium ${wrap ? "break-words" : "truncate"}`}>{event.name}</span>
             </span>
-            {location && <span className="block truncate pl-3.5 text-[11px] opacity-70">{location}</span>}
+            <span className="flex items-center gap-1 min-w-0 text-[11px]">
+                <span className={`shrink-0 rounded px-1 font-semibold uppercase tracking-wide text-white ${style.dot}`}>{engagement}</span>
+                {location && <span className="truncate opacity-70">{location}</span>}
+            </span>
         </Link>
     )
 }
@@ -223,13 +226,22 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 p-5">
                     {Array.from({ length: 12 }, (_, i) => new Date(cursor.getFullYear(), i, 1)).map(month => {
                         const days = eachDayOfInterval({ start: startOfWeek(month), end: endOfWeek(endOfMonth(month)) })
-                        const count = new Set(days.filter(d => isSameMonth(d, month))
-                            .flatMap(d => byDay.get(dayKey(d)) ?? [])).size
+                        const monthEvents = [...new Set(days.filter(d => isSameMonth(d, month))
+                            .flatMap(d => byDay.get(dayKey(d)) ?? []))]
+                        const counts = ENGAGEMENT_TYPES
+                            .map(type => [type, monthEvents.filter(e => eventEngagement(e) === type).length] as const)
+                            .filter(([, n]) => n > 0)
                         return (
                             <div key={month.getMonth()}>
                                 <button onClick={() => openMonth(month)} className="mb-2 flex w-full items-baseline justify-between text-left">
                                     <span className="text-sm font-semibold text-zinc-900 dark:text-white hover:underline">{format(month, 'MMMM')}</span>
-                                    <span className="text-xs text-zinc-500">{count ? `${count} event${count > 1 ? 's' : ''}` : ''}</span>
+                                    <span className="flex items-center gap-2 text-xs text-zinc-500">
+                                        {counts.map(([type, n]) => (
+                                            <span key={type} className="inline-flex items-center gap-1" title={`${n} ${type}`}>
+                                                <span className={`h-2 w-2 rounded-full ${ENGAGEMENT_STYLES[type].dot}`} />{n}
+                                            </span>
+                                        ))}
+                                    </span>
                                 </button>
                                 <div className="grid grid-cols-7 gap-y-1 text-center text-[11px]">
                                     {weekdays.map(d => <span key={d.getDay()} className="text-zinc-400">{format(d, 'EEEEE')}</span>)}
