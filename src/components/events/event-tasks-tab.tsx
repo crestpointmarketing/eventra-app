@@ -174,7 +174,7 @@ export function EventTasksTab({ eventId }: EventTasksTabProps) {
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="More actions">
                                                 <MoreVertical className="w-4 h-4" />
                                             </Button>
                                         </DropdownMenuTrigger>

@@ -49,3 +49,8 @@ test('CSV export keeps headers when empty and neutralises formulas', async () =>
     assert.equal(convertToCSV([{ a: '=HYPERLINK("x")', b: 'plain, text' }], ['a', 'b']), `a,b\n"'=HYPERLINK(""x"")","plain, text"`)
     assert.equal(convertToCSV([{ a: '@SUM(1)', b: 5 }], ['a', 'b']), "a,b\n'@SUM(1),5")
 })
+test('analytics groups event types regardless of stored spelling', async () => {
+    const { analyzeEventsByType } = await import('../src/lib/analytics')
+    assert.deepEqual(analyzeEventsByType([{ event_type: 'Conference' }, { event_type: 'conference' }, { event_type: 'trade_show' }, { event_type: null }]),
+        { Conference: 2, 'Trade Show': 1, Unknown: 1 })
+})
