@@ -5,21 +5,20 @@ import { normalizeEventPriority } from '@/lib/events/priority'
 import { normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 
 export function convertToCSV(data: any[], headers: string[]): string {
-    if (!data || data.length === 0) return ''
-
-    // Create header row
+    // Create header row (also for an empty export, so the file is still a valid CSV)
     const headerRow = headers.join(',')
 
     // Create data rows
-    const dataRows = data.map(row => {
+    const dataRows = (data ?? []).map(row => {
         return headers.map(header => {
             const value = row[header]
 
             // Handle null/undefined
             if (value === null || value === undefined) return ''
 
-            // Escape quotes and wrap in quotes if contains comma or quote
-            const stringValue = String(value)
+            // Neutralise spreadsheet formulas (CSV injection), then escape quotes
+            let stringValue = String(value)
+            if (/^[=+\-@\t\r]/.test(stringValue)) stringValue = `'${stringValue}`
             if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
                 return `"${stringValue.replace(/"/g, '""')}"`
             }
@@ -160,7 +159,7 @@ export function downloadCSVTemplate() {
         job_title: 'Manager',
         phone: '123-456-7890',
         industry: 'SaaS',
-        event_id: 'optional-event-id'
+        event_id: ''
     }
     const csv = convertToCSV([sampleRow], headers)
     downloadCSV(csv, 'lead_import_template.csv')

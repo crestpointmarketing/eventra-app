@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         if (result.error) {
             return NextResponse.json(
                 { error: result.error },
-                { status: 500 }
+                { status: result.error.startsWith('Event not found') ? 404 : 500 }
             )
         }
 

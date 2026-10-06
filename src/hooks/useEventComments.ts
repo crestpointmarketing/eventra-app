@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { safeGetUser } from '@/lib/supabase/auth'
+import { toast } from 'sonner'
 
 export type EventComment = {
     id: string
@@ -42,6 +43,7 @@ export function useAddComment(eventId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['event-comments', eventId] })
         },
+        onError: (err: unknown) => toast.error((err as { message?: string })?.message || 'Comment action failed'),
     })
 }
 
@@ -61,6 +63,7 @@ export function useDeleteComment(eventId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['event-comments', eventId] })
         },
+        onError: (err: unknown) => toast.error((err as { message?: string })?.message || 'Comment action failed'),
     })
 }
 

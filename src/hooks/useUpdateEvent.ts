@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { refreshEventData } from '@/lib/query-refresh'
 
 export interface UpdateEventInput {
     // Basic Information
@@ -14,6 +15,7 @@ export interface UpdateEventInput {
     location?: string
     venue?: string
     url?: string
+    website_url?: string | null
     owner_id?: string
     description?: string
 
@@ -54,8 +56,7 @@ export function useUpdateEvent() {
         },
         onSuccess: (data) => {
             // Invalidate and refetch
-            queryClient.invalidateQueries({ queryKey: ['event', data.id] })
-            queryClient.invalidateQueries({ queryKey: ['events'] })
+            refreshEventData(queryClient)
 
             toast.success('Event updated successfully')
         },

@@ -15,7 +15,9 @@ import {
 import { EngagementPill, EventLogo, PortfolioStatCard } from '@/components/events/portfolio-parts'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatDateOnly, formatMonthOnly } from '@/lib/date-only'
+import { formatDateOnly, formatMonthOnly, localDateKey } from '@/lib/date-only'
+import { fetchAllRows } from '@/lib/api/pagination'
+import { refreshEventData } from '@/lib/query-refresh'
 import { exportEventsToCSV } from '@/lib/export'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import {
@@ -93,7 +95,9 @@ function classifyEvent(event: DiscoverEvent): string {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-    return error instanceof Error ? error.message : fallback
+    // Supabase errors are plain objects with a message, not always Error instances.
+    const message = (error as { message?: unknown } | null)?.message
+    return typeof message === 'string' && message ? message : fallback
 }
 
 type View = 'portfolio' | 'discover' | 'review' | 'insights'
@@ -158,12 +162,13 @@ export default function EventPulsePage() {
         queryKey: ['eventpulse-events'],
         queryFn: async () => {
             const supabase = createClient()
-            const { data, error } = await supabase
+            return fetchAllRows<DiscoverEvent>((from, to) => supabase
                 .from('events')
                 .select('*')
+                .is('deleted_at', null)
                 .order('start_date', { ascending: true })
-            if (error) throw error
-            return (data ?? []) as DiscoverEvent[]
+                .order('id')
+                .range(from, to))
         },
     })
 
@@ -184,12 +189,13 @@ export default function EventPulsePage() {
         queryKey: ['eventpulse-task-summary'],
         queryFn: async () => {
             const supabase = createClient()
-            const { data, error } = await supabase
+            // More than 1000 tasks is normal (each event can get ~30 starter tasks), so page through them.
+            return fetchAllRows<any>((from, to) => supabase
                 .from('tasks')
                 .select('id, title, status, priority, due_date, event_id')
                 .not('event_id', 'is', null)
-            if (error) throw error
-            return data ?? []
+                .order('id')
+                .range(from, to))
         },
     })
 
@@ -199,8 +205,7 @@ export default function EventPulsePage() {
             await deleteEventsByIds([eventId])
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-task-summary'] })
+            refreshEventData(queryClient)
             toast.success('Event deleted')
         },
         onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to delete event')),
@@ -213,9 +218,8 @@ export default function EventPulsePage() {
                 .from('events').update({ discovery_priority: priority }).eq('id', id)
             if (error) throw error
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-        },
+        onSuccess: () => refreshEventData(queryClient),
+        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to update event')),
     })
 
     const { mutate: updateEngagement } = useMutation({
@@ -225,9 +229,8 @@ export default function EventPulsePage() {
                 .from('events').update({ engagement_type: engagement }).eq('id', id)
             if (error) throw error
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-        },
+        onSuccess: () => refreshEventData(queryClient),
+        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Failed to update event')),
     })
 
     async function bulkUpdateEvents(values: Partial<Pick<DiscoverEvent, 'status' | 'discovery_priority' | 'engagement_type'>>) {
@@ -240,7 +243,7 @@ export default function EventPulsePage() {
                 .update(values)
                 .in('id', Array.from(checkedIds))
             if (error) throw error
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            refreshEventData(queryClient)
             toast.success(`${checkedIds.size} events updated`)
             setCheckedIds(new Set())
         } catch (err: unknown) {
@@ -275,8 +278,7 @@ export default function EventPulsePage() {
         setBulkLoading(true)
         try {
             const result = await deleteEventsByIds(Array.from(checkedIds))
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-task-summary'] })
+            refreshEventData(queryClient)
             toast.success(`${result.deleted} events deleted`)
             setCheckedIds(new Set())
         } catch (err: unknown) {
@@ -318,7 +320,7 @@ export default function EventPulsePage() {
         setFollowUpOnly(false)
     }
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateKey()
     // Events with at least one open task past its due date.
     const followUpIds = useMemo(() => new Set(eventTasks
         .filter((task: any) => task.status !== 'done' && task.status !== 'archived' && task.due_date && task.due_date.slice(0, 10) < today)
@@ -382,7 +384,7 @@ export default function EventPulsePage() {
     const highCount = events?.filter((e) => normalizeEventPriority(e.discovery_priority) === 'High').length ?? 0
     const aiCount = events?.filter((e) => e.source === 'ai_discovered').length ?? 0
     const sponsorCount = events?.filter((e) => normalizeEngagementType(e.engagement_type ?? e.discovery_priority) === 'Sponsor').length ?? 0
-    const next30 = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
+    const next30 = localDateKey(new Date(Date.now() + 30 * 86_400_000))
     const upcomingCount = events?.filter((e) => e.start_date && e.start_date >= today).length ?? 0
     const next30Events = (events ?? []).filter(e => e.start_date && e.start_date >= today && e.start_date <= next30).slice(0, 5)
     const duplicateGroups = useMemo(() => findEventDuplicateGroups(events ?? []), [events])

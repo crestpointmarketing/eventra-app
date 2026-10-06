@@ -192,9 +192,12 @@ Output ONLY valid JSON (no markdown, no code blocks):
 
     } catch (error) {
         console.error('Error generating email draft:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        // Provider configuration or quota problems are a service outage, not a crash.
+        const providerIssue = message.startsWith('AI provider')
         return NextResponse.json(
-            { error: 'Failed to generate email draft', details: error instanceof Error ? error.message : 'Unknown error' },
-            { status: 500 }
+            { error: providerIssue ? message : 'Failed to generate email draft', details: message },
+            { status: providerIssue ? 503 : 500 }
         )
     }
 }

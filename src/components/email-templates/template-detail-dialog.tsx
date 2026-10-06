@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator'
 import { useEmailTemplate, useDuplicateEmailTemplate, useDeleteEmailTemplate } from '@/hooks/useEmailTemplates'
 import { EmailPreview } from './email-preview'
 import type { EmailTemplateWithDetails } from '@/types/email-templates'
+import { useUser } from '@/hooks/useUser'
 
 interface TemplateDetailDialogProps {
     templateId: string | null
@@ -31,6 +32,7 @@ export function TemplateDetailDialog({
 }: TemplateDetailDialogProps) {
     const { data: template, isLoading } = useEmailTemplate(templateId || undefined)
     const duplicateMutation = useDuplicateEmailTemplate()
+    const { data: user } = useUser()
     const deleteMutation = useDeleteEmailTemplate()
     const [activeTab, setActiveTab] = useState<'details' | 'preview'>('preview')
 
@@ -138,16 +140,18 @@ export function TemplateDetailDialog({
 
                                 {/* Action Buttons */}
                                 <div className="flex items-center justify-end gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleDuplicate}
-                                        className="flex items-center"
-                                    >
-                                        <Copy className="h-4 w-4 mr-2" />
-                                        Duplicate
-                                    </Button>
-                                    {!template.is_system && (
+                                    {(template.is_system || template.created_by === user?.id) && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleDuplicate}
+                                            className="flex items-center"
+                                        >
+                                            <Copy className="h-4 w-4 mr-2" />
+                                            Duplicate
+                                        </Button>
+                                    )}
+                                    {!template.is_system && !!user && template.created_by === user.id && (
                                         <>
                                             <Button
                                                 variant="outline"

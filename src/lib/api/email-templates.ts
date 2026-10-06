@@ -46,6 +46,11 @@ export async function getEmailTemplates(filters?: EmailTemplateFilters) {
     if (filters?.is_system !== undefined) {
         query = query.eq('is_system', filters.is_system)
     }
+    // "My Templates" means templates I created, not every teammate's personal template.
+    if (filters?.is_system === false) {
+        const { data: { user } } = await getSupabase().auth.getUser()
+        if (user) query = query.eq('created_by', user.id)
+    }
 
     if (filters?.search) {
         query = query.ilike('name', `%${filters.search}%`)

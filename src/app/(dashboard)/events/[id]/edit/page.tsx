@@ -31,6 +31,8 @@ import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventT
 
 const EVENT_STATUSES = [
     { value: 'draft', label: 'Draft', color: 'bg-gray-100 text-gray-700' },
+    { value: 'planning', label: 'Planning', color: 'bg-blue-100 text-blue-700' },
+    { value: 'upcoming', label: 'Upcoming', color: 'bg-violet-100 text-violet-700' },
     { value: 'planned', label: 'Planned', color: 'bg-blue-100 text-blue-700' },
     { value: 'live', label: 'Live', color: 'bg-green-100 text-green-700' },
     { value: 'completed', label: 'Completed', color: 'bg-purple-100 text-purple-700' },
@@ -48,7 +50,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         handleSubmit,
         watch,
         setValue,
-        formState: { errors, isDirty, isSubmitting },
+        formState: { errors, isDirty, isSubmitting, dirtyFields },
         reset
     } = useForm<UpdateEventInput>()
 
@@ -65,7 +67,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 end_date: event.end_date || '',
                 location: event.location || '',
                 venue: event.venue || '',
-                url: event.url || '',
+                url: event.website_url || event.url || '',
                 description: event.description || '',
                 total_budget: event.total_budget || 0,
                 target_leads: event.target_leads || 0,
@@ -97,8 +99,25 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     }, [isDirty])
 
     const onSubmit = async (data: UpdateEventInput) => {
+        // Send only fields the user changed, so normalized defaults never overwrite stored values.
+        const changed: Record<string, unknown> = {}
+        for (const key of Object.keys(dirtyFields) as (keyof UpdateEventInput)[]) {
+            const value = data[key]
+            changed[key] = value === '' && ['start_date', 'end_date', 'url'].includes(key) ? null : value
+        }
+        // Both columns hold the event website; views read website_url first.
+        if ('url' in changed) changed.website_url = changed.url
+        if (Object.keys(changed).length === 0) {
+            router.push(`/events/${id}`)
+            return
+        }
+        const start = data.start_date || null, end = data.end_date || null
+        if (start && end && end < start) {
+            toast.error('End date cannot be before the start date.')
+            return
+        }
         try {
-            await updateEvent.mutateAsync({ id, data })
+            await updateEvent.mutateAsync({ id, data: changed as UpdateEventInput })
             reset(data) // Reset form with new values to clear dirty state
             router.push(`/events/${id}`)
         } catch (error) {

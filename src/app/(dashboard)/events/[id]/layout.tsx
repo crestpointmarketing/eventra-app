@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { insertOwnedEvent } from '@/lib/events/write'
+import { refreshEventData } from '@/lib/query-refresh'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatEventDateRange } from '@/lib/utils/event-status'
 import jsPDF from 'jspdf'
@@ -100,6 +101,20 @@ export default function EventLayout({
             const doc = new jsPDF()
             doc.setFontSize(20)
             doc.text(event.name, 14, 22)
+            const rows = [
+                ['Dates', formatEventDateRange(event.start_date, event.end_date)],
+                ['Location', [event.venue, event.location].filter(Boolean).join(', ')],
+                ['Type', event.event_type],
+                ['Engagement', event.engagement_type],
+                ['Status', event.status],
+                ['Website', event.website_url || event.url],
+                ['Budget', event.total_budget ? `$${Number(event.total_budget).toLocaleString()}` : ''],
+                ['Target leads', event.target_leads ? String(event.target_leads) : ''],
+                ['Target audience', event.target_audience],
+                ['Goal', event.goal_statement],
+                ['Description', event.description],
+            ].filter(([, value]) => value) as [string, string][]
+            autoTable(doc, { startY: 30, head: [['Field', 'Value']], body: rows, styles: { fontSize: 10, cellWidth: 'wrap' }, columnStyles: { 0: { cellWidth: 40 } } })
             doc.save(`event-${(event.name || 'event').toLowerCase().replace(/\s+/g, '-')}.pdf`)
         } catch (error) {
             console.error('Error exporting PDF:', error)
@@ -108,6 +123,28 @@ export default function EventLayout({
 
     const [sharing, setSharing] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+
+    const handleDelete = async () => {
+        if (!event || !confirm(`Delete "${event.name}"? Its tasks and leads links will be removed. This cannot be undone.`)) return
+        setDeleting(true)
+        try {
+            const res = await fetch('/api/events/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [id] }),
+            })
+            const body = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(body.error ?? 'Failed to delete event')
+            queryClient.removeQueries({ queryKey: ['event', id] })
+            refreshEventData(queryClient)
+            toast.success('Event deleted')
+            router.push('/discover')
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete event')
+            setDeleting(false)
+        }
+    }
 
     const handleShare = async () => {
         setSharing(true)
@@ -121,7 +158,7 @@ export default function EventLayout({
             toast.success('Share link copied to clipboard')
             setTimeout(() => setCopied(false), 3000)
         } catch (err) {
-            toast.error('Failed to generate share link')
+            toast.error(err instanceof Error && err.message ? err.message : 'Failed to generate share link')
         } finally {
             setSharing(false)
         }
@@ -242,7 +279,9 @@ export default function EventLayout({
                                     Export PDF
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={handleDelete} disabled={deleting}>
+                                    {deleting ? 'Deleting…' : 'Delete'}
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Button

@@ -174,11 +174,11 @@ export default function EmailTemplatesPage() {
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-center">
                         <p className="text-muted-foreground mb-4">
-                            {search || Object.keys(filters).length > 0
+                            {search || Object.values(filters).some(v => v !== undefined)
                                 ? 'No templates match your filters'
                                 : 'No templates yet'}
                         </p>
-                        {!search && Object.keys(filters).length === 0 && (
+                        {!search && !Object.values(filters).some(v => v !== undefined) && (
                             <Button onClick={() => setShowCreateDialog(true)}>
                                 <Plus className="mr-2 h-4 w-4" />
                                 Create Your First Template

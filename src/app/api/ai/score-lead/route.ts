@@ -1,4 +1,5 @@
 import { leadScoreSchema } from '@/lib/ai/schemas'
+import { parseAIJSON } from '@/lib/ai/utils'
 import { leadForAI } from '@/lib/leads/model'
 import { guardAI } from '@/lib/api/guard'
 // API Route: AI Lead Scoring
@@ -88,7 +89,7 @@ Provide your response in the following JSON format:
         // Parse AI response
         let aiResponse
         try {
-            aiResponse = leadScoreSchema.parse(JSON.parse(content))
+            aiResponse = leadScoreSchema.parse(parseAIJSON(content))
         } catch (parseError) {
             console.error('Failed to parse AI response:', content)
             return NextResponse.json(

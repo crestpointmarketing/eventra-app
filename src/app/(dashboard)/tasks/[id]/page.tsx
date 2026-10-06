@@ -303,7 +303,7 @@ export default function TaskDetailPage() {
                                                 type="date"
                                                 value={editedDueDate}
                                                 onChange={(e) => setEditedDueDate(e.target.value)}
-                                                onBlur={() => handleFieldUpdate('due_date', editedDueDate)}
+                                                onBlur={() => handleFieldUpdate('due_date', editedDueDate || null)}
                                                 className="mt-1"
                                             />
                                         </div>
@@ -602,7 +602,7 @@ export default function TaskDetailPage() {
                                                     type="number"
                                                     value={editedEstimatedCost}
                                                     onChange={(e) => setEditedEstimatedCost(e.target.value)}
-                                                    onBlur={() => handleFieldUpdate('estimated_cost', parseFloat(editedEstimatedCost) || null)}
+                                                    onBlur={() => handleFieldUpdate('estimated_cost', editedEstimatedCost.trim() === '' ? null : Number(editedEstimatedCost))}
                                                     placeholder="0.00"
                                                     className="pl-8"
                                                 />
@@ -617,7 +617,7 @@ export default function TaskDetailPage() {
                                                     type="number"
                                                     value={editedActualCost}
                                                     onChange={(e) => setEditedActualCost(e.target.value)}
-                                                    onBlur={() => handleFieldUpdate('actual_cost', parseFloat(editedActualCost) || null)}
+                                                    onBlur={() => handleFieldUpdate('actual_cost', editedActualCost.trim() === '' ? null : Number(editedActualCost))}
                                                     placeholder="0.00"
                                                     className="pl-8"
                                                 />
@@ -798,16 +798,25 @@ export default function TaskDetailPage() {
                             </h3>
                             <Select
                                 value={task.status}
-                                onValueChange={(value) => handleFieldUpdate('status', value)}
+                                onValueChange={(value) => updateTask({
+                                    taskId,
+                                    // Keep completed_at in step with the status, like the event task list does.
+                                    updates: {
+                                        status: value as Task['status'],
+                                        completed_at: value === 'done' ? (task.completed_at ?? new Date().toISOString()) : null,
+                                    },
+                                })}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="in_progress">In Progress</SelectItem>
                                     <SelectItem value="review">Review</SelectItem>
                                     <SelectItem value="done">Done</SelectItem>
+                                    <SelectItem value="archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </Card>
