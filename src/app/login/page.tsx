@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Eye, EyeOff } from 'lucide-react'
 import { ForgotPasswordModal } from '@/components/auth/forgot-password-modal'
+import { safeNextPath } from '@/lib/auth/next-path'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
@@ -18,7 +19,18 @@ export default function LoginPage() {
     const [error, setError] = useState('')
     const [mode, setMode] = useState<'login' | 'signup'>('login')
     const [message, setMessage] = useState('')
+    const [next, setNext] = useState('/dashboard')
     const supabase = createClient()
+
+    // ?next= returns the user to the page they opened; ?mode=signup and ?error=callback come from links.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        setNext(safeNextPath(params.get('next')))
+        if (params.get('mode') === 'signup') setMode('signup')
+        if (params.get('error') === 'callback') {
+            setError('That sign-in link has expired or was opened in a different browser. Sign in below, or request a new link.')
+        }
+    }, [])
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -37,14 +49,13 @@ export default function LoginPage() {
 
                 // Start a fresh server request after browser auth cookies are written.
                 // A prefetched guest redirect must not survive a successful sign-in.
-                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- authentication requires clearing the guest router cache
-                window.location.assign('/dashboard')
+                window.location.assign(next)
             } else {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
-                        emailRedirectTo: `${window.location.origin}/auth/callback`
+                        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
                     }
                 })
 

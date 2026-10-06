@@ -26,3 +26,9 @@ test('full list reads beyond the first 1000 records and propagates page failure'
     assert.equal(result.length,1205)
     await assert.rejects(fetchAllRows(async()=>({data:null,error:new Error('Unavailable')})),/Unavailable/)
 })
+test('post-login redirect only accepts same-site paths', async () => {
+    const { safeNextPath } = await import('../src/lib/auth/next-path')
+    assert.equal(safeNextPath('/events/abc?tab=leads'), '/events/abc?tab=leads')
+    for (const bad of [null, '', 'https://evil.test', '//evil.test', String.raw`/\evil.test`, '/login', '/auth/callback'])
+        assert.equal(safeNextPath(bad), '/dashboard', String(bad))
+})

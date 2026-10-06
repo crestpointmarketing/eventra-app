@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     if (!isPublic && !user) {
         const response = path.startsWith('/api/')
             ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-            : NextResponse.redirect(new URL('/login', request.url))
+            : NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(path + request.nextUrl.search)}`, request.url))
         for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie)
         return response
     }

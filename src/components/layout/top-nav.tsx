@@ -237,7 +237,7 @@ export function TopNav() {
                                         Contact
                                     </Button>
                                 </Link>
-                                <Link href="/login">
+                                <Link href="/login?mode=signup">
                                     <Button size="sm">
                                         Sign Up
                                     </Button>
