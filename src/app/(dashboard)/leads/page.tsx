@@ -610,6 +610,7 @@ export default function LeadsPage() {
                                     <div className="flex gap-2">
                                         <Button
                                             variant="outline" size="sm"
+                                            aria-label="Previous page"
                                             disabled={page === 1}
                                             onClick={() => setCurrentPage(page - 1)}
                                         >
@@ -618,6 +619,7 @@ export default function LeadsPage() {
                                         <span className="text-sm text-zinc-600 dark:text-zinc-400 flex items-center">Page {page} of {totalPages}</span>
                                         <Button
                                             variant="outline" size="sm"
+                                            aria-label="Next page"
                                             disabled={page >= totalPages}
                                             onClick={() => setCurrentPage(page + 1)}
                                         >
