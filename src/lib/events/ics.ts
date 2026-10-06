@@ -8,6 +8,7 @@ export interface IcsEvent {
     end_date?: string | null
     location?: string | null
     event_type?: string | null
+    engagement_type?: string | null
     description?: string | null
     website_url?: string | null
     url?: string | null
@@ -53,7 +54,7 @@ export function buildIcs(events: IcsEvent[], { origin, now = new Date(), name = 
         if (last < start) last = start
         const link = origin ? `${origin}/events/${event.id}` : null
         const website = event.website_url || event.url
-        const details = [event.event_type, event.description, website && `Website: ${website}`, link && `Eventra: ${link}`].filter(Boolean).join('\n')
+        const details = [event.engagement_type && `Engagement: ${event.engagement_type}`, event.event_type, event.description, website && `Website: ${website}`, link && `Eventra: ${link}`].filter(Boolean).join('\n')
         lines.push(
             'BEGIN:VEVENT',
             `UID:${event.id}@eventra`,

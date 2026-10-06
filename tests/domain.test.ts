@@ -26,6 +26,17 @@ test('full list reads beyond the first 1000 records and propagates page failure'
     assert.equal(result.length,1205)
     await assert.rejects(fetchAllRows(async()=>({data:null,error:new Error('Unavailable')})),/Unavailable/)
 })
+test('dashboard keeps only committed engagements, honoring legacy discovery_priority', async () => {
+    const { isCommittedEvent, eventEngagement } = await import('../src/lib/events/taxonomy')
+    assert.equal(isCommittedEvent({ engagement_type: 'Sponsor' }), true)
+    assert.equal(isCommittedEvent({ engagement_type: 'exhibitor' }), true)
+    assert.equal(isCommittedEvent({ engagement_type: 'Attend' }), true)
+    assert.equal(isCommittedEvent({ engagement_type: 'Follow' }), false)
+    assert.equal(isCommittedEvent({ engagement_type: 'Speaking' }), false)
+    assert.equal(isCommittedEvent({ engagement_type: null, discovery_priority: 'sponsor' }), true)
+    assert.equal(isCommittedEvent({}), false)
+    assert.equal(eventEngagement({ engagement_type: null, discovery_priority: 'attend' }), 'Attend')
+})
 test('post-login redirect only accepts same-site paths', async () => {
     const { safeNextPath } = await import('../src/lib/auth/next-path')
     assert.equal(safeNextPath('/events/abc?tab=leads'), '/events/abc?tab=leads')
