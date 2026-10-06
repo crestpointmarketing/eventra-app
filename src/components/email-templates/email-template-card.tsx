@@ -18,6 +18,7 @@ import {
     useUpdateTemplateStatus,
 } from '@/hooks/useEmailTemplates'
 import type { EmailTemplate } from '@/types/email-templates'
+import { useUser } from '@/hooks/useUser'
 
 interface EmailTemplateCardProps {
     template: EmailTemplate
@@ -29,6 +30,10 @@ export function EmailTemplateCard({ template, onViewDetails, onEdit }: EmailTemp
     const duplicateMutation = useDuplicateEmailTemplate()
     const deleteMutation = useDeleteEmailTemplate()
     const updateStatusMutation = useUpdateTemplateStatus()
+    const { data: user } = useUser()
+    // Only the creator may change a personal template; system templates can be duplicated by anyone.
+    const isOwner = !template.is_system && !!user && template.created_by === user.id
+    const canDuplicate = template.is_system || isOwner
 
     const handleViewDetails = () => {
         if (onViewDetails) {
@@ -134,11 +139,13 @@ export function EmailTemplateCard({ template, onViewDetails, onEdit }: EmailTemp
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleDuplicate}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                Duplicate
-                            </DropdownMenuItem>
-                            {!template.is_system && (
+                            {canDuplicate && (
+                                <DropdownMenuItem onClick={handleDuplicate}>
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Duplicate
+                                </DropdownMenuItem>
+                            )}
+                            {isOwner && (
                                 <>
                                     <DropdownMenuItem onClick={handleEdit}>
                                         <Edit className="mr-2 h-4 w-4" />

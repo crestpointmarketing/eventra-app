@@ -22,7 +22,8 @@ export function useLeads() {
 
             return data?.map((lead) => ({
                 ...lead,
-                lead_score: lead.metadata?.ai_score ?? 0,
+                // AI score when present, otherwise the stored hot/warm/cold priority (same as event lead lists).
+                lead_score: lead.metadata?.ai_score ?? priorityToScore(lead.priority),
                 lead_status: lead.stage,
             }))
         },

@@ -25,6 +25,10 @@ export async function POST(request: NextRequest) {
             userId,
         })
 
+        // An event without tasks simply has no dependencies; that is not a server error.
+        if (result.error === 'No tasks found') {
+            return NextResponse.json({ success: true, dependencies: [], count: 0 })
+        }
         if (result.error) {
             return NextResponse.json(
                 { error: result.error },

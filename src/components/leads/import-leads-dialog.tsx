@@ -15,7 +15,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useCreateLead } from '@/hooks/useLeads'
+import { createLead } from '@/lib/api/leads'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSummarizeLead } from '@/hooks/useAI'
 import { Loader2, Upload, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -35,7 +36,8 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
     const [autoGenerateAI, setAutoGenerateAI] = useState(false)
     const [importedLeadIds, setImportedLeadIds] = useState<string[]>([])
 
-    const { mutateAsync: createLead } = useCreateLead()
+    // Call the API directly: the mutation hook toasts and reloads all leads once per row.
+    const queryClient = useQueryClient()
     const { mutateAsync: summarizeLead } = useSummarizeLead()
 
     const handleOpenChange = (newOpen: boolean) => {
@@ -107,6 +109,8 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                         company: record.company,
                         job_title: record.job_title || record.title,
                         phone: record.phone,
+                        industry: record.industry || undefined,
+                        event_id: record.event_id?.trim() || null,
                         stage: 'new'
                     })
                     count++
@@ -118,6 +122,10 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
 
                 if (failures.length) setError(`${failures.length} rows failed: ${failures.slice(0, 5).join("; ")}`)
                 setSuccessCount(count)
+                if (count > 0) {
+                    queryClient.invalidateQueries({ queryKey: ['leads'] })
+                    toast.success(`Imported ${count} lead${count === 1 ? '' : 's'}`)
+                }
                 setImportedLeadIds(createdLeadIds)
 
                 // Auto-generate AI if enabled

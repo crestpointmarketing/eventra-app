@@ -36,9 +36,9 @@ export default function CompanyIntelligencePage() {
     useEffect(() => {
         if (!hasChanges) return
 
+        // Only clear the unsaved flag once the draft is stored, so a failed save keeps the edits.
         const timer = setTimeout(() => {
-            saveDraft(formData)
-            setHasChanges(false)
+            saveDraft(formData, { onSuccess: () => setHasChanges(false) })
         }, 30000) // 30 seconds
 
         return () => clearTimeout(timer)
@@ -50,15 +50,17 @@ export default function CompanyIntelligencePage() {
     }
 
     const handleSaveDraft = () => {
-        saveDraft(formData)
-        setHasChanges(false)
+        saveDraft(formData, { onSuccess: () => setHasChanges(false) })
     }
 
     const handleSave = () => {
-        updateIntelligence({ ...formData, isDraft: false })
-        setHasChanges(false)
-        // Switch to view mode after save
-        setIsEditMode(false)
+        // Leave edit mode only after the save succeeds; on failure the form keeps the edits.
+        updateIntelligence({ ...formData, isDraft: false }, {
+            onSuccess: () => {
+                setHasChanges(false)
+                setIsEditMode(false)
+            },
+        })
     }
 
     const toggleEditMode = () => {

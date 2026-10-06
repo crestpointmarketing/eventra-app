@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { TemplateDetailDialog } from '@/components/email-templates/template-detail-dialog'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,7 +52,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
     const { data: recommendation, isLoading: isLoadingRecommendation, error: recommendationError } = useEmailRecommendation(leadId)
 
     // Fetch all templates
-    const { data: templates, isLoading: isLoadingTemplates } = useEmailTemplates()
+    const { data: templates, isLoading: isLoadingTemplates } = useEmailTemplates({ status: 'active' })
 
     // Email draft generation
     const { mutate: generateDraft, data: draft, isPending: isGenerating, error: draftError } = useEmailDraftGenerator()
@@ -83,6 +84,14 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
         })
     }
 
+    const queryClient = useQueryClient()
+    // Email actions write lead_activities and last_contacted_at; show them without a reload.
+    const refreshLead = () => {
+        queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+        queryClient.invalidateQueries({ queryKey: ['lead-activities', leadId] })
+        queryClient.invalidateQueries({ queryKey: ['leads'] })
+    }
+
     const handleCopyToClipboard = async () => {
         if (editableDraft) {
             const emailText = `Subject: ${editableDraft.subject}\n\n${editableDraft.body}`
@@ -101,6 +110,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
 
             if (activityError) toast.warning('Copied, but activity could not be saved.')
             else toast.success('Email copied to clipboard!')
+            refreshLead()
         }
     }
 
@@ -109,6 +119,7 @@ export function EmailComposer({ leadId, lead }: EmailComposerProps) {
         const { error } = await createClient().rpc('mark_lead_sent', { lead_id: leadId, subject: editableDraft.subject })
         if (error) { toast.error('Could not record the email. Please retry.'); return }
         toast.success('Email manually marked as sent; contact date updated.')
+        refreshLead()
     }
 
     return (

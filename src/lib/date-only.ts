@@ -68,3 +68,9 @@ export function dateOnlyTime(value: string | null | undefined) {
     if (!value) return 0
     return dateOnlyToLocalDate(value).getTime()
 }
+
+/** The user's local calendar date as YYYY-MM-DD, for comparing with date-only columns. */
+export function localDateKey(date = new Date()) {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}

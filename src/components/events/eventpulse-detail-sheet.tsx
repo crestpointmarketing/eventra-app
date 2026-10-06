@@ -11,6 +11,7 @@ import {
 import { EventComments } from '@/components/events/event-comments'
 import { EVENT_PRIORITIES, EVENT_PRIORITY_TEXT, normalizeEventPriority } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
+import { refreshEventData } from '@/lib/query-refresh'
 
 const SECTORS = [
     'GENERAL AI', 'AI IN HEALTHCARE', 'AI IN EDUCATION',
@@ -72,14 +73,15 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
             const { error } = await supabase.from('events').update({
                 name:               form.name,
                 event_type:         normalizeEventType(form.event_type),
-                website_url:        form.website_url,
+                website_url:        form.website_url || null,
+                url:                form.website_url || null,
                 focus_area:         form.focus_area,
                 discovery_priority: normalizeEventPriority(form.discovery_priority),
                 engagement_type:    normalizeEngagementType(form.engagement_type),
                 expected_attendees: form.expected_attendees ? Number(form.expected_attendees) : null,
                 target_audience:    form.target_audience,
-                start_date:         form.start_date,
-                end_date:           form.end_date,
+                start_date:         form.start_date || null,
+                end_date:           form.end_date || null,
                 location:           form.location,
                 description:        form.description,
             }).eq('id', form.id)
@@ -87,11 +89,11 @@ export function EventPulseDetailSheet({ event, open, onOpenChange }: Props) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['discover-events'] })
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            refreshEventData(queryClient)
             toast.success('Changes saved')
             setDirty(false)
         },
-        onError: () => toast.error('Failed to save'),
+        onError: (err: unknown) => toast.error(`Failed to save: ${(err as { message?: string })?.message ?? 'unknown error'}`),
     })
 
     if (!event) return null

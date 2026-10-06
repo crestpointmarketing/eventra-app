@@ -43,6 +43,7 @@ import { motion } from 'framer-motion'
 import { PageTransition } from '@/components/animations/page-transition'
 import type { Asset } from '@/lib/api/assets'
 import { format } from 'date-fns'
+import { UPLOAD_ACCEPT } from '@/lib/api/assets'
 
 export default function AssetsPage() {
     const [searchQuery, setSearchQuery] = useState('')
@@ -235,6 +236,7 @@ export default function AssetsPage() {
                                 </p>
                                 <input
                                     type="file"
+                                    accept={UPLOAD_ACCEPT}
                                     multiple
                                     className="hidden"
                                     id="file-upload"
@@ -369,7 +371,7 @@ export default function AssetsPage() {
 
                                                 {/* Hover Overlay Action */}
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
+                                                    <a href={asset.file_url || undefined} aria-disabled={asset.file_unavailable} title={asset.file_unavailable ? 'File unavailable' : undefined} target="_blank" rel="noopener noreferrer">
                                                         <Button variant="secondary" size="sm" className="bg-white/90 hover:bg-white text-zinc-900 border-none">
                                                             <ExternalLink className="w-4 h-4 mr-2" />
                                                             Open
@@ -454,7 +456,7 @@ export default function AssetsPage() {
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
                                                                 <DropdownMenuItem asChild>
-                                                                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
+                                                                    <a href={asset.file_url || undefined} aria-disabled={asset.file_unavailable} title={asset.file_unavailable ? 'File unavailable' : undefined} target="_blank" rel="noopener noreferrer">
                                                                         <ExternalLink className="w-4 h-4 mr-2" />
                                                                         View File
                                                                     </a>

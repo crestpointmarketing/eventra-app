@@ -53,6 +53,7 @@ import { useBulkSelection } from '@/hooks/useBulkSelection'
 import { BulkActionsToolbar } from '@/components/bulk-actions-toolbar'
 import { exportTasksToCSV } from '@/lib/export'
 import { TASK_MODULES } from '@/lib/tasks/modules'
+import { localDateKey } from '@/lib/date-only'
 
 interface UserOption {
     id: string
@@ -65,6 +66,7 @@ export default function TasksPage() {
     const [statusFilter, setStatusFilter] = useState<string>('all')
     const [ownerFilter, setOwnerFilter] = useState<string>('all')
     const [moduleFilter, setModuleFilter] = useState<string>('all')
+    const [dateFilter, setDateFilter] = useState<'all' | 'overdue' | 'week' | 'month' | 'none'>('all')
     const [eventFilter, setEventFilter] = useState<string>(() => {
         if (typeof window === 'undefined') return 'all'
         return new URLSearchParams(window.location.search).get('eventId') ?? 'all'
@@ -102,6 +104,10 @@ export default function TasksPage() {
     const queryClient = useQueryClient()
 
     // Filter and search tasks
+    const today = localDateKey()
+    const in7 = localDateKey(new Date(Date.now() + 7 * 86_400_000))
+    const in30 = localDateKey(new Date(Date.now() + 30 * 86_400_000))
+
     const filteredTasks = useMemo(() => {
         if (!tasks) return []
 
@@ -109,7 +115,7 @@ export default function TasksPage() {
             // Search filter
             const matchesSearch = task.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
                 task.description?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-                task.events?.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+                task.events?.name?.toLowerCase().includes(debouncedSearch.toLowerCase())
 
             // Status filter
             const matchesStatus = statusFilter === 'all' || task.status === statusFilter
@@ -121,9 +127,18 @@ export default function TasksPage() {
             const matchesEvent = eventFilter === 'all' || task.event_id === eventFilter
             const matchesModule = moduleFilter === 'all' || task.module === moduleFilter
 
-            return matchesSearch && matchesStatus && matchesOwner && matchesEvent && matchesModule
+            // Due date filter, compared on local calendar days
+            const due = task.due_date?.slice(0, 10) ?? null
+            const open = task.status !== 'done' && task.status !== 'archived'
+            const matchesDate = dateFilter === 'all'
+                || (dateFilter === 'none' && !due)
+                || (dateFilter === 'overdue' && !!due && open && due < today)
+                || (dateFilter === 'week' && !!due && due >= today && due <= in7)
+                || (dateFilter === 'month' && !!due && due >= today && due <= in30)
+
+            return matchesSearch && matchesStatus && matchesOwner && matchesEvent && matchesModule && matchesDate
         })
-    }, [tasks, debouncedSearch, statusFilter, ownerFilter, eventFilter, moduleFilter])
+    }, [tasks, debouncedSearch, statusFilter, ownerFilter, eventFilter, moduleFilter, dateFilter, today, in7, in30])
 
     const groupedTasks = useMemo(() => TASK_MODULES
         .map(module => ({
@@ -267,12 +282,16 @@ export default function TasksPage() {
 
                     {/* Right Filters */}
                     <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                        <Select value="all">
-                            <SelectTrigger className="w-[110px] h-9 text-xs border-zinc-200 bg-white dark:bg-zinc-800">
+                        <Select value={dateFilter} onValueChange={v => setDateFilter(v as typeof dateFilter)}>
+                            <SelectTrigger className="w-[130px] h-9 text-xs border-zinc-200 bg-white dark:bg-zinc-800">
                                 <SelectValue placeholder="All Dates" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Dates</SelectItem>
+                                <SelectItem value="overdue">Overdue</SelectItem>
+                                <SelectItem value="week">Due in 7 days</SelectItem>
+                                <SelectItem value="month">Due in 30 days</SelectItem>
+                                <SelectItem value="none">No due date</SelectItem>
                             </SelectContent>
                         </Select>
 

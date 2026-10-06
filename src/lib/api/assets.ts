@@ -15,6 +15,8 @@ export interface Asset {
     filename: string
     file_type: 'document' | 'image' | 'video' | string
     file_url: string
+    /** Set when the stored file could not be signed (e.g. it was removed from storage). */
+    file_unavailable?: boolean
     file_size: number | null
     mime_type: string | null
     event_id: string | null
@@ -64,6 +66,15 @@ async function signAsset(asset: Asset): Promise<Asset> {
     return { ...asset, file_url: data.signedUrl }
 }
 
+/** In lists, one missing storage object must not hide every other file. */
+async function signAssetForList(asset: Asset): Promise<Asset> {
+    try {
+        return await signAsset(asset)
+    } catch {
+        return { ...asset, file_url: '', file_unavailable: true }
+    }
+}
+
 // ============================================
 // Fetch Assets (with filters)
 // ============================================
@@ -96,7 +107,7 @@ export async function fetchAssets(filters?: AssetFilters) {
     }
 
     const data = await fetchAllRows<any>((from, to) => query.order('id').range(from, to))
-    return Promise.all(data.map(signAsset))
+    return Promise.all(data.map(signAssetForList))
 }
 
 // ============================================
@@ -165,11 +176,35 @@ export async function deleteAsset(assetId: string) {
     if (error) throw new Error('File removal needs another attempt to clear its metadata. Please retry.')
 }
 
+// File types the private event-assets bucket accepts (see its allowed_mime_types).
+const UPLOAD_TYPES: Record<string, string> = {
+    pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+    txt: 'text/plain', csv: 'text/csv',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    mp4: 'video/mp4',
+}
+
+/** Value for <input type="file" accept>. */
+export const UPLOAD_ACCEPT = Object.keys(UPLOAD_TYPES).map(ext => `.${ext}`).join(',')
+
+/**
+ * The content type to store, derived from the extension so browsers that report
+ * e.g. CSV as application/vnd.ms-excel still upload. Throws for unsupported files.
+ */
+export function uploadContentType(fileName: string) {
+    const type = UPLOAD_TYPES[fileName.split('.').pop()?.toLowerCase() ?? '']
+    if (!type) throw new Error('Unsupported file type. Upload PDF, PNG, JPG, WEBP, TXT, CSV, DOCX, XLSX, PPTX or MP4.')
+    return type
+}
+
 // ============================================
 // Upload File to Storage
 // ============================================
 export async function uploadFile(file: File, userId: string) {
     if (file.size > 25 * 1024 * 1024) throw new Error('File must be smaller than 25 MB')
+    const contentType = uploadContentType(file.name)
     const { data: { user } } = await getSupabase().auth.getUser()
     if (!user || user.id !== userId) throw new Error('Please sign in again')
     const fileExt = file.name.split('.').pop()
@@ -181,6 +216,7 @@ export async function uploadFile(file: File, userId: string) {
         .from('event-assets')
         .upload(filePath, file, {
             cacheControl: '3600',
+            contentType,
             upsert: false
         })
 
@@ -205,7 +241,7 @@ export async function uploadFile(file: File, userId: string) {
         fileUrl: publicUrl,
         fileName: file.name,
         fileSize: file.size,
-        mimeType: file.type
+        mimeType: contentType
     }
 }
 

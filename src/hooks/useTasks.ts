@@ -14,6 +14,7 @@ import {
     type UpdateTaskData
 } from '@/lib/api/tasks'
 import { toast } from 'sonner'
+import { refreshEventData } from '@/lib/query-refresh'
 
 // ============================================
 // Fetch All Tasks (with filters)
@@ -60,7 +61,7 @@ export function useCreateTask() {
         mutationFn: (data: CreateTaskData) => createTask(data),
         onSuccess: (newTask) => {
             // Invalidate all task queries
-            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            refreshEventData(queryClient)
             toast.success('Task created successfully')
         },
         onError: (error) => {
@@ -80,7 +81,7 @@ export function useUpdateTask() {
         mutationFn: ({ taskId, updates }: { taskId: string; updates: UpdateTaskData }) =>
             updateTask(taskId, updates),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            refreshEventData(queryClient)
             toast.success('Task updated successfully')
         },
         onError: (error: any) => {
@@ -98,7 +99,7 @@ export function useDeleteTask() {
     return useMutation({
         mutationFn: (taskId: string) => deleteTask(taskId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            refreshEventData(queryClient)
             toast.success('Task deleted successfully')
         },
         onError: (error) => {
@@ -117,7 +118,7 @@ export function useArchiveTask() {
     return useMutation({
         mutationFn: (taskId: string) => archiveTask(taskId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            refreshEventData(queryClient)
             toast.success('Task archived successfully')
         },
         onError: (error) => {
@@ -136,7 +137,7 @@ export function useMarkTaskAsDone() {
     return useMutation({
         mutationFn: (taskId: string) => markTaskAsDone(taskId),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            refreshEventData(queryClient)
             toast.success('Task marked as done')
         },
         onError: (error) => {

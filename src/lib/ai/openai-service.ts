@@ -369,9 +369,17 @@ export async function trackedChatCompletion(params: OpenAI.Chat.ChatCompletionCr
     const { data: { user } } = await db.auth.getUser()
     if (!user) throw new Error('Authentication required')
     const started = Date.now()
-    const response = await openai.chat.completions.create({ ...params, max_tokens: Math.min(params.max_tokens ?? 1500, 2000) }).catch((error: { status?: number }) => {
-        throw new Error(error.status === 429 ? 'AI provider quota reached. Please try later.' : 'AI provider unavailable. Please check its configuration or try later.')
-    })
+    let response: OpenAI.Chat.ChatCompletion
+    try {
+        // Inside try: a missing API key makes the client throw synchronously, before any .catch.
+        response = await openai.chat.completions.create({ ...params, max_tokens: Math.min(params.max_tokens ?? 1500, 2000) })
+    } catch (error) {
+        const status = (error as { status?: number })?.status
+        const unconfigured = !process.env.OPENAI_API_KEY
+        throw new Error(unconfigured ? 'AI provider is not configured.'
+            : status === 429 ? 'AI provider quota reached. Please try later.'
+            : 'AI provider unavailable. Please check its configuration or try later.')
+    }
     if (response.usage) await trackUsage({ user_id: user.id, feature: 'chat_assistant', model: params.model,
         prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens,
         total_tokens: response.usage.total_tokens, estimated_cost: calculateCost(params.model === 'gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini', response.usage.prompt_tokens, response.usage.completion_tokens),

@@ -92,7 +92,12 @@ export async function PUT(request: NextRequest) {
         const userId = user.id
         console.log('Updating company intelligence for user:', userId)
 
-        const body = await request.json()
+        let body: Record<string, unknown>
+        try {
+            body = await request.json()
+        } catch {
+            return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 })
+        }
         const { isDraft = true, ...intelligenceData } = body
 
         // Check if intelligence already exists
