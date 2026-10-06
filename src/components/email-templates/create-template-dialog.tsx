@@ -250,7 +250,7 @@ export function CreateTemplateDialog({
                                     onChange={(e) =>
                                         setFormData((prev) => ({
                                             ...prev,
-                                            max_words: parseInt(e.target.value) || undefined,
+                                            max_words: parseInt(e.target.value) || null,
                                         }))
                                     }
                                     placeholder="150"

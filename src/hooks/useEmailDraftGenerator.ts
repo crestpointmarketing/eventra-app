@@ -47,6 +47,8 @@ export function useEmailDraftGenerator() {
         onSuccess: (data, variables) => {
             // Optionally invalidate related queries
             queryClient.invalidateQueries({ queryKey: ['email-recommendation', variables.leadId] })
+            // Generating a draft logs a lead activity.
+            queryClient.invalidateQueries({ queryKey: ['lead-activities', variables.leadId] })
         },
     })
 }

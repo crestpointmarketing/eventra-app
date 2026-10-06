@@ -198,10 +198,18 @@ export default function LeadsPage() {
     }, [leads, debouncedSearch, sortBy, filters])
 
     // Pagination
-    const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage)
+    const totalPages = Math.max(1, Math.ceil(filteredAndSortedLeads.length / itemsPerPage))
+    // New search, filters or sort start again at page 1.
+    const filterKey = JSON.stringify([debouncedSearch, sortBy, filters])
+    const [pagedFor, setPagedFor] = useState(filterKey)
+    if (pagedFor !== filterKey) {
+        setPagedFor(filterKey)
+        setCurrentPage(1)
+    }
+    const page = Math.min(currentPage, totalPages)
     const paginatedLeads = filteredAndSortedLeads.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
+        (page - 1) * itemsPerPage,
+        page * itemsPerPage
     )
 
     // Bulk selection
@@ -213,14 +221,14 @@ export default function LeadsPage() {
         toggleItem,
         toggleAll,
         clearSelection
-    } = useBulkSelection(paginatedLeads)
+    } = useBulkSelection(filteredAndSortedLeads)
 
     // Handle bulk status update
     const handleBulkStatusUpdate = async (newStatus: string) => {
         if (selectedCount === 0) return
         try {
             await bulkUpdateLeadStatus(
-                Array.from(selectedIds),
+                selectedItems.map((lead: any) => lead.id),
                 newStatus as LeadStatus
             )
             toast.success(`Updated ${selectedCount} lead${selectedCount > 1 ? 's' : ''} to ${newStatus}`)
@@ -602,16 +610,16 @@ export default function LeadsPage() {
                                     <div className="flex gap-2">
                                         <Button
                                             variant="outline" size="sm"
-                                            disabled={currentPage === 1}
-                                            onClick={() => setCurrentPage(currentPage - 1)}
+                                            disabled={page === 1}
+                                            onClick={() => setCurrentPage(page - 1)}
                                         >
                                             <ChevronLeft className="h-4 w-4" />
                                         </Button>
-                                        <span className="text-sm text-zinc-600 dark:text-zinc-400 flex items-center">Page {currentPage} of {totalPages}</span>
+                                        <span className="text-sm text-zinc-600 dark:text-zinc-400 flex items-center">Page {page} of {totalPages}</span>
                                         <Button
                                             variant="outline" size="sm"
-                                            disabled={currentPage >= totalPages}
-                                            onClick={() => setCurrentPage(currentPage + 1)}
+                                            disabled={page >= totalPages}
+                                            onClick={() => setCurrentPage(page + 1)}
                                         >
                                             <ChevronRight className="h-4 w-4" />
                                         </Button>

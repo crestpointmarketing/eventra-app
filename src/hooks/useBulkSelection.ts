@@ -22,7 +22,7 @@ export function useBulkSelection<T extends { id: string }>(items: T[]) {
 
     // Toggle all items (select all or deselect all)
     const toggleAll = () => {
-        if (selectedIds.size === items.length) {
+        if (items.length > 0 && items.every(item => selectedIds.has(item.id))) {
             // All selected, clear selection
             setSelectedIds(new Set())
         } else {
@@ -42,16 +42,14 @@ export function useBulkSelection<T extends { id: string }>(items: T[]) {
         [items, selectedIds]
     )
 
-    // Check if all items are selected
-    const isAllSelected = items.length > 0 && selectedIds.size === items.length
-
-    // Check if some (but not all) items are selected
-    const isIndeterminate = selectedIds.size > 0 && selectedIds.size < items.length
+    // Counts only cover the current items, so hidden (filtered-out) selections are never acted on.
+    const isAllSelected = items.length > 0 && selectedItems.length === items.length
+    const isIndeterminate = selectedItems.length > 0 && selectedItems.length < items.length
 
     return {
         selectedIds,
         selectedItems,
-        selectedCount: selectedIds.size,
+        selectedCount: selectedItems.length,
         isAllSelected,
         isIndeterminate,
         toggleItem,

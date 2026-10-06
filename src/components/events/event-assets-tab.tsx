@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Upload, File as FileIcon, Trash2, ExternalLink, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
+import { UPLOAD_ACCEPT } from '@/lib/api/assets'
 
 export function EventAssetsTab({ eventId }: { eventId: string }) {
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -21,7 +22,7 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
         safeGetUser(supabase).then((user) => setUserId(user?.id || null))
     }, [])
 
-    const { data: assets, isLoading } = useAssets({ eventId })
+    const { data: assets, isLoading, isError, error } = useAssets({ eventId })
     const { mutate: uploadAsset, isPending: isUploading } = useUploadAsset()
     const { mutate: deleteAsset, isPending: isDeleting } = useDeleteAsset()
 
@@ -29,6 +30,8 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
         if (e.target.files && e.target.files[0] && userId) {
             handleUpload(e.target.files[0])
         }
+        // Allow picking the same file again after a failed upload.
+        e.target.value = ''
     }
 
     const handleUpload = (file: File) => {
@@ -103,7 +106,7 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
                         <Button
                             variant="outline"
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
+                            disabled={isUploading || !userId}
                         >
                             Select File
                         </Button>
@@ -111,6 +114,7 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
                             type="file"
                             className="hidden"
                             ref={fileInputRef}
+                            accept={UPLOAD_ACCEPT}
                             onChange={handleFileSelect}
                             disabled={isUploading}
                         />
@@ -124,6 +128,10 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
                     {[1, 2, 3].map((i) => (
                         <div key={i} className="h-24 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
                     ))}
+                </div>
+            ) : isError ? (
+                <div className="text-center py-12">
+                    <p className="text-red-600 dark:text-red-400">Files could not be loaded: {error instanceof Error ? error.message : 'unknown error'}</p>
                 </div>
             ) : assets && assets.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -148,17 +156,21 @@ export function EventAssetsTab({ eventId }: { eventId: string }) {
                                     <span>{formatFileSize(asset.file_size)}</span>
                                     <span>•</span>
                                     <span>{format(new Date(asset.created_at), 'MMM d, yyyy')}</span>
+                                    {asset.file_unavailable && <span className="text-red-600 dark:text-red-400">• File unavailable</span>}
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Link
-                                    href={asset.file_url}
-                                    target="_blank"
-                                    className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                </Link>
+                                {!asset.file_unavailable && (
+                                    <Link
+                                        href={asset.file_url}
+                                        target="_blank"
+                                        className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                                        aria-label={`Open ${asset.title || asset.filename}`}
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                    </Link>
+                                )}
                                 <button
                                     onClick={() => handleDelete(asset.id)}
                                     className="p-2 text-red-500 hover:text-red-600 transition-colors"
