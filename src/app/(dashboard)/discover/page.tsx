@@ -5,7 +5,14 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { MapPin, ExternalLink, Search, Trash2, Plus, FolderOpen, Download, X, AlertTriangle } from 'lucide-react'
+import {
+    MapPin, ExternalLink, Search, Trash2, Plus, FolderOpen, Download, X, AlertTriangle,
+    Calendar, Users, ListChecks, ArrowUpDown, ArrowUp, ArrowDown, MoreVertical, Globe,
+} from 'lucide-react'
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { EngagementPill, EventLogo, PortfolioStatCard } from '@/components/events/portfolio-parts'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateOnly, formatMonthOnly } from '@/lib/date-only'
@@ -18,7 +25,7 @@ import {
 import { EventPulseDetailSheet } from '@/components/events/eventpulse-detail-sheet'
 import { FindEventsView } from '@/components/events/find-events-view'
 import { ReviewQueueView } from '@/components/events/review-queue-view'
-import { EVENT_PRIORITIES, EVENT_PRIORITY_BADGE, normalizeEventPriority } from '@/lib/events/priority'
+import { EVENT_PRIORITIES, EVENT_PRIORITY_PILL, normalizeEventPriority } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, EVENT_TYPES, normalizeEngagementType, normalizeEventType } from '@/lib/events/taxonomy'
 import { findEventDuplicateGroups } from '@/lib/events/duplicates'
 
@@ -70,6 +77,7 @@ interface DiscoverEvent {
     focus_area?: string | null
     target_audience?: string | null
     expected_attendees?: number | null
+    description?: string | null
     discovery_priority?: string | null
     engagement_type?: string | null
     source?: string | null
@@ -119,10 +127,19 @@ export default function EventPulsePage() {
     const [sourceFilter, setSourceFilter]   = useState('all')
     const [statusFilter, setStatusFilter]   = useState('all')
     const [typeFilter, setTypeFilter]       = useState('all')
+    const [followUpOnly, setFollowUpOnly]   = useState(false)
+    const [sort, setSort]                   = useState<{ key: 'name' | 'start_date'; dir: 1 | -1 }>({ key: 'start_date', dir: 1 })
     const [selectedEvent, setSelectedEvent] = useState<DiscoverEvent | null>(null)
     const [sheetOpen, setSheetOpen]         = useState(false)
     const [checkedIds, setCheckedIds]       = useState<Set<string>>(new Set())
     const [bulkLoading, setBulkLoading]     = useState(false)
+
+    function switchView(next: View) {
+        setView(next)
+        const url = new URL(window.location.href)
+        url.searchParams.set('view', next)
+        window.history.replaceState(null, '', url)
+    }
 
     async function deleteEventsByIds(ids: string[]) {
         const res = await fetch('/api/events/bulk-delete', {
@@ -298,7 +315,14 @@ export default function EventPulsePage() {
         setSourceFilter('all')
         setStatusFilter('all')
         setTypeFilter('all')
+        setFollowUpOnly(false)
     }
+
+    const today = new Date().toISOString().slice(0, 10)
+    // Events with at least one open task past its due date.
+    const followUpIds = useMemo(() => new Set(eventTasks
+        .filter((task: any) => task.status !== 'done' && task.status !== 'archived' && task.due_date && task.due_date.slice(0, 10) < today)
+        .map((task: any) => task.event_id as string)), [eventTasks, today])
 
     const months = useMemo(() => {
         if (!events) return []
@@ -318,6 +342,7 @@ export default function EventPulsePage() {
     const filtered = (() => {
         if (!events) return []
         return events.filter((e) => {
+            if (followUpOnly && !followUpIds.has(e.id)) return false
             if (priorityFilter !== 'all' && normalizeEventPriority(e.discovery_priority) !== priorityFilter) return false
             if (engagementFilter !== 'all' && normalizeEngagementType(e.engagement_type ?? e.discovery_priority) !== engagementFilter) return false
             if (sectorFilter !== 'all' && classifyEvent(e) !== sectorFilter) return false
@@ -332,15 +357,31 @@ export default function EventPulsePage() {
             }
             if (search) {
                 const q = search.toLowerCase()
-                return e.name?.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q)
+                return [e.name, e.location, e.focus_area, e.description, e.target_audience]
+                    .some(field => field?.toLowerCase().includes(q))
             }
             return true
+        }).sort((a, b) => {
+            const av = (sort.key === 'name' ? a.name : a.start_date) ?? ''
+            const bv = (sort.key === 'name' ? b.name : b.start_date) ?? ''
+            // Undated or unnamed events always sort last.
+            if (!av || !bv) return av ? -1 : bv ? 1 : 0
+            return av.localeCompare(bv) * sort.dir
         })
     })()
 
+    function toggleSort(key: 'name' | 'start_date') {
+        setSort(prev => ({ key, dir: prev.key === key ? (prev.dir === 1 ? -1 : 1) : 1 }))
+    }
+
+    function sortIcon(column: 'name' | 'start_date') {
+        if (sort.key !== column) return <ArrowUpDown className="h-3.5 w-3.5" />
+        return sort.dir === 1 ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+    }
+
     const highCount = events?.filter((e) => normalizeEventPriority(e.discovery_priority) === 'High').length ?? 0
     const aiCount = events?.filter((e) => e.source === 'ai_discovered').length ?? 0
-    const today = new Date().toISOString().slice(0, 10)
+    const sponsorCount = events?.filter((e) => normalizeEngagementType(e.engagement_type ?? e.discovery_priority) === 'Sponsor').length ?? 0
     const next30 = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
     const upcomingCount = events?.filter((e) => e.start_date && e.start_date >= today).length ?? 0
     const next30Events = (events ?? []).filter(e => e.start_date && e.start_date >= today && e.start_date <= next30).slice(0, 5)
@@ -358,11 +399,9 @@ export default function EventPulsePage() {
         })
         return alerts
     }, [duplicateGroups])
-    const openTaskCount = eventTasks.filter((task: any) => task.status !== 'completed').length
-    const overdueTaskCount = eventTasks.filter((task: any) => task.status !== 'completed' && task.due_date && task.due_date < today).length
     const selectedCount = checkedIds.size
     const visibleSelectedCount = filtered.filter(event => checkedIds.has(event.id)).length
-    const hasActiveFilters = search || priorityFilter !== 'all' || engagementFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all'
+    const hasActiveFilters = search || priorityFilter !== 'all' || engagementFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all' || followUpOnly
 
     return (
         <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
@@ -379,21 +418,47 @@ export default function EventPulsePage() {
                 </nav>
 
                 {/* Header */}
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white mb-1">{view === 'discover' ? 'Discover Events' : 'EventPulse'}</h1>
+                        <div className="flex flex-wrap items-center gap-3 mb-1">
+                            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white">{view === 'discover' ? 'Discover Events' : 'EventPulse'}</h1>
+                            {highCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => { switchView('portfolio'); clearFilters(); setPriority('High') }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full text-sm font-medium hover:bg-rose-200 dark:hover:bg-rose-900/50"
+                                >
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    {highCount} High Priority
+                                </button>
+                            )}
+                        </div>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                             Discover, review, and manage your event portfolio from one workspace.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="px-3 py-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full text-sm font-medium">
-                            {highCount} High Priority
-                        </span>
-                        <Link
-                            href="/events/new"
-                            className="workspace-action"
+                    <div className="flex flex-wrap items-center gap-3">
+                        {view === 'portfolio' && (
+                            <button
+                                onClick={exportFiltered}
+                                disabled={filtered.length === 0}
+                                className="workspace-secondary"
+                                title="Export the filtered events as CSV"
+                            >
+                                <Download className="h-4 w-4" />
+                                Export
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            aria-pressed={view === 'discover'}
+                            onClick={() => switchView('discover')}
+                            className={view === 'discover' ? 'workspace-action' : 'workspace-secondary'}
                         >
+                            <Search className="h-4 w-4" aria-hidden="true" />
+                            Discover
+                        </button>
+                        <Link href="/events/new" className="workspace-action">
                             <Plus className="h-4 w-4" />
                             Add Event
                         </Link>
@@ -401,12 +466,12 @@ export default function EventPulsePage() {
                 </div>
 
                 {/* Tab bar */}
-                <div className="flex flex-wrap items-center gap-y-2 border-b border-zinc-200 dark:border-zinc-700 mb-6 pb-2 sm:pb-0">
-                    <Link href="/dashboard" className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium text-muted-foreground sm:px-5">Overview</Link>
+                <div className="flex flex-wrap items-center gap-y-2 border-b border-zinc-200 dark:border-zinc-700 mb-6">
+                    <Link href="/dashboard" className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300 sm:px-5">Overview</Link>
                     {TAB_LABELS.filter(tab => tab.id !== 'discover').map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => { setView(tab.id); const url = new URL(window.location.href); url.searchParams.set('view', tab.id); window.history.replaceState(null, '', url) }}
+                            onClick={() => switchView(tab.id)}
                             className={`shrink-0 px-3 sm:px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                                 view === tab.id
                                     ? 'border-lime-400 text-zinc-900 dark:text-white'
@@ -414,17 +479,11 @@ export default function EventPulsePage() {
                             }`}
                         >
                             {tab.label}
+                            {tab.id === 'review' && pendingReviewCount > 0 && (
+                                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{pendingReviewCount}</span>
+                            )}
                         </button>
                     ))}
-                    <button
-                        type="button"
-                        aria-pressed={view === 'discover'}
-                        onClick={() => { setView('discover'); const url = new URL(window.location.href); url.searchParams.set('view', 'discover'); window.history.replaceState(null, '', url) }}
-                        className="workspace-action ml-auto sm:my-1"
-                    >
-                        <Search className="h-4 w-4" aria-hidden="true" />
-                        Discover
-                    </button>
                 </div>
 
                 {/* Discover view */}
@@ -544,6 +603,21 @@ export default function EventPulsePage() {
                 {/* Portfolio view */}
                 {view === 'portfolio' && <>
 
+                {/* Summary cards (click to filter) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <PortfolioStatCard icon={Calendar} tone="blue" label="All Events" value={events?.length ?? 0}
+                        hint={`${upcomingCount} upcoming`} active={!hasActiveFilters} onClick={clearFilters} />
+                    <PortfolioStatCard icon={AlertTriangle} tone="rose" label="High Priority" value={highCount}
+                        hint="Priority set to High" active={priorityFilter === 'High'}
+                        onClick={() => setPriority(priorityFilter === 'High' ? 'all' : 'High')} />
+                    <PortfolioStatCard icon={Users} tone="green" label="Sponsors" value={sponsorCount}
+                        hint="Engagement: Sponsor" active={engagementFilter === 'Sponsor'}
+                        onClick={() => setEngagement(engagementFilter === 'Sponsor' ? 'all' : 'Sponsor')} />
+                    <PortfolioStatCard icon={ListChecks} tone="violet" label="Follow-up Needed" value={followUpIds.size}
+                        hint="Events with overdue tasks" active={followUpOnly}
+                        onClick={() => setFollowUpOnly(v => !v)} />
+                </div>
+
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         {[
@@ -564,22 +638,14 @@ export default function EventPulsePage() {
                             </button>
                         ))}
                     </div>
-                    <button
-                        onClick={exportFiltered}
-                        disabled={filtered.length === 0}
-                        className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                    >
-                        <Download className="h-4 w-4" />
-                        Export Results
-                    </button>
                 </div>
 
                 {/* Filter bar */}
                 <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 mb-4 flex flex-wrap gap-2 items-center">
-                    <div className="relative flex-1 min-w-44">
+                    <div className="relative flex-1 min-w-60">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
-                            placeholder="Search events..."
+                            placeholder="Search events, locations, or keywords..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="h-9 pl-9 text-sm"
@@ -679,11 +745,19 @@ export default function EventPulsePage() {
                         <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={filtered.every(e => checkedIds.has(e.id))} onChange={() => toggleAll(filtered.map(e => e.id))} />Select all events</label>
                         {filtered.map(event => <article key={event.id} className="space-y-3 rounded-xl border border-border bg-card p-4">
                             <div className="flex items-start gap-3">
-                                <input type="checkbox" className="mt-1" aria-label={`Select ${event.name}`} checked={checkedIds.has(event.id)} onChange={() => toggleCheck(event.id)} />
-                                <button className="min-w-0 text-left font-semibold" onClick={() => { setSelectedEvent(event); setSheetOpen(true) }}>{event.name}</button>
+                                <input type="checkbox" className="mt-3" aria-label={`Select ${event.name}`} checked={checkedIds.has(event.id)} onChange={() => toggleCheck(event.id)} />
+                                <EventLogo name={event.name} url={event.website_url} />
+                                <button className="min-w-0 text-left" onClick={() => { setSelectedEvent(event); setSheetOpen(true) }}>
+                                    <span className="block font-semibold">{event.name}</span>
+                                    {(event.description || event.focus_area) && <span className="block truncate text-xs text-muted-foreground">{event.description || event.focus_area}</span>}
+                                </button>
                             </div>
                             <p className="text-xs text-muted-foreground">{event.start_date ? formatDateOnly(event.start_date) : 'Date unknown'} · {event.location || 'Location unknown'}</p>
-                            <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-md bg-muted px-2 py-1">{normalizeEventType(event.event_type)}</span><span className="rounded-md bg-muted px-2 py-1">{normalizeEngagementType(event.engagement_type)}</span></div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <span className={`rounded-full px-3 py-1 font-semibold ${EVENT_PRIORITY_PILL[normalizeEventPriority(event.discovery_priority)]}`}>{normalizeEventPriority(event.discovery_priority)}</span>
+                                <EngagementPill type={normalizeEngagementType(event.engagement_type ?? event.discovery_priority)} />
+                                <span className="rounded-md bg-muted px-2 py-1">{normalizeEventType(event.event_type)}</span>
+                            </div>
                             <Link className="workspace-secondary w-full" href={`/events/${event.id}`}>Open event</Link>
                         </article>)}
                     </>}
@@ -692,13 +766,13 @@ export default function EventPulsePage() {
                     <table className="w-full min-w-[1180px] table-fixed">
                         <colgroup>
                             <col className="w-12" />
-                            <col className="w-[25%]" />
+                            <col className="w-[28%]" />
                             <col className="w-[11%]" />
-                            <col className="w-[10%]" />
+                            <col className="w-[9%]" />
                             <col className="w-[11%]" />
                             <col className="w-[10%]" />
                             <col className="w-[20%]" />
-                            <col className="w-32" />
+                            <col className="w-28" />
                         </colgroup>
                         <thead>
                             <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
@@ -710,11 +784,19 @@ export default function EventPulsePage() {
                                         className="rounded border-zinc-300 accent-indigo-600 cursor-pointer"
                                     />
                                 </th>
-                                <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Event Name</th>
+                                <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium" aria-sort={sort.key === 'name' ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                                    <button type="button" onClick={() => toggleSort('name')} className="inline-flex items-center gap-1.5 whitespace-nowrap uppercase hover:text-zinc-900 dark:hover:text-white">
+                                        Event Name {sortIcon('name')}
+                                    </button>
+                                </th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Sector</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Priority</th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Engagement</th>
-                                <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Start Date</th>
+                                <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium" aria-sort={sort.key === 'start_date' ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+                                    <button type="button" onClick={() => toggleSort('start_date')} className="inline-flex items-center gap-1.5 whitespace-nowrap uppercase hover:text-zinc-900 dark:hover:text-white">
+                                        Start Date {sortIcon('start_date')}
+                                    </button>
+                                </th>
                                 <th className="text-left p-4 text-xs uppercase text-zinc-500 font-medium">Location / Audience</th>
                                 <th className="text-center p-4 text-xs uppercase text-zinc-500 font-medium">Action</th>
                             </tr>
@@ -761,6 +843,9 @@ export default function EventPulsePage() {
 
                                         {/* Event Name */}
                                         <td className="p-4 min-w-0">
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            <EventLogo name={event.name} url={event.website_url} />
+                                            <div className="min-w-0 flex-1">
                                             <button
                                                 type="button"
                                                 className="block w-full truncate text-left font-medium text-zinc-900 dark:text-white leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -768,7 +853,7 @@ export default function EventPulsePage() {
                                             >
                                                 {event.name}
                                             </button>
-                                            <div className="flex items-center gap-2 mt-1">
+                                            <div className="flex items-center gap-2 mt-1 min-w-0">
                                                 {duplicateAlert && (
                                                     <Link
                                                         href={`/events/${duplicateAlert.matchId}`}
@@ -780,17 +865,19 @@ export default function EventPulsePage() {
                                                         Duplicate
                                                     </Link>
                                                 )}
-                                                {event.focus_area && (
-                                                    <span className="text-xs text-zinc-400 truncate max-w-[220px]">
-                                                        {event.focus_area}
-                                                    </span>
-                                                )}
                                                 {event.source === 'ai_discovered' && (
-                                                    <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-600">
+                                                    <span className="shrink-0 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-600">
                                                         AI
                                                     </span>
                                                 )}
+                                                {(event.description || event.focus_area) && (
+                                                    <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate" title={event.description || event.focus_area || undefined}>
+                                                        {event.description || event.focus_area}
+                                                    </span>
+                                                )}
                                             </div>
+                                            </div>
+                                          </div>
                                         </td>
 
                                         {/* Sector */}
@@ -807,14 +894,17 @@ export default function EventPulsePage() {
                                                 onValueChange={(priority) => updatePriority({ id: event.id, priority })}
                                             >
                                                 <SelectTrigger
-                                                    className={`h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 ${EVENT_PRIORITY_BADGE[normalizeEventPriority(event.discovery_priority)]}`}
+                                                    aria-label="Change priority"
+                                                    className="h-auto w-auto gap-1 border-0 bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:hidden"
                                                 >
-                                                    <span>{normalizeEventPriority(event.discovery_priority)}</span>
+                                                    <span className={`!inline-block whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${EVENT_PRIORITY_PILL[normalizeEventPriority(event.discovery_priority)]}`}>
+                                                        {normalizeEventPriority(event.discovery_priority)}
+                                                    </span>
                                                 </SelectTrigger>
                                                 <SelectContent className="min-w-32">
                                                     {EVENT_PRIORITIES.map((priority) => (
                                                         <SelectItem key={priority} value={priority}>
-                                                            <span className={`text-xs font-semibold uppercase tracking-wide ${EVENT_PRIORITY_BADGE[priority]}`}>
+                                                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${EVENT_PRIORITY_PILL[priority]}`}>
                                                                 {priority}
                                                             </span>
                                                         </SelectItem>
@@ -829,12 +919,15 @@ export default function EventPulsePage() {
                                                 value={normalizeEngagementType(event.engagement_type ?? event.discovery_priority)}
                                                 onValueChange={(engagement) => updateEngagement({ id: event.id, engagement })}
                                             >
-                                                <SelectTrigger className="h-7 w-28 border-0 bg-transparent px-0 py-1 text-xs font-semibold text-zinc-600 shadow-none focus:ring-0 dark:text-zinc-300">
-                                                    <span>{normalizeEngagementType(event.engagement_type ?? event.discovery_priority)}</span>
+                                                <SelectTrigger
+                                                    aria-label="Change engagement"
+                                                    className="h-auto w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:hidden"
+                                                >
+                                                    <EngagementPill type={normalizeEngagementType(event.engagement_type ?? event.discovery_priority)} />
                                                 </SelectTrigger>
-                                                <SelectContent className="min-w-32">
+                                                <SelectContent className="min-w-36">
                                                     {ENGAGEMENT_TYPES.map((type) => (
-                                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                        <SelectItem key={type} value={type}><EngagementPill type={type} /></SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -849,18 +942,19 @@ export default function EventPulsePage() {
 
                                         {/* Location / Audience */}
                                         <td className="p-4">
-                                            <div className="flex items-center gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                                <MapPin className="h-3 w-3 flex-shrink-0 text-zinc-400" />
-                                                <span className="truncate max-w-[200px]">{event.location ?? '-'}</span>
+                                            <div className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300 min-w-0">
+                                                <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400" />
+                                                <span className="truncate">{event.location ?? '-'}</span>
                                             </div>
-                                            {event.expected_attendees && (
-                                                <div className="text-xs text-zinc-400 mt-0.5">
-                                                    Size: {event.expected_attendees.toLocaleString()}+
-                                                </div>
-                                            )}
-                                            {event.target_audience && (
-                                                <div className="text-xs text-zinc-400 truncate max-w-[200px]">
-                                                    Target: {event.target_audience}
+                                            {(event.expected_attendees || event.target_audience) && (
+                                                <div
+                                                    className="pl-5 text-xs text-zinc-400 truncate mt-0.5"
+                                                    title={event.target_audience ?? undefined}
+                                                >
+                                                    {[
+                                                        event.expected_attendees && `Size: ${event.expected_attendees.toLocaleString()}+`,
+                                                        event.target_audience && `Target: ${event.target_audience}`,
+                                                    ].filter(Boolean).join(' · ')}
                                                 </div>
                                             )}
                                         </td>
@@ -874,30 +968,36 @@ export default function EventPulsePage() {
                                                     title="Open event workspace"
                                                     aria-label={`Open ${event.name}`}
                                                 >
-                                                    <FolderOpen className="h-4 w-4" />
+                                                    <ExternalLink className="h-4 w-4" />
                                                 </Link>
-                                                {event.website_url && (
-                                                    <a
-                                                        href={event.website_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger
                                                         className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-white"
-                                                        title="Open event website"
-                                                        aria-label={`Open ${event.name} website`}
+                                                        aria-label={`More actions for ${event.name}`}
                                                     >
-                                                        <ExternalLink className="h-4 w-4" />
-                                                    </a>
-                                                )}
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm(`Delete "${event.name}"?`)) deleteEvent(event.id)
-                                                    }}
-                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-500 dark:hover:border-red-900 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                                                    title="Delete event"
-                                                    aria-label={`Delete ${event.name}`}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/events/${event.id}`}><FolderOpen className="h-4 w-4" /> Open workspace</Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => { setSelectedEvent(event); setSheetOpen(true) }}>
+                                                            <Search className="h-4 w-4" /> Quick view
+                                                        </DropdownMenuItem>
+                                                        {event.website_url && (
+                                                            <DropdownMenuItem asChild>
+                                                                <a href={event.website_url} target="_blank" rel="noopener noreferrer"><Globe className="h-4 w-4" /> Event website</a>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-600 dark:text-red-400"
+                                                            onSelect={() => { if (confirm(`Delete "${event.name}"?`)) deleteEvent(event.id) }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </td>
                                     </tr>
