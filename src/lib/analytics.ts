@@ -1,4 +1,5 @@
 // Analytics utility functions
+import { normalizeEventType } from '@/lib/events/taxonomy'
 
 export interface AnalyticsData {
     totalEvents: number
@@ -50,7 +51,8 @@ export function analyzeEventsByType(events: any[]): EventTypeDistribution {
     if (!events) return {}
 
     return events.reduce((acc, event) => {
-        const type = event.event_type || 'unknown'
+        // Stored types vary in case and spelling (conference, trade_show); count them under one label.
+        const type = event.event_type ? normalizeEventType(event.event_type) : 'Unknown'
         acc[type] = (acc[type] || 0) + 1
         return acc
     }, {} as EventTypeDistribution)

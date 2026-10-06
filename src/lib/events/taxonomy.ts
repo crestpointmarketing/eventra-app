@@ -39,6 +39,8 @@ export function normalizeEventType(value?: string | null): EventType {
     const normalized = (value ?? '').trim().toLowerCase()
     switch (normalized) {
         case 'trade show':
+        case 'trade_show':
+        case 'trade-show':
         case 'tradeshow':
             return 'Trade Show'
         case 'summit':
