@@ -31,6 +31,12 @@ export default function NewEventPage() {
         setError('')
 
         const formData = new FormData(e.currentTarget)
+        const start = formData.get('start_date') as string, end = formData.get('end_date') as string
+        if (start && end && end < start) {
+            setError('End date cannot be before the start date.')
+            setLoading(false)
+            return
+        }
 
         try {
             const data = await insertOwnedEvent(supabase, {

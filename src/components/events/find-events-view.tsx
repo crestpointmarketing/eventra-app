@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
     Search,
@@ -29,6 +30,7 @@ import {
 import { compareSearchPreferences } from '@/lib/events/search-advanced'
 import { normalized } from '@/lib/events/search-evaluation'
 import { SearchImportDialog } from '@/components/events/search-import-dialog'
+import { refreshEventData } from '@/lib/query-refresh'
 
 const control =
     'w-full min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm'
@@ -71,6 +73,7 @@ function sameEdition(result: SearchResult, event: PortfolioItem) {
     )
 }
 export function FindEventsView() {
+    const queryClient = useQueryClient()
     const [criteria, setCriteria] = useState<SearchCriteria>(initial)
     const [busy, setBusy] = useState(false)
     const [sort, setSort] = useState('matches')
@@ -223,6 +226,8 @@ export function FindEventsView() {
                     : 'Import failed; completed items are safe to retry',
             )
         } finally {
+            // Even a partial import changes the portfolio, tasks and review queue.
+            refreshEventData(queryClient)
             setImporting(false)
         }
     }

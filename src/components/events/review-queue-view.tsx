@@ -20,6 +20,7 @@ import { findEventDuplicate, type EventDuplicateMatch } from '@/lib/events/dupli
 import { buildDefaultEventTasks } from '@/lib/events/default-tasks'
 import { EVENT_PRIORITIES, normalizeEventPriority } from '@/lib/events/priority'
 import { ENGAGEMENT_TYPES, normalizeEngagementType, EVENT_TYPES, normalizeEventType } from '@/lib/events/taxonomy'
+import { refreshEventData } from '@/lib/query-refresh'
 
 const TYPE_BADGE: Record<string, string> = {
     'NEW':       'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
@@ -150,7 +151,7 @@ export function ReviewQueueView() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
             queryClient.invalidateQueries({ queryKey: ['discover-events'] })
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            refreshEventData(queryClient)
             toast.success('Event approval completed')
         },
         onError: (err: unknown) => {
@@ -193,6 +194,7 @@ export function ReviewQueueView() {
         onMutate: (item: ReviewQueueItem) => setActionId(item.id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-review-count'] })
             toast.success('Event rejected')
         },
         onError: (err: unknown) => {
@@ -219,7 +221,7 @@ export function ReviewQueueView() {
             setSelectedIds(new Set())
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
             queryClient.invalidateQueries({ queryKey: ['discover-events'] })
-            queryClient.invalidateQueries({ queryKey: ['eventpulse-events'] })
+            refreshEventData(queryClient)
             toast.success(`${items.length} events approved without tasks`)
         },
         onError: (err: unknown) => {
@@ -246,6 +248,7 @@ export function ReviewQueueView() {
         onSuccess: (_, items) => {
             setSelectedIds(new Set())
             queryClient.invalidateQueries({ queryKey: ['discovery-queue'] })
+            queryClient.invalidateQueries({ queryKey: ['eventpulse-review-count'] })
             toast.success(`${items.length} events rejected`)
         },
         onError: (err: unknown) => {
