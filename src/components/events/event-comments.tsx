@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import { useEventComments, useAddComment, useDeleteComment, useCurrentUserEmail } from '@/hooks/useEventComments'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
 
 function formatRelativeTime(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime()
@@ -37,6 +38,7 @@ function avatarColor(email: string) {
 export function EventComments({ eventId }: { eventId: string }) {
     const { data: comments, isLoading } = useEventComments(eventId)
     const { data: currentEmail } = useCurrentUserEmail()
+    const { data: isAdmin } = useIsAdmin()
     const { mutate: addComment, isPending: adding } = useAddComment(eventId)
     const { mutate: deleteComment } = useDeleteComment(eventId)
 
@@ -82,7 +84,7 @@ export function EventComments({ eventId }: { eventId: string }) {
                                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
                                         {formatRelativeTime(c.created_at)}
                                     </span>
-                                    {currentEmail === c.author_email && (
+                                    {(isAdmin || currentEmail === c.author_email) && (
                                         <button
                                             onClick={() => deleteComment(c.id)}
                                             className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 hover:text-red-500"
