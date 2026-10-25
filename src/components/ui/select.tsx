@@ -6,7 +6,19 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Select = SelectPrimitive.Root
+/**
+ * Radix emits onValueChange('') when the controlled value changes before its
+ * options are registered (e.g. a form reset after data loads). '' is never a
+ * valid item value in Radix, so drop it instead of wiping the loaded value.
+ */
+function Select({ onValueChange, ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      onValueChange={onValueChange && ((value: string) => { if (value !== '') onValueChange(value) })}
+    />
+  )
+}
 
 const SelectGroup = SelectPrimitive.Group
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useTask, useUpdateTask, useMarkTaskAsDone } from '@/hooks/useTasks'
+import { useTask, useUpdateTask, useMarkTaskAsDone, useDeleteTask } from '@/hooks/useTasks'
 import { useTaskChecklist, useCreateChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useTaskChecklist'
 import { useTaskCollaborators, useAddCollaborator, useRemoveCollaborator } from '@/hooks/useTaskCollaborators'
 import { useAssets, useUploadAsset, useDeleteAsset } from '@/hooks/useAssets'
@@ -49,6 +49,7 @@ export default function TaskDetailPage() {
 
     // Mutations
     const { mutate: updateTask } = useUpdateTask()
+    const { mutate: deleteTask, isPending: isDeletingTask } = useDeleteTask()
     const { mutate: markAsDone } = useMarkTaskAsDone()
     const { mutate: createChecklistItem } = useCreateChecklistItem()
     const { mutate: toggleChecklistItem } = useToggleChecklistItem()
@@ -238,10 +239,24 @@ export default function TaskDetailPage() {
                                 </Link>
                             </div>
                         </div>
-                        <Button onClick={() => markAsDone(taskId)} disabled={task.status === 'done'}>
-                            <Check className="w-4 h-4 mr-2" />
-                            {task.status === 'done' ? 'Completed' : 'Mark as Done'}
-                        </Button>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Button onClick={() => markAsDone(taskId)} disabled={task.status === 'done'}>
+                                <Check className="w-4 h-4 mr-2" />
+                                {task.status === 'done' ? 'Completed' : 'Mark as Done'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                                disabled={isDeletingTask}
+                                onClick={() => {
+                                    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return
+                                    deleteTask(taskId, { onSuccess: () => router.push(task.event_id ? `/events/${task.event_id}?view=tasks` : '/tasks') })
+                                }}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

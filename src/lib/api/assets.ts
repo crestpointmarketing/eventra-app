@@ -214,7 +214,9 @@ export async function uploadFile(file: File, userId: string) {
 
     const { data, error } = await getSupabase().storage
         .from('event-assets')
-        .upload(filePath, file, {
+        // Re-wrap the file: for File/Blob bodies the client sends the blob's own type and
+        // ignores contentType, so a CSV reported as application/vnd.ms-excel would be rejected.
+        .upload(filePath, new File([file], file.name, { type: contentType }), {
             cacheControl: '3600',
             contentType,
             upsert: false

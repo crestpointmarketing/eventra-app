@@ -482,7 +482,7 @@ export default function TasksPage() {
                                                 <div className="flex justify-center">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" aria-label="More actions">
                                                                 <MoreHorizontal className="w-4 h-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>

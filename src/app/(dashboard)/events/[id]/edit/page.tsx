@@ -103,7 +103,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         const changed: Record<string, unknown> = {}
         for (const key of Object.keys(dirtyFields) as (keyof UpdateEventInput)[]) {
             const value = data[key]
-            changed[key] = value === '' && ['start_date', 'end_date', 'url'].includes(key) ? null : value
+            // Constrained choice columns never accept ''; leave them unchanged instead.
+            if (value === '' && ['event_type', 'discovery_priority', 'engagement_type', 'status', 'owner_id'].includes(key)) continue
+            changed[key] =value === '' && ['start_date', 'end_date', 'url'].includes(key) ? null : value
         }
         // Both columns hold the event website; views read website_url first.
         if ('url' in changed) changed.website_url = changed.url
@@ -135,6 +137,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         }
     }
 
+    // Note: Select handlers ignore '' — Radix emits it while options mount, which would
+    // otherwise wipe the loaded value and mark the field dirty.
     const selectedStatus = watch('status')
     const canEditActuals = selectedStatus === 'completed' || selectedStatus === 'live'
 
@@ -210,7 +214,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                             <Label htmlFor="event_type" className="required">Event Type</Label>
                             <Select
                                 value={watch('event_type')}
-                                onValueChange={(value) => setValue('event_type', value, { shouldDirty: true })}
+                                onValueChange={(value) => value && setValue('event_type', value, { shouldDirty: true })}
                             >
                                 <SelectTrigger className="mt-2">
                                     <SelectValue placeholder="Select type" />
@@ -231,7 +235,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                             <div className="mt-2">
                                 <UserSelect
                                     value={watch('owner_id')}
-                                    onValueChange={(value) => setValue('owner_id', value, { shouldDirty: true })}
+                                    onValueChange={(value) => value && setValue('owner_id', value, { shouldDirty: true })}
                                 />
                             </div>
                         </div>
@@ -241,7 +245,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                 <Label htmlFor="discovery_priority">Priority</Label>
                                 <Select
                                     value={watch('discovery_priority')}
-                                    onValueChange={(value) => setValue('discovery_priority', value, { shouldDirty: true })}
+                                    onValueChange={(value) => value && setValue('discovery_priority', value, { shouldDirty: true })}
                                 >
                                     <SelectTrigger className="mt-2">
                                         <SelectValue placeholder="Select priority" />
@@ -257,7 +261,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                 <Label htmlFor="engagement_type">Engagement Type</Label>
                                 <Select
                                     value={watch('engagement_type')}
-                                    onValueChange={(value) => setValue('engagement_type', value, { shouldDirty: true })}
+                                    onValueChange={(value) => value && setValue('engagement_type', value, { shouldDirty: true })}
                                 >
                                     <SelectTrigger className="mt-2">
                                         <SelectValue placeholder="Select engagement" />
@@ -276,7 +280,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                             <Label htmlFor="status">Status</Label>
                             <Select
                                 value={watch('status')}
-                                onValueChange={(value) => setValue('status', value, { shouldDirty: true })}
+                                onValueChange={(value) => value && setValue('status', value, { shouldDirty: true })}
                             >
                                 <SelectTrigger className="mt-2">
                                     <SelectValue placeholder="Select status" />
