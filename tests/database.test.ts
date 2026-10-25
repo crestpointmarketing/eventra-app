@@ -197,3 +197,24 @@ test('template soft deletion hides rows, is idempotent and rejects other members
         await assert.rejects(db.query('SELECT public.soft_delete_email_template($1)', [template.id]), /Only the template owner/)
     } finally { await db.close() }
 })
+
+test('saved search results are private to the member who saved them', async () => {
+    const db = await database()
+    try {
+        await asUser(db, owner)
+        const job = (await db.query<{ id: string }>('SELECT public.create_event_search($1,$2) AS id', [{ mode: 'discover' }, 'test'])).rows[0].id
+        await db.query('INSERT INTO public.saved_search_results(job_id,result_id,result) VALUES($1,$2,$3)', [job, 'r1', { id: 'r1', name: 'Saved event' }])
+        await assert.rejects(db.query('INSERT INTO public.saved_search_results(job_id,result_id,result) VALUES($1,$2,$3)', [job, 'r1', { id: 'r1' }]), /duplicate key/)
+        await assert.rejects(db.query('INSERT INTO public.saved_search_results(job_id,result_id,result,user_id) VALUES($1,$2,$3,$4)', [job, 'r2', { id: 'r2' }, colleague]), /row-level security/)
+        await asUser(db, colleague)
+        assert.equal((await db.query('SELECT * FROM public.saved_search_results')).rows.length, 0)
+        await assert.rejects(db.query('INSERT INTO public.saved_search_results(job_id,result_id,result) VALUES($1,$2,$3)', [job, 'r3', { id: 'r3' }]), /row-level security/)
+        await db.query('DELETE FROM public.saved_search_results')
+        await asUser(db, outsider)
+        assert.equal((await db.query('SELECT * FROM public.saved_search_results')).rows.length, 0)
+        await asUser(db, owner)
+        assert.equal((await db.query('SELECT * FROM public.saved_search_results')).rows.length, 1)
+        await db.query('DELETE FROM public.saved_search_results WHERE result_id=$1', ['r1'])
+        assert.equal((await db.query('SELECT * FROM public.saved_search_results')).rows.length, 0)
+    } finally { await db.close() }
+})
