@@ -19,6 +19,7 @@ import {
 } from '@/hooks/useEmailTemplates'
 import type { EmailTemplate } from '@/types/email-templates'
 import { useUser } from '@/hooks/useUser'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
 
 interface EmailTemplateCardProps {
     template: EmailTemplate
@@ -31,8 +32,9 @@ export function EmailTemplateCard({ template, onViewDetails, onEdit }: EmailTemp
     const deleteMutation = useDeleteEmailTemplate()
     const updateStatusMutation = useUpdateTemplateStatus()
     const { data: user } = useUser()
-    // Only the creator may change a personal template; system templates can be duplicated by anyone.
-    const isOwner = !template.is_system && !!user && template.created_by === user.id
+    const { data: isAdmin } = useIsAdmin()
+    // Only the creator or an administrator may change a template; system templates can be duplicated by anyone.
+    const isOwner = !!isAdmin || (!template.is_system && !!user && template.created_by === user.id)
     const canDuplicate = template.is_system || isOwner
 
     const handleViewDetails = () => {

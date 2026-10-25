@@ -218,3 +218,30 @@ test('saved search results are private to the member who saved them', async () =
         assert.equal((await db.query('SELECT * FROM public.saved_search_results')).rows.length, 0)
     } finally { await db.close() }
 })
+
+test('administrators can change and delete any record; members cannot grant themselves the role', async () => {
+    const db = await database()
+    try {
+        await asUser(db, colleague)
+        await assert.rejects(db.query("UPDATE public.eventra_members SET role='admin' WHERE user_id=$1", [colleague]), /permission denied/)
+        await assert.rejects(db.query<any>('SELECT public.delete_events_atomic($1::uuid[])', [[event]]), /Only owners/)
+        await asUser(db, owner)
+        await db.exec(`RESET ROLE; INSERT INTO public.event_comments(event_id,author_email,body) VALUES('${event}','owner@example.test','Owner note')`)
+        await asUser(db, owner)
+        const template = (await db.query<{ id: string; version: number }>('SELECT * FROM public.save_email_template($1::jsonb)', [JSON.stringify({ name: 'Owner template', category: 'follow_up', goal: 'book_meeting' })])).rows[0]
+        assert.equal((await db.query('DELETE FROM public.leads WHERE id=$1 RETURNING id', [lead])).rows.length, 0)
+        await db.exec(`RESET ROLE; UPDATE public.eventra_members SET role='admin' WHERE user_id='${colleague}'`)
+        await asUser(db, colleague)
+        assert.equal((await db.query<{ admin: boolean }>('SELECT public.is_eventra_admin() AS admin')).rows[0].admin, true)
+        const edited = (await db.query<{ name: string }>('SELECT * FROM public.save_email_template($1::jsonb)', [JSON.stringify({ id: template.id, expected_version: template.version, name: 'Edited by admin' })])).rows[0]
+        assert.equal(edited.name, 'Edited by admin')
+        assert.equal((await db.query<{ ok: boolean }>('SELECT public.soft_delete_email_template($1) AS ok', [template.id])).rows[0].ok, true)
+        assert.equal((await db.query('DELETE FROM public.event_comments RETURNING id')).rows.length, 1)
+        await db.query("UPDATE public.events SET owner_id=$1 WHERE id=$2", [colleague, event])
+        await db.query("UPDATE public.events SET owner_id=$1 WHERE id=$2", [owner, event])
+        assert.equal((await db.query<{ n: number }>('SELECT public.delete_events_atomic($1::uuid[]) AS n', [[event]])).rows[0].n, 1)
+        assert.equal((await db.query('SELECT * FROM public.tasks')).rows.length, 0)
+        await asUser(db, outsider)
+        assert.equal((await db.query<{ admin: boolean }>('SELECT public.is_eventra_admin() AS admin')).rows[0].admin, false)
+    } finally { await db.close() }
+})

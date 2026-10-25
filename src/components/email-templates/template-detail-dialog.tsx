@@ -16,6 +16,7 @@ import { useEmailTemplate, useDuplicateEmailTemplate, useDeleteEmailTemplate } f
 import { EmailPreview } from './email-preview'
 import type { EmailTemplateWithDetails } from '@/types/email-templates'
 import { useUser } from '@/hooks/useUser'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
 
 interface TemplateDetailDialogProps {
     templateId: string | null
@@ -33,6 +34,7 @@ export function TemplateDetailDialog({
     const { data: template, isLoading } = useEmailTemplate(templateId || undefined)
     const duplicateMutation = useDuplicateEmailTemplate()
     const { data: user } = useUser()
+    const { data: isAdmin } = useIsAdmin()
     const deleteMutation = useDeleteEmailTemplate()
     const [activeTab, setActiveTab] = useState<'details' | 'preview'>('preview')
 
@@ -151,7 +153,7 @@ export function TemplateDetailDialog({
                                             Duplicate
                                         </Button>
                                     )}
-                                    {!template.is_system && !!user && template.created_by === user.id && (
+                                    {(isAdmin || (!template.is_system && !!user && template.created_by === user.id)) && (
                                         <>
                                             <Button
                                                 variant="outline"
