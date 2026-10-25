@@ -87,6 +87,20 @@ export const ADVANCED_SEARCH_FIELDS = [
     'registration_deadline',
     'participation_options',
 ] as const
+/** Published edition statistics shown on result cards. Optional detail, never a match condition. */
+export const PROFILE_FIELDS = [
+    'country_count',
+    'speaker_count',
+    'exhibitor_count',
+] as const
+export const SEARCH_REGIONS = [
+    'North America',
+    'Latin America',
+    'Europe',
+    'Middle East & Africa',
+    'Asia Pacific',
+] as const
+export type SearchRegion = (typeof SEARCH_REGIONS)[number]
 export const searchCriteriaSchema = z
     .object({
         mode: z.enum(['discover', 'specific']),
@@ -103,6 +117,7 @@ export const searchCriteriaSchema = z
         startDate: date.nullable().default(null),
         endDate: date.nullable().default(null),
         country: z.string().trim().max(120).default(''),
+        regions: z.array(z.enum(SEARCH_REGIONS)).max(5).default([]),
         state: z.string().trim().max(120).default(''),
         city: z.string().trim().max(120).default(''),
         attendance: z
@@ -141,7 +156,12 @@ export const SEARCH_FIELDS = [
     'series',
     'edition',
     ...ADVANCED_SEARCH_FIELDS,
+    ...PROFILE_FIELDS,
 ] as const
+/** Fields that decide whether a result counts as fully verified. */
+export const CORE_SEARCH_FIELDS = SEARCH_FIELDS.filter(
+    (field) => !(PROFILE_FIELDS as readonly string[]).includes(field),
+)
 export type SearchField = (typeof SEARCH_FIELDS)[number]
 export type SourceKind =
     | 'official_edition'
@@ -180,6 +200,8 @@ export interface SearchCandidate {
     id: string
     name: string
     website_url: string | null
+    /** Preview image published by the verified event page (og:image), if any. */
+    image_url?: string | null
     fields: Partial<Record<SearchField, FieldEvidence[]>>
     sources: SearchSource[]
     warnings: string[]
@@ -247,7 +269,7 @@ export function hydrateSearchJob(job: SearchJob): SearchJob {
                     },
                 ]),
             ) as Record<SearchField, ResolvedField>
-            const unknownCount = SEARCH_FIELDS.filter(
+            const unknownCount = CORE_SEARCH_FIELDS.filter(
                 (field) => resolved[field].status !== 'verified',
             ).length
             return {
@@ -257,7 +279,7 @@ export function hydrateSearchJob(job: SearchJob): SearchJob {
                 evidenceStatus:
                     unknownCount === 0
                         ? 'Verified'
-                        : SEARCH_FIELDS.some(
+                        : CORE_SEARCH_FIELDS.some(
                                 (field) =>
                                     resolved[field].status === 'verified',
                             )

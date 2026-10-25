@@ -538,3 +538,39 @@ test('legacy history recomputes evidence summaries when new fields are unknown',
     assert.equal(hydrated.criteria.advanced.ticketMax, null)
     assert.equal(legacy.results[0].evidenceStatus, 'Verified')
 })
+test('region filters match mapped countries and stay unknown when the country is unconfirmed', () => {
+    const region = (c: SearchCandidate, regions: string[]) =>
+        evaluateCandidate(c, criteria({ regions }), '2026-09-06').criteria.find(
+            (check) => check.key === 'regions',
+        )?.status
+    assert.equal(region(candidate(), ['North America']), 'matched')
+    assert.equal(region(candidate({ country: 'USA' }), ['Europe', 'North America']), 'matched')
+    assert.equal(region(candidate({ country: 'Germany' }), ['North America']), 'failed')
+    assert.equal(region(candidate({ country: 'Atlantis' }), ['Europe']), 'unknown')
+    const unconfirmed = candidate()
+    unconfirmed.fields.country![0].status = 'unverified'
+    assert.equal(region(unconfirmed, ['North America']), 'unknown')
+    assert.equal(region(candidate({ attendance: 'online' }), ['Europe']), undefined)
+    assert.equal(region(candidate(), []), undefined)
+})
+test('edition statistics need published counts and never decide the result category', async () => {
+    const { valueSupported, previewImage } = await import('../src/lib/events/search-research')
+    assert.equal(valueSupported('speaker_count', '300', '300+ speakers'), true)
+    assert.equal(valueSupported('country_count', '50', 'Visitors from 50 countries'), true)
+    assert.equal(valueSupported('exhibitor_count', '4500', '4,500 exhibitors'), true)
+    assert.equal(valueSupported('speaker_count', '300', '300 attendees'), false)
+    const conflict = candidate()
+    conflict.fields.speaker_count = [
+        { value: '250', quote: '250 speakers', sourceUrl: url, checkedAt: now, status: 'verified' },
+        { value: '350', quote: '350 speakers', sourceUrl: url, checkedAt: now, status: 'verified' },
+    ]
+    const result = evaluateCandidate(conflict, criteria(), '2026-09-06')
+    assert.equal(result.resolved.speaker_count.status, 'conflict')
+    assert.equal(result.category, 'strict')
+    assert.equal(
+        previewImage('<meta property="og:image" content="/img/hero.jpg?a=1&amp;b=2">', 'https://example.test/2026/'),
+        'https://example.test/img/hero.jpg?a=1&b=2',
+    )
+    assert.equal(previewImage('<meta name="twitter:image" content="javascript:alert(1)">', url), null)
+    assert.equal(previewImage('<title>No image</title>', url), null)
+})

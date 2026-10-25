@@ -1,6 +1,9 @@
 import { advancedChecks } from './search-advanced'
 import { advancedSearchSchema, ADVANCED_SEARCH_FIELDS } from './search-contract'
+import { regionOf } from './regions'
 import {
+    CORE_SEARCH_FIELDS,
+    PROFILE_FIELDS,
     SEARCH_FIELDS,
     SOURCE_PRIORITY,
     type SearchCandidate,
@@ -207,6 +210,27 @@ export function evaluateCandidate(
         `Country: ${criteria.country}`,
         countryName,
     )
+    if (
+        criteria.regions.length &&
+        !(
+            resolved.attendance.status === 'verified' &&
+            resolved.attendance.value === 'online'
+        )
+    ) {
+        const region =
+            resolved.country.status === 'verified'
+                ? regionOf(countryName(resolved.country.value ?? ''))
+                : null
+        add(
+            'regions',
+            `Region: ${criteria.regions.join(' or ')}`,
+            !region
+                ? 'unknown'
+                : criteria.regions.includes(region)
+                  ? 'matched'
+                  : 'failed',
+        )
+    }
     compare('state', criteria.state, `State / province: ${criteria.state}`)
     compare('city', criteria.city, `City: ${criteria.city}`)
     if (criteria.attendance !== 'any')
@@ -333,8 +357,8 @@ export function evaluateCandidate(
         : hardChecks.some((c) => c.status === 'unknown') ||
             SEARCH_FIELDS.some(
                 (f) =>
-                    !(ADVANCED_SEARCH_FIELDS as readonly string[]).includes(
-                        f,
+                    ![...ADVANCED_SEARCH_FIELDS, ...PROFILE_FIELDS].includes(
+                        f as never,
                     ) &&
                     f !== 'organizer' &&
                     f !== 'audience' &&
@@ -373,14 +397,14 @@ export function evaluateCandidate(
         criteria: checks,
         seriesKey,
         editionKey,
-        evidenceStatus: SEARCH_FIELDS.every(
+        evidenceStatus: CORE_SEARCH_FIELDS.every(
             (field) => resolved[field].status === 'verified',
         )
             ? 'Verified'
-            : SEARCH_FIELDS.some((f) => resolved[f].status === 'verified')
+            : CORE_SEARCH_FIELDS.some((f) => resolved[f].status === 'verified')
               ? 'Partial'
               : 'Unverified',
-        unknownCount: SEARCH_FIELDS.filter(
+        unknownCount: CORE_SEARCH_FIELDS.filter(
             (f) => resolved[f].status !== 'verified',
         ).length,
     }

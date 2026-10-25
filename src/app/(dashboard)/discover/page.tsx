@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -120,9 +121,14 @@ const EVENT_STATUS_OPTIONS = [
 ]
 
 export default function EventPulsePage() {
+    return <Suspense fallback={null}><EventPulseContent /></Suspense>
+}
+
+function EventPulseContent() {
     const queryClient = useQueryClient()
-    const [view, setView]                   = useState<View>('portfolio')
-    useEffect(() => { const requested = new URLSearchParams(window.location.search).get('view'); if (TAB_LABELS.some(tab => tab.id === requested)) setView(requested as View) }, [])
+    // The view lives in the URL so the sidebar links and history replaceState stay in sync.
+    const requestedView = useSearchParams().get('view')
+    const view: View = TAB_LABELS.some(tab => tab.id === requestedView) ? requestedView as View : 'portfolio'
     const [search, setSearch]               = useState('')
     const [priorityFilter, setPriority]     = useState('all')
     const [engagementFilter, setEngagement] = useState('all')
@@ -139,7 +145,6 @@ export default function EventPulsePage() {
     const [bulkLoading, setBulkLoading]     = useState(false)
 
     function switchView(next: View) {
-        setView(next)
         const url = new URL(window.location.href)
         url.searchParams.set('view', next)
         window.history.replaceState(null, '', url)
@@ -406,8 +411,9 @@ export default function EventPulsePage() {
     const hasActiveFilters = search || priorityFilter !== 'all' || engagementFilter !== 'all' || sectorFilter !== 'all' || monthFilter !== 'all' || sourceFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all' || followUpOnly
 
     return (
-        <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
+        <div className="min-h-screen bg-background px-4 py-6 sm:px-6">
             <div className="max-w-[1600px] mx-auto">
+                {view !== 'discover' && <>
                 {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-xs text-zinc-500 uppercase mb-6">
                     <span>Workspace</span>
@@ -423,7 +429,7 @@ export default function EventPulsePage() {
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                     <div>
                         <div className="flex flex-wrap items-center gap-3 mb-1">
-                            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white">{view === 'discover' ? 'Discover Events' : 'EventPulse'}</h1>
+                            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white">{view === 'review' ? 'Review queue' : 'My Events'}</h1>
                             {highCount > 0 && (
                                 <button
                                     type="button"
@@ -453,9 +459,8 @@ export default function EventPulsePage() {
                         )}
                         <button
                             type="button"
-                            aria-pressed={view === 'discover'}
                             onClick={() => switchView('discover')}
-                            className={view === 'discover' ? 'workspace-action' : 'workspace-secondary'}
+                            className="workspace-secondary"
                         >
                             <Search className="h-4 w-4" aria-hidden="true" />
                             Discover
@@ -487,6 +492,8 @@ export default function EventPulsePage() {
                         </button>
                     ))}
                 </div>
+
+                </>}
 
                 {/* Discover view */}
                 {view === 'discover' && <FindEventsView />}

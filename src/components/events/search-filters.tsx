@@ -12,6 +12,8 @@ import {
     ChevronDown,
     X,
     Plus,
+    Monitor,
+    Search,
 } from 'lucide-react'
 import {
     Sheet,
@@ -25,6 +27,7 @@ import { EVENT_TYPES } from '@/lib/events/taxonomy'
 import {
     advancedSearchSchema,
     searchCriteriaSchema,
+    SEARCH_REGIONS,
     type SearchCriteria,
 } from '@/lib/events/search-contract'
 import {
@@ -196,6 +199,48 @@ export function TopicPicker({
     )
 }
 
+/** Checkbox list that shows the first few options until expanded. */
+function CheckList({
+    label,
+    options,
+    values,
+    onChange,
+    visible = 5,
+}: {
+    label: string
+    options: readonly string[]
+    values: string[]
+    onChange: (values: string[]) => void
+    visible?: number
+}) {
+    const [more, setMore] = useState(false)
+    const shown = more ? options : options.slice(0, visible)
+    return (
+        <fieldset className="space-y-2">
+            <legend className="sr-only">{label}</legend>
+            {shown.map((value) => (
+                <label key={value} className="flex items-center gap-2.5 text-sm">
+                    <input
+                        type="checkbox"
+                        className="size-4 accent-indigo-600"
+                        checked={values.includes(value)}
+                        onChange={(e) =>
+                            onChange(e.target.checked ? [...values, value] : values.filter((v) => v !== value))
+                        }
+                    />
+                    {value}
+                </label>
+            ))}
+            {options.length > visible && (
+                <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-300" onClick={() => setMore(!more)}>
+                    {more ? 'Show less' : 'Show more'}
+                    <ChevronDown size={12} className={more ? 'rotate-180' : ''} />
+                </button>
+            )}
+        </fieldset>
+    )
+}
+
 function dateValue(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -212,15 +257,25 @@ export function SearchFilters({
     onChange,
     onSearch,
     disabled,
+    advancedRequest = 0,
 }: {
     criteria: SearchCriteria
     onChange: (criteria: SearchCriteria) => void
     onSearch: () => void
     disabled: boolean
+    /** Incremented by the caller to open the advanced filters (the "Add filter" action). */
+    advancedRequest?: number
 }) {
     const [advancedError, setAdvancedError] = useState('')
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const [draft, setDraft] = useState(criteria)
+    const [seenRequest, setSeenRequest] = useState(advancedRequest)
+    if (advancedRequest !== seenRequest) {
+        setSeenRequest(advancedRequest)
+        setDraft({ ...criteria })
+        setAdvancedError('')
+        setAdvancedOpen(true)
+    }
     const advancedKeys = [
         'organizer',
         'audience',
@@ -297,6 +352,7 @@ export function SearchFilters({
                             startDate: null,
                             endDate: null,
                             country: '',
+                            regions: [],
                             state: '',
                             city: '',
                             organizer: '',
@@ -390,6 +446,12 @@ export function SearchFilters({
                     ) : null}
                 </Section>
                 <Section title="Location" icon={<MapPin size={17} />}>
+                    <CheckList
+                        label="Regions"
+                        options={SEARCH_REGIONS}
+                        values={criteria.regions}
+                        onChange={(v) => set('regions', v as SearchCriteria['regions'])}
+                    />
                     <input
                         aria-label="Country"
                         list="search-country-options"
@@ -434,28 +496,36 @@ export function SearchFilters({
                     />
                 </Section>
                 <Section title="Event type" icon={<Tags size={17} />}>
-                    <select
-                        aria-label="Attendance"
-                        className={input}
-                        value={criteria.attendance}
-                        onChange={(e) =>
-                            set(
-                                'attendance',
-                                e.target.value as SearchCriteria['attendance'],
-                            )
-                        }
-                    >
-                        <option value="any">Any attendance format</option>
-                        <option value="in_person">In person</option>
-                        <option value="online">Online</option>
-                        <option value="hybrid">Hybrid</option>
-                    </select>
-                    <TopicPicker
+                    <CheckList
                         label="Event type"
-                        values={criteria.eventTypes}
                         options={EVENT_TYPES}
+                        values={criteria.eventTypes}
                         onChange={(v) => set('eventTypes', v)}
                     />
+                </Section>
+                <Section title="Format" icon={<Monitor size={17} />}>
+                    <fieldset className="space-y-2">
+                        <legend className="sr-only">Format</legend>
+                        {(
+                            [
+                                ['any', 'Any format'],
+                                ['in_person', 'In-person'],
+                                ['online', 'Virtual'],
+                                ['hybrid', 'Hybrid'],
+                            ] as const
+                        ).map(([value, title]) => (
+                            <label key={value} className="flex items-center gap-2.5 text-sm">
+                                <input
+                                    type="radio"
+                                    name="search-format"
+                                    className="size-4 accent-indigo-600"
+                                    checked={criteria.attendance === value}
+                                    onChange={() => set('attendance', value)}
+                                />
+                                {title}
+                            </label>
+                        ))}
+                    </fieldset>
                 </Section>
                 <Section title="Audience" icon={<Users size={17} />}>
                     <input
@@ -465,6 +535,18 @@ export function SearchFilters({
                         value={criteria.audience}
                         onChange={(e) => set('audience', e.target.value)}
                     />
+                </Section>
+                <Section title="Organizer" icon={<Building2 size={17} />}>
+                    <label className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 dark:border-zinc-700">
+                        <Search size={15} className="shrink-0 text-zinc-500" aria-hidden="true" />
+                        <input
+                            aria-label="Organizer"
+                            className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+                            placeholder="Search organizers"
+                            value={criteria.organizer}
+                            onChange={(e) => set('organizer', e.target.value)}
+                        />
+                    </label>
                 </Section>
                 <Sheet
                     open={advancedOpen}
