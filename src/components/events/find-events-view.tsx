@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { Bookmark, Loader2, Plus, RefreshCw, Search, Sparkles, X } from 'lucide-react'
@@ -26,6 +26,7 @@ import {
     type SavedSearchResult,
 } from '@/lib/api/saved-search'
 import { DiscoverResultCard } from './discover-result-card'
+import { SearchResultDetails } from './search-result-details'
 import { SpecificEventSearch, rankEditions } from './specific-event-search'
 import { relativeTime, SearchStepper, type StepState } from './search-ui'
 
@@ -124,6 +125,8 @@ export function FindEventsView() {
     const [saved, setSaved] = useState<SavedSearchResult[]>([])
     const [savingIds, setSavingIds] = useState<string[]>([])
     const [advancedRequest, setAdvancedRequest] = useState(0)
+    const [viewing, setViewing] = useState<{ result: SearchResult; jobId: string } | null>(null)
+    const listScroll = useRef(0)
 
     const modeJobs = (m: Mode) => jobs.filter((j) => j.criteria.mode === m)
     const jobFor = (m: Mode) => {
@@ -184,6 +187,17 @@ export function FindEventsView() {
         setDetails(result)
         setDetailsJobId(jobId ?? null)
         setPanelClosed(false)
+    }
+    // The details page replaces the list in place, so filters and results keep their state.
+    function openView(result: SearchResult, jobId: string) {
+        listScroll.current = window.scrollY
+        setViewing({ result, jobId })
+        openDetails(result, jobId)
+        window.scrollTo(0, 0)
+    }
+    function closeView() {
+        setViewing(null)
+        requestAnimationFrame(() => window.scrollTo(0, listScroll.current))
     }
     function closeDetails() {
         setDetails(null)
@@ -420,6 +434,7 @@ export function FindEventsView() {
                     type="button"
                     onClick={() => {
                         setMode(m)
+                        setViewing(null)
                         setDetails(null)
                         setPanelClosed(false)
                     }}
@@ -464,7 +479,20 @@ export function FindEventsView() {
                         }}
                     />
                 ) : (
-                    <div className="grid items-start gap-6 lg:grid-cols-[228px_minmax(0,1fr)]">
+                    <>
+                    {viewing && (
+                        <SearchResultDetails
+                            key={`${viewing.jobId}:${viewing.result.id}`}
+                            result={viewing.result}
+                            onBack={closeView}
+                            onEvidence={() => openDetails(viewing.result, viewing.jobId)}
+                            onImport={viewing.result.category !== 'excluded' && finishedJob(viewing.jobId) ? () => prepareImport(viewing.jobId, [viewing.result]) : undefined}
+                            imported={imported.includes(viewing.result.id)}
+                            saved={savedKeys.has(savedKey(viewing.jobId, viewing.result.id))}
+                            onToggleSave={() => toggleSave(viewing.jobId, viewing.result)}
+                        />
+                    )}
+                    <div className={`grid items-start gap-6 lg:grid-cols-[228px_minmax(0,1fr)] ${viewing ? 'hidden' : ''}`}>
                         <SearchFilters
                             criteria={criteria}
                             onChange={setCriteria}
@@ -668,6 +696,7 @@ export function FindEventsView() {
                                                 saving={savingIds.includes(key)}
                                                 onToggleSave={() => toggleSave(jobId, result)}
                                                 onOpen={() => openDetails(result, jobId)}
+                                                onView={() => openView(result, jobId)}
                                                 onImport={result.category !== 'excluded' && finishedJob(jobId) ? () => prepareImport(jobId, [result]) : undefined}
                                                 imported={imported.includes(result.id)}
                                                 existing={existing}
@@ -725,6 +754,7 @@ export function FindEventsView() {
                             )}
                         </main>
                     </div>
+                    </>
                 )}
             </div>
             {panelOpen && details && (
