@@ -245,3 +245,14 @@ test('administrators can change and delete any record; members cannot grant them
         assert.equal((await db.query<{ admin: boolean }>('SELECT public.is_eventra_admin() AS admin')).rows[0].admin, false)
     } finally { await db.close() }
 })
+
+test('the legacy follow_up_records table is closed to the public and to members', async () => {
+    const db = await database()
+    try {
+        await db.exec('SET ROLE anon')
+        await assert.rejects(db.query('SELECT * FROM public.follow_up_records'), /permission denied/)
+        await assert.rejects(db.query('DELETE FROM public.follow_up_records'), /permission denied/)
+        await asUser(db, owner)
+        await assert.rejects(db.query('SELECT * FROM public.follow_up_records'), /permission denied/)
+    } finally { await db.close() }
+})
