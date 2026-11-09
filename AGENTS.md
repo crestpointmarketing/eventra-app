@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Project handbook
+
+Before changing anything, read `docs/PROJECT_HANDBOOK.md`: product scope, environments and release steps, data model and RLS, conventions, the event search pipeline, recipes for common changes, known pitfalls and current feature status.
